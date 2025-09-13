@@ -1,0 +1,107 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 1
+      name: "Warm up"
+
+    # Ramp up load
+    - duration: 60
+      arrivalRate: 1
+      rampTo: 10
+      name: "Ramp up"
+
+    # Sustained load
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load"
+
+    # Spike test
+    - duration: 30
+      arrivalRate: 50
+      name: "Spike test"
+
+    # Recovery
+    - duration: 60
+      arrivalRate: 5
+      name: "Recovery"
+
+  plugins:
+    ensure:
+      thresholds:
+        - http.response_time.p95: 1000  # 95% of requests under 1s
+        - http.response_time.p99: 2000  # 99% of requests under 2s
+        - http.codes.200: 100           # All requests successful
+        - http.request_rate: 10         # At least 10 req/s
+
+  processor: "./load-processor.js"
+
+scenarios:
+  - name: "Create and monitor run"
+    weight: 60
+    flow:
+      - post:
+          url: "/runs"
+          json:
+            plan:
+              goal: "Performance test {{ $randomString() }}"
+              steps:
+                - name: "step1"
+                  tool: "codegen"
+                  inputs:
+                    topic: "Test {{ $randomNumber() }}"
+          capture:
+            - json: "$.id"
+              as: "runId"
+
+      - loop:
+        - get:
+            url: "/runs/{{ runId }}"
+        count: 5
+
+      - think: 2
+
+  - name: "Health check spam"
+    weight: 20
+    flow:
+      - loop:
+        - get:
+            url: "/health"
+        count: 10
+
+  - name: "Complex multi-step run"
+    weight: 15
+    flow:
+      - post:
+          url: "/runs"
+          json:
+            plan:
+              goal: "Complex performance test"
+              steps:
+                - name: "step1"
+                  tool: "codegen"
+                  inputs:
+                    data: "{{ $randomString(1000) }}"
+                - name: "step2"
+                  tool: "verify"
+                  inputs:
+                    check: true
+                - name: "step3"
+                  tool: "deploy"
+                  inputs:
+                    target: "prod"
+
+  - name: "Concurrent run creation"
+    weight: 5
+    flow:
+      - loop:
+        - post:
+            url: "/runs"
+            json:
+              plan:
+                goal: "Concurrent {{ $loopCount }}"
+                steps:
+                  - name: "concurrent_step"
+                    tool: "test"
+        count: 3

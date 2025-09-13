@@ -1,0 +1,15 @@
+<%~ include('layout', { body: `
+<h1>Run ${run.id} — ${run.status}</h1>
+<pre id="timeline"></pre>
+<h2>Artifacts</h2>
+<ul>
+${artifacts.map(a => `<li>${a.step_name}: <a href="/ui/artifacts/signed?path=${encodeURIComponent(a.uri)}">download</a></li>`).join('')}
+</ul>
+<script>
+async function load() {
+  const rsp = await fetch('/runs/${run.id}/timeline'); const data = await rsp.json();
+  document.getElementById('timeline').textContent = JSON.stringify(data,null,2);
+}
+load(); setInterval(load, 2000);
+</script>
+`}) %>

@@ -1,0 +1,6 @@
+<%~ include('layout', { body: `
+<h1>Runs</h1>
+<ul>
+${runs.map(r => `<li><a href="/ui/runs/${r.id}">${r.id}</a> — ${r.status}</li>`).join('')}
+</ul>
+`}) %>
