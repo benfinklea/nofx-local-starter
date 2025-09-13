@@ -8,6 +8,8 @@ import { log } from "../lib/logger";
 import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
 import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
+import fs from 'node:fs';
+import path from 'node:path';
 
 dotenv.config();
 const app = express();
@@ -74,3 +76,16 @@ mountRouters(app);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => log.info(`API listening on :${port}`));
+
+// Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
+if (process.env.DEV_RESTART_WATCH === '1') {
+  const flagPath = path.join(process.cwd(), '.dev-restart');
+  let last = 0;
+  setInterval(() => {
+    try {
+      const stat = fs.statSync(flagPath);
+      const m = stat.mtimeMs;
+      if (m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
+    } catch {}
+  }, 1500);
+}
