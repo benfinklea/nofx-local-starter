@@ -34,7 +34,8 @@ if (which === 'unit') {
     const cov = JSON.parse(fs.readFileSync('coverage/coverage-final.json','utf8'));
     const changed = getChangedLines();
     const pct = computeChangedLinesCoverage(cov, changed);
-    const ok = pct >= 0.90;
+    const threshold = Math.max(0, Math.min(1, Number(process.env.COVERAGE_THRESHOLD || '0.90')));
+    const ok = pct >= threshold;
     summary = { gate: 'unit', passed: r.code === 0 && ok, changedLinesCoverage: pct };
     fs.writeFileSync('gate-artifacts/coverage-summary.json', JSON.stringify(summary,null,2));
     code = summary.passed ? 0 : 1;

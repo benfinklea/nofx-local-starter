@@ -12,6 +12,7 @@ import { mountRouters } from './loader';
 dotenv.config();
 const app = express();
 app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
 
 // ADD view engine + static for future UI
 app.set('view engine', 'ejs');

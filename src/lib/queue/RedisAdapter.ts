@@ -3,7 +3,9 @@ import IORedis from "ioredis";
 import { log } from "../logger";
 
 export class RedisQueueAdapter {
-  connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379");
+  connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+    maxRetriesPerRequest: null
+  });
   queues = new Map<string, Queue>();
 
   private getQueue(topic: string) {

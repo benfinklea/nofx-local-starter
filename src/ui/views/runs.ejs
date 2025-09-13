@@ -1,6 +1,12 @@
-<%~ include('layout', { body: `
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - Runs</title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+</head><body>
 <h1>Runs</h1>
+<p><a href="/ui/settings">Settings</a></p>
 <ul>
-${runs.map(r => `<li><a href="/ui/runs/${r.id}">${r.id}</a> — ${r.status}</li>`).join('')}
+<% runs.forEach(r => { %>
+  <li><a href="/ui/runs/<%= r.id %>"><%= r.id %></a> — <%= r.status %></li>
+<% }) %>
 </ul>
-`}) %>
+</body></html>

@@ -1,15 +1,110 @@
-<%~ include('layout', { body: `
-<h1>Run ${run.id} — ${run.status}</h1>
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - Run <%= run.id %></title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+</head><body>
+<h1>Run <%= run.id %> — <%= run.status %></h1>
 <pre id="timeline"></pre>
 <h2>Artifacts</h2>
 <ul>
-${artifacts.map(a => `<li>${a.step_name}: <a href="/ui/artifacts/signed?path=${encodeURIComponent(a.uri)}">download</a></li>`).join('')}
+<% artifacts.forEach(a => { %>
+  <li><%= a.step_name %>: <a href="/ui/artifacts/signed?path=<%= encodeURIComponent(a.uri) %>">download</a></li>
+<% }) %>
 </ul>
+<h2>LLM Usage</h2>
+<pre id="usage"></pre>
+<h2>Gates</h2>
+<div id="gates">
+  <% if (gates && gates.length) { %>
+    <table>
+      <tr><th>Type</th><th>Status</th><th>Approved By</th><th>Actions</th></tr>
+      <% gates.forEach(g => { %>
+        <tr>
+          <td><%= g.gate_type %></td>
+          <td><%= g.status %></td>
+          <td><%= g.approved_by || '' %></td>
+          <td>
+            <% if (g.status === 'pending') { %>
+              <button onclick="approve('<%= g.id %>')">Approve</button>
+              <button onclick="waive('<%= g.id %>')">Waive</button>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </table>
+  <% } else { %>
+    <p>No gates yet.</p>
+  <% } %>
+  </div>
 <script>
 async function load() {
-  const rsp = await fetch('/runs/${run.id}/timeline'); const data = await rsp.json();
+  const rsp = await fetch('/runs/<%= run.id %>/timeline');
+  const data = await rsp.json();
   document.getElementById('timeline').textContent = JSON.stringify(data,null,2);
 }
-load(); setInterval(load, 2000);
+load();
+setInterval(load, 2000);
+
+async function loadUsage(){
+  const rsp = await fetch('/runs/<%= run.id %>/timeline');
+  const ev = await rsp.json();
+  const usage = ev.filter(e => e.type === 'llm.usage');
+  if (!usage.length) { document.getElementById('usage').textContent = 'No usage recorded.'; return; }
+  const totals = {};
+  let totalCost = 0;
+  for (const u of usage) {
+    const p = (u.payload.provider||'unknown') + ':' + (u.payload.model||'');
+    if (!totals[p]) totals[p] = { input:0, output:0, total:0, calls:0 };
+    const s = totals[p];
+    s.input += u.payload.usage?.inputTokens || 0;
+    s.output += u.payload.usage?.outputTokens || 0;
+    s.total += u.payload.usage?.totalTokens || 0;
+    s.calls += 1;
+    if (typeof u.payload.costUSD === 'number') totalCost += u.payload.costUSD;
+  }
+  const lines = Object.keys(totals).map(k => `${k} -> calls=${totals[k].calls} total=${totals[k].total} (in=${totals[k].input}, out=${totals[k].output})`);
+  lines.push(`Total cost (approx): $${totalCost.toFixed(4)}`);
+  document.getElementById('usage').textContent = lines.join('\n');
+}
+loadUsage();
+setInterval(loadUsage, 4000);
+
+async function loadGates(){
+  const rsp = await fetch('/runs/<%= run.id %>/gates');
+  const data = await rsp.json();
+  const container = document.getElementById('gates');
+  if (!Array.isArray(data) || data.length === 0) {
+    container.innerHTML = '<p>No gates yet.</p>';
+    return;
+  }
+  let html = '<table><tr><th>Type</th><th>Status</th><th>Approved By</th><th>Actions</th></tr>';
+  for (const g of data) {
+    html += `<tr>` +
+      `<td>${escapeHtml(g.gate_type)}</td>` +
+      `<td>${escapeHtml(g.status)}</td>` +
+      `<td>${g.approved_by ? escapeHtml(g.approved_by) : ''}</td>` +
+      `<td>` + (g.status === 'pending'
+        ? `<button onclick=\"approve('${g.id}')\">Approve</button> <button onclick=\"waive('${g.id}')\">Waive</button>`
+        : '') + `</td>` +
+      `</tr>`;
+  }
+  html += '</table>';
+  container.innerHTML = html;
+}
+function escapeHtml(s){
+  return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+loadGates();
+setInterval(loadGates, 2000);
+
+async function approve(id){
+  const rsp = await fetch('/gates/' + id + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'local-user' }) });
+  if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
+  location.reload();
+}
+async function waive(id){
+  const rsp = await fetch('/gates/' + id + '/waive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'local-user' }) });
+  if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
+  location.reload();
+}
 </script>
-`}) %>
+</body></html>
