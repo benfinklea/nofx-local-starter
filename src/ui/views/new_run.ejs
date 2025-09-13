@@ -1,0 +1,80 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - New Run</title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+</head><body>
+<h1>New Run</h1>
+<p>Create a run from a simple preset or custom JSON. Hover the (?) icons for guidance.</p>
+
+<section>
+  <h2>Presets</h2>
+  <button onclick="presetGatedCodegen()">Gated Codegen README <span title="Runs typecheck, lint, unit, then generates a README via your model routing.">?</span></button>
+  <button onclick="presetManualDeploy()">Manual Deploy Gate <span title="Creates a pending manual:deploy approval you can approve in the UI.">?</span></button>
+  <button onclick="presetCodegenPR()">Codegen + PR <span title="Generates README then opens a branch + PR with the change.">?</span></button>
+</section>
+
+<section>
+  <h2>Plan</h2>
+  <label>Goal <input id="goal" placeholder="Describe the goal" style="width:360px"/></label>
+  <div>
+    <textarea id="plan" rows="18" style="width:720px" placeholder='{
+  "steps": [
+    { "name": "typecheck", "tool": "gate:typecheck" },
+    { "name": "lint", "tool": "gate:lint" },
+    { "name": "unit", "tool": "gate:unit" },
+    { "name": "write readme", "tool": "codegen", "inputs": { "topic": "Welcome", "bullets": ["Control plane","Verification","Workers"] } }
+  ]
+}'></textarea>
+  </div>
+  <p><button onclick="createRun()">Create Run</button> <span id="status"></span></p>
+</section>
+
+<script>
+function setPlan(obj){ document.getElementById('plan').value = JSON.stringify(obj, null, 2); }
+function presetGatedCodegen(){
+  setPlan({ steps:[
+    { name:'typecheck', tool:'gate:typecheck' },
+    { name:'lint', tool:'gate:lint' },
+    { name:'unit', tool:'gate:unit' },
+    { name:'write readme', tool:'codegen', inputs:{ topic:'Welcome', bullets:['Control plane','Verification','Workers'] } }
+  ]});
+  document.getElementById('goal').value = 'gated codegen';
+}
+function presetManualDeploy(){
+  setPlan({ steps:[ { name:'deploy approval', tool:'manual:deploy' } ]});
+  document.getElementById('goal').value = 'manual approval';
+}
+function presetCodegenPR(){
+  setPlan({ steps:[
+    { name:'write readme', tool:'codegen', inputs:{ topic:'Welcome', bullets:['Control plane','Verification','Workers'] } },
+    { name:'open pr', tool:'git_pr', inputs: { branch: 'feat/nofx-readme', base: 'main', title: 'docs: add readme', commits:[ { path:'README.md', fromArtifact:'runs/REPLACE_RUN/steps/REPLACE_STEP/README.md' } ] } }
+  ]});
+  document.getElementById('goal').value = 'codegen + PR';
+}
+async function createRun(){
+  const goal = document.getElementById('goal').value || 'ad-hoc run';
+  let plan;
+  try { plan = JSON.parse(document.getElementById('plan').value); } catch (e) { document.getElementById('status').textContent = 'Invalid JSON'; return; }
+  const body = { plan: { goal, steps: plan.steps||[] } };
+  const rsp = await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!rsp.ok) { document.getElementById('status').textContent = 'Failed to create'; return; }
+  const data = await rsp.json();
+  // If preset with placeholders, try to patch artifact paths to real run/step
+  try {
+    const runId = data.id;
+    const tl = await fetch(`/runs/${runId}`);
+    const details = await tl.json();
+    const codegenStep = (details.steps||[]).find(s => s.tool === 'codegen');
+    const prStep = (details.steps||[]).find(s => s.tool === 'git_pr');
+    if (codegenStep && prStep) {
+      const updated = { plan: { goal, steps: [ { name: prStep.name, tool: 'git_pr', inputs: {
+        branch: 'feat/nofx-readme', base: 'main', title: 'docs: add readme',
+        commits: [ { path:'README.md', fromArtifact: `runs/${runId}/steps/${codegenStep.id}/README.md` } ]
+      } } ] } };
+      await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(updated) });
+    }
+  } catch {}
+  window.location.href = `/ui/runs/${data.id}`;
+}
+</script>
+</body></html>
+

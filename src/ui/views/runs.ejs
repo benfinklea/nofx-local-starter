@@ -3,7 +3,10 @@
 <link rel="stylesheet" href="/ui/static/style.css"/>
 </head><body>
 <h1>Runs</h1>
-<p><a href="/ui/settings">Settings</a></p>
+<p>
+  <a href="/ui/settings" title="Configure approvals, gates, and AI routing.">Settings</a>
+  | <a href="/ui/runs/new" title="Create a new run with presets or custom plan.">New Run</a>
+</p>
 <ul>
 <% runs.forEach(r => { %>
   <li><a href="/ui/runs/<%= r.id %>"><%= r.id %></a> — <%= r.status %></li>
