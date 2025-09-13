@@ -15,7 +15,7 @@ log.info("Worker up");
 
 // Dev-only restart watcher to exit when flag changes
 if (process.env.DEV_RESTART_WATCH === '1') {
-  const flagPath = path.join(process.cwd(), '.dev-restart');
+  const flagPath = path.join(process.cwd(), '.dev-restart-worker');
   let last = 0;
   setInterval(() => {
     try {

@@ -8,12 +8,14 @@ export default function mount(app: Express){
     if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'not found' });
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
     try {
-      const flag = path.join(process.cwd(), '.dev-restart');
-      fs.writeFileSync(flag, String(Date.now()));
+      const apiFlag = path.join(process.cwd(), '.dev-restart-api');
+      const workerFlag = path.join(process.cwd(), '.dev-restart-worker');
+      const now = String(Date.now());
+      fs.writeFileSync(apiFlag, now);
+      fs.writeFileSync(workerFlag, now);
       res.json({ ok: true });
     } catch (e:any) {
       res.status(500).json({ error: e.message });
     }
   });
 }
-

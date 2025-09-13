@@ -10,6 +10,7 @@ import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
 import fs from 'node:fs';
 import path from 'node:path';
+import http from 'node:http';
 
 dotenv.config();
 const app = express();
@@ -74,12 +75,25 @@ app.get("/runs/:id/timeline", async (req, res) => {
 // ADD at the end of file, after existing routes:
 mountRouters(app);
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => log.info(`API listening on :${port}`));
+const port = Number(process.env.PORT || 3000);
+function listenWithRetry(attempt=0){
+  const server = http.createServer(app);
+  server.once('error', (err: any) => {
+    if (err && err.code === 'EADDRINUSE' && attempt < 5) {
+      const delay = 500 + attempt*250;
+      log.warn({ attempt, delay }, 'Port in use; retrying listen');
+      setTimeout(() => listenWithRetry(attempt+1), delay);
+    } else {
+      throw err;
+    }
+  });
+  server.listen(port, () => log.info(`API listening on :${port}`));
+}
+listenWithRetry();
 
 // Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
 if (process.env.DEV_RESTART_WATCH === '1') {
-  const flagPath = path.join(process.cwd(), '.dev-restart');
+  const flagPath = path.join(process.cwd(), '.dev-restart-api');
   let last = 0;
   setInterval(() => {
     try {
