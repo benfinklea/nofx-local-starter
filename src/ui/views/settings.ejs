@@ -114,13 +114,7 @@ async function load(){
   state.codegen = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.codegen) || [];
   renderOrder('docs'); renderOrder('reasoning'); renderOrder('codegen');
 
-  // Providers
-  const providers = (settings.llm && settings.llm.providers) || {};
-  for (const name of Object.keys(providers)){
-    const p = providers[name] || {};
-    const pricing = (settings.llm && settings.llm.pricing && settings.llm.pricing[name]) || {};
-    addProviderRow(name, p.kind, p.baseUrl||'', p.model||'', pricing.inputPer1M||'', pricing.outputPer1M||'');
-  }
+  // Providers UI removed; manage providers via Models page
 }
 
 function addRuleRow(tableName='', ops=[]){
