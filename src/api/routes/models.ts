@@ -37,7 +37,12 @@ export default function mount(app: Express){
         return res.json({ imported: count, via: 'custom-list' });
       }
       if (v === 'openai') {
-        const r = await importOpenAIModels();
+        const filterRaw = (req.body && (req.body.filter || req.body.includes)) || '';
+        const excludeRaw = (req.body && (req.body.exclude || req.body.excludes)) || '';
+        const filter = Array.isArray(filterRaw) ? filterRaw : String(filterRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
+        const exclude = Array.isArray(excludeRaw) ? excludeRaw : String(excludeRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
+        const recommendedOnly = !!(req.body && (req.body.recommendedOnly ?? true));
+        const r = await importOpenAIModels({ filter, exclude, recommendedOnly });
         return res.json(r);
       }
       if (v === 'anthropic') return res.json(await seedAnthropicModels());

@@ -15,7 +15,10 @@
   <div class="section-title"><h1 style="margin:12px 0">Models</h1><span class="tip" data-tip="Manage models and pricing per 1M tokens. These populate routing dropdowns.">?</span></div>
   <div class="card"><div class="bd">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-      <button class="btn" onclick="importVendor('openai')">Import from OpenAI</button>
+      <button class="btn" onclick="importOpenAI()">Import from OpenAI</button>
+      <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="openaiRec" checked/> Recommended only</label>
+      <input id="openaiFilter" placeholder="filter contains (comma separated)" style="width:260px"/>
+      <input id="openaiExclude" placeholder="exclude contains (comma separated)" style="width:260px"/>
       <button class="btn" onclick="importVendor('anthropic')">Seed Anthropic</button>
       <input id="anthropicList" placeholder="opus-4.1, sonnet-4, claude-3-5-sonnet-latest" style="width:360px"/>
       <button class="btn" onclick="seedList('anthropic','anthropicList')">Seed List</button>
@@ -162,6 +165,18 @@ function num(id){ const v = Number(val(id)); return isFinite(v)?v:undefined; }
 function escape(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 async function importVendor(v){
   const rsp = await fetch('/models/import/' + v, { method:'POST' });
+  if (rsp.status === 401) { window.location.href='/ui/login'; return; }
+  const data = await rsp.json();
+  document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
+  if (rsp.ok) load();
+}
+async function importOpenAI(){
+  const body = {
+    recommendedOnly: document.getElementById('openaiRec').checked,
+    filter: document.getElementById('openaiFilter').value,
+    exclude: document.getElementById('openaiExclude').value
+  };
+  const rsp = await fetch('/models/import/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (rsp.status === 401) { window.location.href='/ui/login'; return; }
   const data = await rsp.json();
   document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
