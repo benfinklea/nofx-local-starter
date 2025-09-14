@@ -1,48 +1,114 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><title>NOFX - Models</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
 </head><body>
-<h1>Models</h1>
-<p><a href="/ui/settings">Back to Settings</a></p>
-<p>
-  <button onclick="importVendor('openai')">Import from OpenAI</button>
-  <button onclick="importVendor('anthropic')">Seed Anthropic</button>
-  <input id="anthropicList" placeholder="opus-4.1, sonnet-4, claude-3-5-sonnet-latest" style="width:360px"/>
-  <button onclick="seedList('anthropic','anthropicList')">Seed List</button>
-  <br/>
-  <button onclick="importVendor('gemini')">Seed Gemini</button>
-  <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite" style="width:360px"/>
-  <button onclick="seedList('gemini','geminiList')">Seed List</button>
-  <span id="importStatus"></span>
-  <small style="color:#666; display:block; margin-top:4px;">OpenAI import requires OPENAI_API_KEY in .env.</small>
-  <small style="color:#666; display:block;">You can add other vendors manually below.</small>
-</p>
-<table id="models">
-  <tr><th>Provider</th><th>Name</th><th>Display</th><th>Kind</th><th>Base URL</th><th>In/1M</th><th>Out/1M</th><th>Context</th><th>Active</th><th></th></tr>
-</table>
-<h2>Add / Update</h2>
-<div>
-  <label>Provider <input id="m_provider" placeholder="openai|anthropic|gemini|grok|local"/></label>
-  <label>Name <input id="m_name" placeholder="gpt-4o-mini"/></label>
-  <label>Display <input id="m_display" placeholder="OpenAI GPT-4o mini"/></label>
-  <label>Kind
-    <select id="m_kind">
-      <option>openai</option>
-      <option>anthropic</option>
-      <option>gemini</option>
-      <option>openai-compatible</option>
-      <option>http</option>
-    </select>
-  </label>
-  <label>Base URL <input id="m_base" placeholder="http://localhost:11434/v1/chat/completions"/></label>
-  <label>Input/1M <input id="m_in" type="number" step="0.01" min="0"/></label>
-  <label>Output/1M <input id="m_out" type="number" step="0.01" min="0"/></label>
-  <label>Context <input id="m_ctx" type="number" step="1" min="0"/></label>
-  <label>Max Output <input id="m_max" type="number" step="1" min="0"/></label>
-  <label><input id="m_active" type="checkbox" checked/> Active</label>
-  <button onclick="saveModel()">Save</button>
-  <span id="status"></span>
-  <p style="color:#666">Secrets are not stored here. Set env vars like LLM_<PROVIDER>_API_KEY.</p>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+
+<div class="container">
+  <div class="section-title"><h1 style="margin:12px 0">Models</h1><span class="tip" data-tip="Manage models and pricing per 1M tokens. These populate routing dropdowns.">?</span></div>
+  <sl-card>
+    <div slot="header">Add Models</div>
+
+    <div class="card" style="margin:12px 0"><div class="bd">
+      <div class="section-title"><h3 style="margin:0">OpenAI</h3><span class="tip" data-tip="Fetch and add OpenAI models. Use filters to narrow the list. Recommended-only adds GPT‑5 family by default.">?</span></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12">
+          <label style="display:inline-flex;align-items:center;gap:8px">
+            <input type="checkbox" id="openaiRec" checked/> Recommended only
+          </label>
+        </div>
+        <div class="col-6">
+          <label>Filter contains
+            <input id="openaiFilter" placeholder="e.g. gpt-5, mini"/>
+          </label>
+        </div>
+        <div class="col-6">
+          <label>Exclude contains
+            <input id="openaiExclude" placeholder="e.g. legacy, audio"/>
+          </label>
+        </div>
+        <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" onclick="previewOpenAI()">Preview From OpenAI</button>
+          <button class="btn primary" onclick="importOpenAI()">Add From OpenAI</button>
+        </div>
+      </div>
+      <small class="muted">Requires OPENAI_API_KEY in .env.</small>
+    </div>
+
+    <div class="card" style="margin:12px 0"><div class="bd">
+      <div class="section-title"><h3 style="margin:0">Anthropic</h3><span class="tip" data-tip="Add common Claude models, or paste names to add specific ones.">?</span></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12"><button class="btn" onclick="importVendor('anthropic')">Add Common Anthropic Models</button></div>
+        <div class="col-9">
+          <label>Add models by name (comma separated)
+            <input id="anthropicList" placeholder="opus-4.1, sonnet-4, haiku-3.5"/>
+          </label>
+        </div>
+        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('anthropic','anthropicList')">Add Models</button></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin:12px 0"><div class="bd">
+      <div class="section-title"><h3 style="margin:0">Gemini</h3><span class="tip" data-tip="Add common Gemini models, or paste names to add specific ones.">?</span></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12"><button class="btn" onclick="importVendor('gemini')">Add Common Gemini Models</button></div>
+        <div class="col-9">
+          <label>Add models by name (comma separated)
+            <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite"/>
+          </label>
+        </div>
+        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('gemini','geminiList')">Add Models</button></div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px"><span id="importStatus" class="muted"></span></div>
+  </sl-card>
+
+  <sl-card style="margin-top:16px"><div slot="header">Add / Update</div><div class="bd">
+    <label>Provider <input id="m_provider" placeholder="openai|anthropic|gemini|grok|local"/></label>
+    <div id="warn_provider" class="warn-text" style="display:none">Tip: provider helps group models (e.g., openai, anthropic, gemini)</div>
+    <label>Name <input id="m_name" placeholder="gpt-4o-mini"/></label>
+    <div id="warn_name" class="warn-text" style="display:none">Tip: name should match the provider's model identifier</div>
+    <label>Display <input id="m_display" placeholder="OpenAI GPT-4o mini"/></label>
+    <label>Kind
+      <select id="m_kind">
+        <option>openai</option>
+        <option>anthropic</option>
+        <option>gemini</option>
+        <option>openai-compatible</option>
+        <option>http</option>
+      </select>
+    </label>
+    <label>Base URL <input id="m_base" placeholder="http://localhost:11434/v1/chat/completions"/></label>
+    <div class="grid">
+      <div class="col-6"><label>Input/1M <input id="m_in" type="number" step="0.01" min="0"/></label></div>
+      <div class="col-6"><label>Output/1M <input id="m_out" type="number" step="0.01" min="0"/></label></div>
+    </div>
+    <div id="warn_pricing" class="warn-text" style="display:none">Optional: add pricing to enable cost estimates.</div>
+    <div class="grid">
+      <div class="col-6"><label>Context <input id="m_ctx" type="number" step="1" min="0"/></label></div>
+      <div class="col-6"><label>Max Output <input id="m_max" type="number" step="1" min="0"/></label></div>
+    </div>
+    <label><input id="m_active" type="checkbox" checked/> Active</label>
+    <sl-button variant="primary" onclick="saveModel()">Save</sl-button>
+    <span id="status" class="muted" style="margin-left:8px"></span>
+    <p class="muted" style="margin-top:10px">Secrets are not stored here. Set env vars like LLM_&lt;PROVIDER&gt;_API_KEY.</p>
+  </div></sl-card>
+
+  <sl-card style="margin-top:16px"><div slot="header">Model List</div><div class="bd">
+    <table id="models">
+      <tr><th>Provider</th><th>Name</th><th>Display</th><th>Kind</th><th>Base URL</th><th>In/1M</th><th>Out/1M</th><th>Pricing</th><th>Context</th><th>Active</th><th></th></tr>
+    </table>
+  </div></sl-card>
 </div>
 
 <script>
@@ -50,13 +116,15 @@ async function load(){
   const rsp = await fetch('/models');
   if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
   const data = await rsp.json();
+  window._models = data.models||[];
   const t = document.getElementById('models');
   while (t.rows.length > 1) t.deleteRow(1);
-  (data.models||[]).forEach(m => addRow(m));
+  _models.forEach((m, i) => addRow(m, i));
 }
-function addRow(m){
+function addRow(m, idx){
   const t = document.getElementById('models');
   const tr = document.createElement('tr');
+  const hasPricing = (m.input_per_1m != null && m.input_per_1m > 0) || (m.output_per_1m != null && m.output_per_1m > 0);
   tr.innerHTML = `
     <td>${escape(m.provider)}</td>
     <td>${escape(m.name)}</td>
@@ -65,9 +133,13 @@ function addRow(m){
     <td>${escape(m.base_url||'')}</td>
     <td>${m.input_per_1m ?? ''}</td>
     <td>${m.output_per_1m ?? ''}</td>
+    <td>${hasPricing ? '<span class="badge ok">priced</span>' : '<span class="badge warn">missing</span>'}</td>
     <td>${m.context_tokens ?? ''}</td>
     <td>${m.active? 'yes':'no'}</td>
-    <td><button onclick="del('${m.id}')">Delete</button></td>
+    <td>
+      <button class="btn small" onclick="edit(${idx})">Edit</button>
+      <button class="btn small danger" onclick="del('${m.id}')">Delete</button>
+    </td>
   `;
   t.appendChild(tr);
 }
@@ -88,6 +160,43 @@ async function saveModel(){
   document.getElementById('status').textContent = rsp.ok ? 'Saved' : 'Error';
   if (rsp.ok) load();
 }
+function validate(){
+  const provider = document.getElementById('m_provider');
+  const name = document.getElementById('m_name');
+  const inP = document.getElementById('m_in');
+  const outP = document.getElementById('m_out');
+  const warnProvider = document.getElementById('warn_provider');
+  const warnName = document.getElementById('warn_name');
+  const warnPricing = document.getElementById('warn_pricing');
+  const providerEmpty = !provider.value.trim();
+  const nameEmpty = !name.value.trim();
+  provider.classList.toggle('input-warn', providerEmpty);
+  name.classList.toggle('input-warn', nameEmpty);
+  warnProvider.style.display = providerEmpty ? 'block' : 'none';
+  warnName.style.display = nameEmpty ? 'block' : 'none';
+  const hasPricing = (!!inP.value && Number(inP.value) >= 0) || (!!outP.value && Number(outP.value) >= 0);
+  warnPricing.style.display = hasPricing ? 'none' : 'block';
+}
+['m_provider','m_name','m_in','m_out'].forEach(id=>{
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', validate);
+});
+function edit(i){
+  const m = (_models||[])[i];
+  if (!m) return;
+  document.getElementById('m_provider').value = m.provider || '';
+  document.getElementById('m_name').value = m.name || '';
+  document.getElementById('m_display').value = m.display_name || '';
+  document.getElementById('m_kind').value = m.kind || 'openai';
+  document.getElementById('m_base').value = m.base_url || '';
+  document.getElementById('m_in').value = m.input_per_1m ?? '';
+  document.getElementById('m_out').value = m.output_per_1m ?? '';
+  document.getElementById('m_ctx').value = m.context_tokens ?? '';
+  document.getElementById('m_max').value = m.max_output_tokens ?? '';
+  document.getElementById('m_active').checked = m.active !== false;
+  document.getElementById('status').textContent = 'Loaded model for edit — click Save to update';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 async function del(id){
   const rsp = await fetch('/models/' + id, { method:'DELETE' });
   if (rsp.ok) load();
@@ -102,6 +211,88 @@ async function importVendor(v){
   document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
   if (rsp.ok) load();
 }
+async function importOpenAI(){
+  const body = {
+    recommendedOnly: document.getElementById('openaiRec').checked,
+    filter: document.getElementById('openaiFilter').value,
+    exclude: document.getElementById('openaiExclude').value
+  };
+  const rsp = await fetch('/models/import/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (rsp.status === 401) { window.location.href='/ui/login'; return; }
+  const data = await rsp.json();
+  document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
+  if (rsp.ok) load();
+}
+async function previewOpenAI(){
+  const body = {
+    recommendedOnly: document.getElementById('openaiRec').checked,
+    filter: document.getElementById('openaiFilter').value,
+    exclude: document.getElementById('openaiExclude').value
+  };
+  const rsp = await fetch('/models/preview/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (rsp.status === 401) { window.location.href='/ui/login'; return; }
+  const data = await rsp.json();
+  openPreview(data.candidates||[]);
+}
+function openPreview(names){
+  const backdrop = document.getElementById('previewBackdrop');
+  const list = document.getElementById('previewList');
+  list.innerHTML = '';
+  if (!names.length){ list.innerHTML = '<p class="muted">No models matched your filters.</p>'; }
+  const groups = [
+    { title: 'GPT‑5', test: /^gpt-5/i },
+    { title: 'GPT‑4o', test: /^gpt-4o/i },
+    { title: 'GPT‑4.1', test: /^gpt-4\.1/i },
+    { title: 'O‑series', test: /^o3/i },
+    { title: 'Other', test: /.*/ }
+  ];
+  function titleFor(n){ const g = groups.find(x=>x.test.test(n)) || groups[groups.length-1]; return g.title; }
+  const byGroup = new Map();
+  names.forEach(n => {
+    const key = titleFor(n);
+    if (!byGroup.has(key)) byGroup.set(key, []);
+    byGroup.get(key).push(n);
+  });
+  for (const [title, arr] of byGroup.entries()){
+    const hWrap = document.createElement('div'); hWrap.style.display='flex'; hWrap.style.alignItems='center'; hWrap.style.gap='8px'; hWrap.style.margin='10px 0 6px';
+    const h = document.createElement('h4'); h.textContent = title; h.style.margin='0'; hWrap.appendChild(h);
+    const spacer = document.createElement('div'); spacer.style.flex='1'; hWrap.appendChild(spacer);
+    const sel = document.createElement('button'); sel.className='btn small'; sel.textContent='Select group'; sel.onclick=()=>toggleGroup(title,true); hWrap.appendChild(sel);
+    const clr = document.createElement('button'); clr.className='btn small'; clr.textContent='Clear group'; clr.onclick=()=>toggleGroup(title,false); hWrap.appendChild(clr);
+    list.appendChild(hWrap);
+    arr.forEach(n => {
+      const id = 'pv_' + n.replace(/[^a-z0-9_\-\.]/gi,'_');
+      const row = document.createElement('div');
+      row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='6px 0';
+      row.innerHTML = `<input type=\"checkbox\" class=\"pv-check\" id=\"${id}\" data-group=\"${title}\" data-name=\"${n}\" checked/> <label for=\"${id}\"><code>${n}</code></label>`;
+      list.appendChild(row);
+    });
+  }
+  updatePreviewCount();
+  backdrop.style.display = 'flex';
+}
+function closePreview(){ document.getElementById('previewBackdrop').style.display='none'; }
+async function addSelectedFromPreview(){
+  const checks = Array.from(document.querySelectorAll('#previewList input[type=checkbox]'));
+  const names = checks.filter(c=>c.checked).map(c=>c.getAttribute('data-name'));
+  if (!names.length){ closePreview(); return; }
+  const rsp = await fetch('/models/import/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names }) });
+  const data = await rsp.json();
+  document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
+  closePreview();
+  if (rsp.ok) load();
+}
+function selectAllPreview(){ document.querySelectorAll('#previewList .pv-check').forEach(c=>c.checked=true); updatePreviewCount(); }
+function selectNonePreview(){ document.querySelectorAll('#previewList .pv-check').forEach(c=>c.checked=false); updatePreviewCount(); }
+function updatePreviewCount(){
+  const total = document.querySelectorAll('#previewList .pv-check').length;
+  const sel = Array.from(document.querySelectorAll('#previewList .pv-check')).filter(c=>c.checked).length;
+  const el = document.getElementById('previewCount'); if (el) el.textContent = sel + ' of ' + total + ' selected';
+}
+function toggleGroup(title, checked){
+  document.querySelectorAll(`#previewList .pv-check[data-group="${CSS.escape(title)}"]`).forEach(c=>{ c.checked = !!checked; });
+  updatePreviewCount();
+}
 async function seedList(v, inputId){
   const names = document.getElementById(inputId).value;
   if (!names) return;
@@ -113,4 +304,24 @@ async function seedList(v, inputId){
 }
 load();
 </script>
+
+<!-- Preview Modal -->
+<div id="previewBackdrop" class="modal-backdrop" onclick="if(event.target===this) closePreview()">
+  <div class="modal">
+    <div class="hd">Preview OpenAI Models</div>
+    <div class="bd">
+      <p class="muted">Select which models to add:</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <button class="btn small" onclick="selectAllPreview()">Select All</button>
+        <button class="btn small" onclick="selectNonePreview()">Select None</button>
+        <span id="previewCount" class="muted" style="margin-left:auto"></span>
+      </div>
+      <div id="previewList"></div>
+    </div>
+    <div class="ft">
+      <button class="btn" onclick="closePreview()">Cancel</button>
+      <button class="btn primary" onclick="addSelectedFromPreview()">Add Selected</button>
+    </div>
+  </div>
+</div>
 </body></html>

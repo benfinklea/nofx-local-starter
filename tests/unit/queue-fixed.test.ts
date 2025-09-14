@@ -60,12 +60,13 @@ describe('Queue Module - Fixed Tests', () => {
       expect(mockQueue.add).toHaveBeenCalledWith('job', payload, undefined);
     });
 
-    test('enqueues with embedded options', async () => {
-      const payload = { test: 'data', delay: 5000, attempts: 3 };
+    test('enqueues with options', async () => {
+      const payload = { test: 'data' };
+      const options = { delay: 5000, attempts: 3 };
 
-      await enqueue('test.topic', payload);
+      await enqueue('test.topic', payload, options);
 
-      expect(mockQueue.add).toHaveBeenCalledWith('job', payload, undefined);
+      expect(mockQueue.add).toHaveBeenCalledWith('job', payload, options);
     });
 
     test('handles various payload types', async () => {

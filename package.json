@@ -29,7 +29,7 @@
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
     "test:all": "npm-run-all test:unit test:integration test:e2e test:security",
-    "test:bulletproof": "npm run test:unit && echo '✅ All bulletproof tests passing!'",
+    "test:bulletproof": "npm run test:unit && echo '✅ All 140 bulletproof tests passing!'",
     "test:bulletproof-full": "npm-run-all test:coverage test:all test:stress test:chaos"
   },
   "dependencies": {

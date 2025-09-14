@@ -8,6 +8,9 @@ import { log } from "../lib/logger";
 import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
 import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
 
 dotenv.config();
 const app = express();
@@ -23,7 +26,31 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 const CreateRunSchema = z.object({ plan: PlanSchema });
 
+// Preview a plan built from standard (plain-language) input
+app.post('/runs/preview', async (req, res) => {
+  try {
+    if (req.body && req.body.standard) {
+      const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget } as any);
+      return res.json({ steps: built.steps, plan: built });
+    }
+    return res.status(400).json({ error: 'missing standard' });
+  } catch (e:any) {
+    return res.status(400).json({ error: e.message || 'failed to preview' });
+  }
+});
+
 app.post("/runs", async (req, res) => {
+  // Standard mode: build a plan from plain-language prompt and settings
+  if (req.body && req.body.standard) {
+    try {
+      const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget } as any);
+      req.body = { plan: built };
+    } catch (e:any) {
+      return res.status(400).json({ error: e.message || 'bad standard request' });
+    }
+  }
   const parsed = CreateRunSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { plan } = parsed.data;
@@ -72,5 +99,43 @@ app.get("/runs/:id/timeline", async (req, res) => {
 // ADD at the end of file, after existing routes:
 mountRouters(app);
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => log.info(`API listening on :${port}`));
+const port = Number(process.env.PORT || 3000);
+function listenWithRetry(attempt=0){
+  const server = http.createServer(app);
+  server.once('error', (err: any) => {
+    if (err && err.code === 'EADDRINUSE') {
+      const delay = 500 + attempt*250;
+      if (attempt < 4) {
+        log.warn({ attempt, delay }, 'Port in use; retrying listen');
+        setTimeout(() => listenWithRetry(attempt+1), delay);
+      } else {
+        log.warn('Port still in use after retries');
+        if (process.env.DEV_RESTART_WATCH === '1') {
+          log.warn('Dev mode: exiting to allow clean restart');
+          process.exit(0);
+        }
+        throw err;
+      }
+    } else {
+      throw err;
+    }
+  });
+  server.listen(port, () => log.info(`API listening on :${port}`));
+}
+listenWithRetry();
+
+// Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
+if (process.env.DEV_RESTART_WATCH === '1') {
+  const flagPath = path.join(process.cwd(), '.dev-restart-api');
+  let last = 0;
+  setInterval(() => {
+    try {
+      const stat = fs.statSync(flagPath);
+      const m = stat.mtimeMs;
+      if (m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
+    } catch {}
+  }, 1500);
+}
+
+// Build a plan from simple prompt using Settings
+import { buildPlanFromPrompt } from './planBuilder';

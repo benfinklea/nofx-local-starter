@@ -2,39 +2,63 @@
 <meta charset="utf-8"/><title>NOFX - Run <%= run.id %></title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
 </head><body>
-<h1>Run <%= run.id %> — <%= run.status %></h1>
-<pre id="timeline"></pre>
-<h2>Artifacts</h2>
-<ul>
-<% artifacts.forEach(a => { %>
-  <li><%= a.step_name %>: <a href="/ui/artifacts/signed?path=<%= encodeURIComponent(a.uri) %>">download</a></li>
-<% }) %>
-</ul>
-<h2>LLM Usage</h2>
-<pre id="usage"></pre>
-<h2>Gates</h2>
-<div id="gates">
-  <% if (gates && gates.length) { %>
-    <table>
-      <tr><th>Type</th><th>Status</th><th>Approved By</th><th>Actions</th></tr>
-      <% gates.forEach(g => { %>
-        <tr>
-          <td><%= g.gate_type %></td>
-          <td><%= g.status %></td>
-          <td><%= g.approved_by || '' %></td>
-          <td>
-            <% if (g.status === 'pending') { %>
-              <button onclick="approve('<%= g.id %>')">Approve</button>
-              <button onclick="waive('<%= g.id %>')">Waive</button>
-            <% } %>
-          </td>
-        </tr>
-      <% }) %>
-    </table>
-  <% } else { %>
-    <p>No gates yet.</p>
-  <% } %>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
   </div>
+</div></div>
+<div class="container">
+  <div class="grid">
+    <div class="col-8">
+      <div class="card"><div class="hd">Run <code><%= run.id %></code></div><div class="bd">
+        <p>Status:
+          <% const s = String(run.status||'').toLowerCase(); %>
+          <span class="badge <%= s==='succeeded'?'ok':(s==='failed'?'err':(s==='queued'?'warn':'')) %>"><%= run.status %></span>
+          <span class="tip" data-tip="Live timeline refresh every 2 seconds.">?</span>
+        </p>
+        <pre id="timeline"></pre>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Artifacts <span class="tip" data-tip="Artifacts are stored with hashes and signed for secure download.">?</span></div><div class="bd">
+        <ul class="list">
+        <% artifacts.forEach(a => { %>
+          <li><strong><%= a.step_name %></strong> — <a class="btn small" href="/ui/artifacts/signed?path=<%= encodeURIComponent(a.uri) %>">Download</a></li>
+        <% }) %>
+        </ul>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">LLM Usage</div><div class="bd">
+        <pre id="usage">Loading…</pre>
+      </div></div>
+    </div>
+    <div class="col-4">
+      <div class="card"><div class="hd">Gates <span class="tip" data-tip="Approve or waive to continue. Manual gates enforce human checks.">?</span></div><div class="bd">
+        <div id="gates">
+          <% if (gates && gates.length) { %>
+            <table>
+              <tr><th>Type</th><th>Status</th><th>Actions</th></tr>
+              <% gates.forEach(g => { %>
+                <tr>
+                  <td><%= g.gate_type %></td>
+                  <td><span class="badge <%= g.status==='passed'?'ok':(g.status==='failed'?'err':(g.status==='pending'?'warn':'')) %>"><%= g.status %></span></td>
+                  <td>
+                    <% if (g.status === 'pending') { %>
+                      <button class="btn small" onclick="approve('<%= g.id %>')">Approve</button>
+                      <button class="btn small ghost" onclick="waive('<%= g.id %>')">Waive</button>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </table>
+          <% } else { %>
+            <p class="muted">No gates yet.</p>
+          <% } %>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
 <script>
 async function load() {
   const rsp = await fetch('/runs/<%= run.id %>/timeline');

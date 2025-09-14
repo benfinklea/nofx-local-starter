@@ -8,6 +8,10 @@ export default function mount(app: Express){
     const rows = await query<any>(`select id,status,created_at from nofx.run order by created_at desc limit 100`);
     res.render('runs', { runs: rows.rows });
   });
+  // Place the 'new' route BEFORE the ':id' route to avoid param capture
+  app.get('/ui/runs/new', async (_req, res) => {
+    res.render('new_run');
+  });
   app.get('/ui/runs/:id', async (req, res) => {
     const runId = req.params.id;
     const run = await query<any>(`select * from nofx.run where id = $1`, [runId]);

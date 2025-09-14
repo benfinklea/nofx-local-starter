@@ -128,10 +128,11 @@ describe('Queue Module Tests', () => {
     expect(mockQueueAdd).toHaveBeenCalledWith('job', { data: 'test' }, undefined);
   });
 
-  test('enqueues with data', async () => {
-    await enqueue('test.topic', { data: 'test', delay: 5000 });
+  test('enqueues with options', async () => {
+    const options = { delay: 5000, attempts: 3 };
+    await enqueue('test.topic', { data: 'test' }, options);
 
-    expect(mockQueueAdd).toHaveBeenCalledWith('job', { data: 'test', delay: 5000 }, undefined);
+    expect(mockQueueAdd).toHaveBeenCalledWith('job', { data: 'test' }, options);
   });
 
   test('handles various payload types', async () => {

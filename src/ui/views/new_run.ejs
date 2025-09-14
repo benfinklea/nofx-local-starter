@@ -1,0 +1,231 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - New Run</title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
+</head><body>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+<div class="container">
+<div class="section-title"><h1 style="margin:12px 0">New Run</h1><span class="tip" data-tip="Tell NOFX what you want in plain language. Quality checks run automatically based on Settings. Developers can expand the JSON editor below.">?</span></div>
+
+<sl-tab-group activation="manual" style="margin-top:8px">
+  <sl-tab slot="nav" panel="std" active>Standard</sl-tab>
+  <sl-tab slot="nav" panel="dev">Developers</sl-tab>
+
+  <sl-tab-panel name="std">
+    <section class="card"><div class="bd">
+      <div class="section-title" style="margin-bottom:6px">Standard <sl-tooltip content="Standard = plain language. Developers = JSON."><span class="tip">?</span></sl-tooltip></div>
+      <label>What should it do? <a href="#" class="small-link" onclick="openInfo('info_prompt');return false;">Learn more</a>
+        <textarea id="std_prompt" rows="5" placeholder="Example: Create docs/overview.md that explains models and pricing. Open a PR."></textarea>
+      </label>
+      <sl-details summary="Advanced Options" style="margin-top:8px">
+        <div class="grid">
+          <div class="col-6"><label>Search & summarize <a href="#" class="small-link" onclick="openInfo('info_sum');return false;">Learn more</a>
+            <input id="std_sumq" placeholder="e.g. pricing policy"/></label></div>
+          <div class="col-6"><label>Summarize into <a href="#" class="small-link" onclick="openInfo('info_sumtarget');return false;">Learn more</a>
+            <input id="std_sumtarget" placeholder="e.g. docs/summary.md"/></label></div>
+        </div>
+        <div class="grid" style="align-items:center">
+          <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks <a href="#" class="small-link" onclick="openInfo('info_quality');return false;">Learn more</a></label></div>
+          <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR <a href="#" class="small-link" onclick="openInfo('info_pr');return false;">Learn more</a></label></div>
+        </div>
+        <div class="muted" style="margin-top:6px">Examples</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn small" onclick="ex('Write a clear README explaining NOFX’s control plane, verification gates, and workers. Open a PR with the change.', true, true)">README + PR</button>
+          <button class="btn small" onclick="ex('Create docs/overview.md that explains how to add models and set pricing. Open a PR.', true, true)">Docs/overview.md</button>
+          <button class="btn small" onclick="ex('Draft CONTRIBUTING.md with setup steps, run commands, and code style. Require manual approval before opening a PR.', true, true)">Contributing + Approval</button>
+        </div>
+      </sl-details>
+      <div class="grid" style="margin-top:8px;align-items:center">
+        <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px">
+          <button class="btn" onclick="previewStandard()">Preview</button>
+          <button class="btn primary" onclick="createStandardRun()">Create Run</button>
+        </div>
+      </div>
+  <div id="whatHappens" class="muted" style="margin-top:6px"></div>
+      <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
+      <div style="margin-top:12px">
+        <div class="muted" style="margin-bottom:6px">Examples</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn small" onclick="ex('Write a clear README explaining NOFX’s control plane, verification gates, and workers. Open a PR with the change.', true, true)">README + PR</button>
+          <button class="btn small" onclick="ex('Create docs/overview.md that explains how to add models and set pricing. Open a PR.', true, true)">Docs/overview.md</button>
+          <button class="btn small" onclick="ex('Draft CONTRIBUTING.md with setup steps, run commands, and code style. Require manual approval before opening a PR.', true, true)">Contributing + Approval</button>
+        </div>
+      </div>
+    </div></section>
+  </sl-tab-panel>
+
+  <sl-tab-panel name="dev">
+    <section class="card" style="margin-top:8px"><div class="bd">
+      <label>Goal <input id="goal" placeholder="Describe the goal" style="max-width:420px"/></label>
+      <div>
+        <textarea id="plan" rows="18" style="width:100%;max-width:900px" placeholder='{
+  "steps": [
+    { "name": "typecheck", "tool": "gate:typecheck" },
+    { "name": "lint", "tool": "gate:lint" },
+    { "name": "unit", "tool": "gate:unit" },
+    { "name": "write readme", "tool": "codegen", "inputs": { "topic": "Welcome", "bullets": ["Control plane","Verification","Workers"] } }
+  ]
+}'></textarea>
+      </div>
+      <p><button class="btn" onclick="createRun()">Create Run (Developers)</button> <span id="status" class="muted"></span></p>
+    </div></section>
+  </sl-tab-panel>
+</sl-tab-group>
+</div>
+
+<script>
+function setPlan(obj){ document.getElementById('plan').value = JSON.stringify(obj, null, 2); }
+function presetGatedCodegen(){
+  setPlan({ steps:[
+    { name:'typecheck', tool:'gate:typecheck' },
+    { name:'lint', tool:'gate:lint' },
+    { name:'unit', tool:'gate:unit' },
+    { name:'write readme', tool:'codegen', inputs:{ topic:'Welcome', bullets:['Control plane','Verification','Workers'] } }
+  ]});
+  document.getElementById('goal').value = 'gated codegen';
+}
+function presetManualDeploy(){
+  setPlan({ steps:[ { name:'deploy approval', tool:'manual:deploy' } ]});
+  document.getElementById('goal').value = 'manual approval';
+}
+function presetCodegenPR(){
+  setPlan({ steps:[
+    { name:'write readme', tool:'codegen', inputs:{ topic:'Welcome', bullets:['Control plane','Verification','Workers'] } },
+    { name:'open pr', tool:'git_pr', inputs: { branch: 'feat/nofx-readme', base: 'main', title: 'docs: add readme', commits:[ { path:'README.md', fromArtifact:'runs/REPLACE_RUN/steps/REPLACE_STEP/README.md' } ] } }
+  ]});
+  document.getElementById('goal').value = 'codegen + PR';
+}
+async function createRun(){
+  const goal = document.getElementById('goal').value || 'ad-hoc run';
+  let plan;
+  try { plan = JSON.parse(document.getElementById('plan').value); } catch (e) { document.getElementById('status').textContent = 'Invalid JSON'; return; }
+  const body = { plan: { goal, steps: plan.steps||[] } };
+  const rsp = await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!rsp.ok) { document.getElementById('status').textContent = 'Failed to create'; return; }
+  const data = await rsp.json();
+  // If preset with placeholders, try to patch artifact paths to real run/step
+  try {
+    const runId = data.id;
+    const tl = await fetch(`/runs/${runId}`);
+    const details = await tl.json();
+    const codegenStep = (details.steps||[]).find(s => s.tool === 'codegen');
+    const prStep = (details.steps||[]).find(s => s.tool === 'git_pr');
+    if (codegenStep && prStep) {
+      const updated = { plan: { goal, steps: [ { name: prStep.name, tool: 'git_pr', inputs: {
+        branch: 'feat/nofx-readme', base: 'main', title: 'docs: add readme',
+        commits: [ { path:'README.md', fromArtifact: `runs/${runId}/steps/${codegenStep.id}/README.md` } ]
+      } } ] } };
+      await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(updated) });
+    }
+  } catch {}
+  window.location.href = `/ui/runs/${data.id}`;
+}
+async function createStandardRun(){
+  const prompt = document.getElementById('std_prompt').value.trim();
+  const quality = document.getElementById('std_quality').checked;
+  const openPr = document.getElementById('std_openpr').checked;
+  if (!prompt) { document.getElementById('status').textContent = 'Please describe what you want to do.'; return; }
+  const summarizeQuery = document.getElementById('std_sumq').value.trim();
+  const summarizeTarget = document.getElementById('std_sumtarget').value.trim();
+  const body = { standard: { prompt, quality, openPr, summarizeQuery: summarizeQuery||undefined, summarizeTarget: summarizeTarget||undefined } };
+  const rsp = await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!rsp.ok) { document.getElementById('status').textContent = 'Failed to create'; return; }
+  const data = await rsp.json();
+  window.location.href = `/ui/runs/${data.id}`;
+}
+async function previewStandard(show=true){
+  const prompt = document.getElementById('std_prompt').value.trim();
+  if (!prompt) return;
+  const quality = document.getElementById('std_quality').checked;
+  const openPr = document.getElementById('std_openpr').checked;
+  const summarizeQuery = document.getElementById('std_sumq').value.trim();
+  const summarizeTarget = document.getElementById('std_sumtarget').value.trim();
+  const rsp = await fetch('/runs/preview', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ standard: { prompt, quality, openPr, summarizeQuery: summarizeQuery||undefined, summarizeTarget: summarizeTarget||undefined } }) });
+  const data = await rsp.json();
+  const ul = document.getElementById('previewSteps');
+  ul.innerHTML = '';
+  (data.steps||[]).forEach(s => { const li = document.createElement('li'); const extra = (s.tool==='git_pr' && s.inputs && s.inputs.reason) ? ` (${s.inputs.reason})` : ''; li.textContent = `${s.tool} — ${s.name}${extra}`; ul.appendChild(li); });
+  // Update inline summary sentence
+  const what = document.getElementById('whatHappens');
+  try {
+    const tools = (data.steps||[]).map(s=>s.tool);
+    const hasPR = tools.includes('git_pr');
+    const code = (data.steps||[]).find(s=>s.tool==='codegen');
+    const filename = code?.inputs?.filename || 'README.md';
+    const parts = [];
+    if (quality && (tools.some(t=>t.startsWith('gate:')))) parts.push('run quality checks');
+    parts.push(`generate ${filename}`);
+    if (hasPR) parts.push('open a PR');
+    what.textContent = `We will ${parts.join(', ')}.`;
+  } catch { what.textContent = '' }
+  if (show) document.querySelector('#planPreview').show();
+}
+function ex(text, quality=true, pr=true){
+  document.getElementById('std_prompt').value = text;
+  document.getElementById('std_quality').checked = !!quality;
+  document.getElementById('std_openpr').checked = !!pr;
+}
+// Auto-preview (debounced) to update inline summary as users type
+let _pvTimer;
+['std_prompt','std_quality','std_openpr','std_sumq','std_sumtarget'].forEach(id=>{
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', ()=>{ clearTimeout(_pvTimer); _pvTimer = setTimeout(()=>previewStandard(false), 400); });
+  el.addEventListener('change', ()=>{ clearTimeout(_pvTimer); _pvTimer = setTimeout(()=>previewStandard(false), 50); });
+});
+</script>
+<sl-dialog id="planPreview" label="Plan Preview">
+  <div>
+    <p class="muted">We will run the following steps:</p>
+    <ul id="previewSteps"></ul>
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#planPreview').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_prompt" label="What should it do?">
+  <div>
+    Write in plain language. Examples:
+    <ul>
+      <li>Create docs/overview.md describing models and pricing.</li>
+      <li>Write a README explaining the control plane and gates.</li>
+      <li>Open a PR with the changes.</li>
+    </ul>
+    If you ask to “open a PR”, we will add a PR step (marked “Prompt”).
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_prompt').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_sum" label="Search & summarize">
+  <div>
+    Summarizes local code/docs related to your topic into a short Markdown document. This does not search the web, only your project.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_sum').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_sumtarget" label="Summarize into">
+  <div>
+    Where to write the summary (e.g., docs/summary.md). Leave blank to let NOFX choose a sensible default.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_sumtarget').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_quality" label="Quality checks">
+  <div>
+    Runs Typecheck, Lint, and Unit tests as configured in Settings. Recommended On for reliable changes and auditability.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_quality').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_pr" label="Open a GitHub PR">
+  <div>
+    Creates a branch, commits generated files, and opens a PR. Requires your git remote to point to GitHub and GITHUB_TOKEN in .env.
+    If your prompt explicitly asks for a PR, we add it even if the toggle is off; the step will be labeled “Prompt”.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_pr').hide()">Close</sl-button>
+</sl-dialog>
+</body></html>

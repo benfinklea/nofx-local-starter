@@ -1,11 +1,22 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><title>NOFX - Settings</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
 </head><body>
-<h1>Settings</h1>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+<div class="container">
+<div class="section-title"><h1 style="margin:12px 0">Settings</h1><span class="tip" data-tip="Configure approvals, gates, and AI routing.">?</span></div>
 
-<section>
-  <h2>Approvals</h2>
+<sl-card><div class="bd">
+  <div slot="header">Approvals</div>
   <label>DB Writes require approval:
     <select id="dbWrites">
       <option value="none">None</option>
@@ -16,55 +27,64 @@
   <label>
     <input type="checkbox" id="allowWaive"/> Allow Waive (dev only)
   </label>
-</section>
+</div></sl-card>
 
 <!-- Providers are managed on the Models page -->
 
-<section>
-  <h2>Checks (Gates)</h2>
+<sl-card style="margin-top:16px"><div class="bd">
+  <div slot="header">Checks (Gates)</div>
   <label><input type="checkbox" id="gateTypecheck"/> Typecheck</label>
   <label><input type="checkbox" id="gateLint"/> Lint</label>
   <label><input type="checkbox" id="gateUnit"/> Unit</label>
   <label>Coverage Threshold: <input type="number" id="coverage" min="0" max="100" step="1"/> %</label>
-</section>
+</div></sl-card>
 
-<section>
-  <h2>Data Writes (Allow-list)</h2>
+<sl-card style="margin-top:16px"><div class="bd">
+  <div slot="header">Data Writes (Allow-list)</div>
   <p>Allowed operations by table. Add rows as needed.</p>
   <table id="rulesTable">
     <tr><th>Table</th><th>Insert</th><th>Update</th><th>Delete</th><th></th></tr>
   </table>
   <button onclick="addRuleRow()">Add Rule</button>
-</section>
+</div></sl-card>
 
-<section>
-  <h2>AI Routing</h2>
+<sl-card style="margin-top:16px"><div class="bd">
+  <div slot="header">AI Routing</div>
   <p>Select model order for each task. Manage models on the <a href="/ui/models">Models</a> page.</n>
   <div>
     <h3>Docs</h3>
-    <select id="docsSelect"></select>
+    <sl-select id="docsSelect" clearable></sl-select>
     <button onclick="addToOrder('docs')">Add</button>
     <ul id="docsOrder"></ul>
   </div>
   <div>
     <h3>Reasoning</h3>
-    <select id="reasoningSelect"></select>
+    <sl-select id="reasoningSelect" clearable></sl-select>
     <button onclick="addToOrder('reasoning')">Add</button>
     <ul id="reasoningOrder"></ul>
   </div>
   <div>
     <h3>Codegen</h3>
-    <select id="codegenSelect"></select>
+    <sl-select id="codegenSelect" clearable></sl-select>
     <button onclick="addToOrder('codegen')">Add</button>
     <ul id="codegenOrder"></ul>
   </div>
-</section>
+</div></sl-card>
 
-<p>
-  <button onclick="save()">Save</button>
-  <span id="status"></span>
+<div style="margin:12px 0">
+  <button class="btn primary" onclick="save()">Save</button>
+  <span id="status" class="muted" style="margin-left:8px"></span>
   <a style="margin-left:12px" href="/ui/models">Manage Models</a>
-</p>
+</div>
+
+<% /* Dev-only restart (visible always; backend checks NODE_ENV/role) */ %>
+<sl-card style="margin-top:16px"><div class="bd">
+  <div slot="header">Development</div>
+  <button class="btn" onclick="restartBackend()" title="Writes a restart flag; dev server exits and restarts.">Restart Backend</button>
+  <small style="color:#666">Requires DEV_RESTART_WATCH=1 in .env and admin login. No effect in production.</small>
+  <span id="devStatus"></span>
+  <p>Tip: This restarts both API and Worker processes started by npm run dev.</p>
+</div></sl-card>
 
 <script>
 async function load(){
@@ -82,27 +102,24 @@ async function load(){
   for (const r of db_write_rules) {
     addRuleRow(r.table_name, r.allowed_ops||[]);
   }
-  // Load models for dropdowns
+  // Load models for dropdowns with friendly labels
   const modelsRsp = await fetch('/models');
   const modelsData = await modelsRsp.json();
-  const models = (modelsData.models||[]).filter(m => m.active !== false).map(m=>m.name);
+  const activeModels = (modelsData.models||[]).filter(m => m.active !== false);
+  window._labelByName = {};
+  const modelOptions = activeModels.map(m => ({ value: m.name, label: `${m.provider}: ${m.display_name || m.name}` }));
+  modelOptions.forEach(m => _labelByName[m.value] = m.label);
   for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
     const sel = document.getElementById(selId);
     sel.innerHTML = '';
-    models.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; sel.appendChild(opt); });
+    modelOptions.forEach(m => { const opt = document.createElement('sl-option'); opt.value = m.value; opt.textContent = m.label; sel.appendChild(opt); });
   }
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];
   state.codegen = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.codegen) || [];
   renderOrder('docs'); renderOrder('reasoning'); renderOrder('codegen');
 
-  // Providers
-  const providers = (settings.llm && settings.llm.providers) || {};
-  for (const name of Object.keys(providers)){
-    const p = providers[name] || {};
-    const pricing = (settings.llm && settings.llm.pricing && settings.llm.pricing[name]) || {};
-    addProviderRow(name, p.kind, p.baseUrl||'', p.model||'', pricing.inputPer1M||'', pricing.outputPer1M||'');
-  }
+  // Providers UI removed; manage providers via Models page
 }
 
 function addRuleRow(tableName='', ops=[]){
@@ -155,6 +172,12 @@ async function save(){
   const ok = rsp.ok;
   document.getElementById('status').textContent = ok ? 'Saved ✓' : 'Failed to save';
   if (ok) setTimeout(()=>document.getElementById('status').textContent='', 2000);
+}
+
+async function restartBackend(){
+  const rsp = await fetch('/dev/restart', { method:'POST' });
+  if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
+  document.getElementById('devStatus').textContent = rsp.ok ? 'Restarting…' : 'Failed';
 }
 
 function escapeHtml(s){
@@ -236,7 +259,8 @@ function renderOrder(kind){
   ul.innerHTML = '';
   state[kind].forEach((name, idx) => {
     const li = document.createElement('li');
-    li.textContent = name + ' ';
+    const label = (window._labelByName && window._labelByName[name]) || name;
+    li.textContent = label + ' ';
     const up = document.createElement('button'); up.textContent = '↑'; up.onclick = ()=>{ if (idx>0){ const t=state[kind][idx-1]; state[kind][idx-1]=state[kind][idx]; state[kind][idx]=t; renderOrder(kind);} };
     const down = document.createElement('button'); down.textContent = '↓'; down.onclick = ()=>{ if (idx<state[kind].length-1){ const t=state[kind][idx+1]; state[kind][idx+1]=state[kind][idx]; state[kind][idx]=t; renderOrder(kind);} };
     const rm = document.createElement('button'); rm.textContent = '✕'; rm.onclick = ()=>{ state[kind].splice(idx,1); renderOrder(kind); };
@@ -246,5 +270,6 @@ function renderOrder(kind){
 }
 
 load();
+</div>
 </script>
 </body></html>
