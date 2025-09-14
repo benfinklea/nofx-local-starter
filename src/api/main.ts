@@ -93,7 +93,7 @@ app.get("/runs/:id", async (req, res) => {
 
 app.get("/runs/:id/timeline", async (req, res) => {
   const runId = req.params.id;
-  const ev = await query<Record<string, unknown>>(`select * from nofx.event where run_id = $1 order by timestamp asc`, [runId]);
+  const ev = await query<Record<string, unknown>>(`select * from nofx.event where run_id = $1 order by created_at asc`, [runId]);
   res.json(ev.rows);
 });
 
