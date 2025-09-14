@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  gate-typecheck:
+    name: gate-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run gate:typecheck
+
+  gate-lint:
+    name: gate-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run gate:lint
+
+  gate-unit:
+    name: gate-unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Set BASE_REF for PRs
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "BASE_REF=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
+      - name: Run unit gate (Vitest)
+        env:
+          CI: true
+        run: npm run gate:unit
+      - name: Upload gate artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload coverage (artifact)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+  jest-unit:
+    name: jest-unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run Jest unit tests
+        env:
+          CI: true
+        run: npm run test:unit
+
+  codecov:
+    name: codecov
+    needs: [gate-unit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Re-run vitest to ensure coverage exists (no-op if cached)
+        env:
+          CI: true
+        run: npm run gate:unit || true
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unit
+          name: codecov
+          fail_ci_if_error: true
+          verbose: false
