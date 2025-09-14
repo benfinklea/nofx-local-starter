@@ -72,8 +72,8 @@ const handler: StepHandler = {
         const stepRow = await query<any>(`select id from nofx.step where run_id=$1 and name=$2 limit 1`, [runId, c.fromStep]);
         const sid = stepRow.rows[0]?.id;
         if (!sid) throw new Error(`step not found: ${c.fromStep}`);
-        const art = await query<any>(`select coalesce(uri,path) as uri from nofx.artifact where step_id=$1 and (uri like $2 or path like $2) limit 1`, [sid, `%/${c.artifactName}`]);
-        const pth = art.rows[0]?.uri;
+        const art = await query<any>(`select path as uri from nofx.artifact where step_id=$1 and path like $2 limit 1`, [sid, `%/${c.artifactName}`]);
+        const pth = (art.rows[0] as any)?.uri as string | undefined;
         if (!pth) throw new Error(`artifact not found: ${c.artifactName} in step ${c.fromStep}`);
         const buf = await getArtifactBuffer(pth);
         fs.writeFileSync(outPath, buf);

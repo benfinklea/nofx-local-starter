@@ -47,7 +47,7 @@ const handler: StepHandler = {
     const path = `runs/${runId}/steps/${stepId}/${artifactName}`;
     const { error } = await supabase.storage.from(ARTIFACT_BUCKET).upload(path, new Blob([result.content]), { upsert: true } as any);
     if (error) throw error;
-    await query(`insert into nofx.artifact (step_id, type, uri, metadata) values ($1,$2,$3,$4)`, [
+    await query(`insert into nofx.artifact (step_id, type, path, metadata) values ($1,$2,$3,$4)`, [
       stepId, "text/markdown", path, JSON.stringify({ tool: step.tool })
     ]);
     await query(`update nofx.step set status='succeeded', outputs=$2, ended_at=now() where id=$1`, [

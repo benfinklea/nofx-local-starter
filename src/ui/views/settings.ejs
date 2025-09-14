@@ -53,19 +53,19 @@
   <p>Select model order for each task. Manage models on the <a href="/ui/models">Models</a> page.</n>
   <div>
     <h3>Docs</h3>
-    <sl-select id="docsSelect" clearable></sl-select>
+    <sl-select id="docsSelect" clearable hoist></sl-select>
     <button onclick="addToOrder('docs')">Add</button>
     <ul id="docsOrder"></ul>
   </div>
   <div>
     <h3>Reasoning</h3>
-    <sl-select id="reasoningSelect" clearable></sl-select>
+    <sl-select id="reasoningSelect" clearable hoist></sl-select>
     <button onclick="addToOrder('reasoning')">Add</button>
     <ul id="reasoningOrder"></ul>
   </div>
   <div>
     <h3>Codegen</h3>
-    <sl-select id="codegenSelect" clearable></sl-select>
+    <sl-select id="codegenSelect" clearable hoist></sl-select>
     <button onclick="addToOrder('codegen')">Add</button>
     <ul id="codegenOrder"></ul>
   </div>
@@ -89,7 +89,7 @@
 <script>
 async function load(){
   const rsp = await fetch('/settings');
-  const { settings, db_write_rules } = await rsp.json();
+  const { settings, db_write_rules, models } = await rsp.json();
   document.getElementById('dbWrites').value = settings.approvals.dbWrites;
   document.getElementById('allowWaive').checked = !!settings.approvals.allowWaive;
   document.getElementById('gateTypecheck').checked = !!settings.gates.typecheck;
@@ -102,21 +102,66 @@ async function load(){
   for (const r of db_write_rules) {
     addRuleRow(r.table_name, r.allowed_ops||[]);
   }
-  // Load models for dropdowns with friendly labels
-  const modelsRsp = await fetch('/models');
-  const modelsData = await modelsRsp.json();
-  const activeModels = (modelsData.models||[]).filter(m => m.active !== false);
+  // Load models for dropdowns with friendly labels (provided in same response)
+  let activeModels = (models||[]).filter(m => m.active !== false);
+  // Fallback options if no DB models exist yet
+  if (!activeModels.length) {
+    activeModels = [
+      { provider: 'openai', name: (window.OPENAI_MODEL || 'gpt-5'), display_name: 'OpenAI (gpt-5)' },
+      { provider: 'anthropic', name: (window.ANTHROPIC_MODEL || 'claude-4-sonnet'), display_name: 'Anthropic (Claude 4 Sonnet)' },
+      { provider: 'gemini', name: (window.GEMINI_MODEL || 'gemini-2.5-pro'), display_name: 'Gemini (2.5 Pro)' }
+    ];
+  }
   window._labelByName = {};
   const modelOptions = activeModels.map(m => ({ value: m.name, label: `${m.provider}: ${m.display_name || m.name}` }));
   modelOptions.forEach(m => _labelByName[m.value] = m.label);
+  // Ensure web components are defined before injecting options
+  if (window.customElements && window.customElements.whenDefined) {
+    try { await customElements.whenDefined('sl-select'); await customElements.whenDefined('sl-option'); } catch {}
+  }
+  const optionsHtml = modelOptions.map(m => `<sl-option value="${m.value}">${m.label}</sl-option>`).join('');
   for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
     const sel = document.getElementById(selId);
-    sel.innerHTML = '';
-    modelOptions.forEach(m => { const opt = document.createElement('sl-option'); opt.value = m.value; opt.textContent = m.label; sel.appendChild(opt); });
+    if (!sel) continue;
+    sel.innerHTML = optionsHtml;
+    // Nudge the component to refresh its items, if supported
+    try { sel.requestUpdate && sel.requestUpdate(); } catch {}
   }
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];
   state.codegen = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.codegen) || [];
+  // If model order is empty and we have fallback options, prefill one entry each for quick start
+  if (!state.docs.length && modelOptions.length) state.docs = [modelOptions[0].value];
+  if (!state.reasoning.length && modelOptions.length) state.reasoning = [modelOptions[0].value];
+  if (!state.codegen.length && modelOptions.length) state.codegen = [modelOptions[0].value];
+
+  // Fallback: if for any reason options didn't attach, render a native <select>
+  setTimeout(() => {
+    for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
+      const sel = document.getElementById(selId);
+      if (!sel) continue;
+      const hasOptions = sel.querySelector('sl-option');
+      if (!hasOptions) {
+        const native = document.createElement('select');
+        native.id = selId + '-native';
+        native.innerHTML = modelOptions.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
+        sel.replaceWith(native);
+        // Wire Add button to read from native select
+        const kind = selId.replace('Select','');
+        const btn = kind === 'docs' ? document.querySelector("button[onclick=\"addToOrder('docs')\"]")
+                  : kind === 'reasoning' ? document.querySelector("button[onclick=\"addToOrder('reasoning')\"]")
+                  : document.querySelector("button[onclick=\"addToOrder('codegen')\"]");
+        if (btn) {
+          btn.onclick = () => {
+            const val = (native as HTMLSelectElement).value;
+            if (!val) return;
+            state[kind].push(val);
+            renderOrder(kind);
+          };
+        }
+      }
+    }
+  }, 0);
   renderOrder('docs'); renderOrder('reasoning'); renderOrder('codegen');
 
   // Providers UI removed; manage providers via Models page
@@ -248,9 +293,15 @@ function collectProviderPricing(){
 const state = { docs: [], reasoning: [], codegen: [] };
 function addToOrder(kind){
   const sel = document.getElementById(kind+'Select');
-  const val = sel && sel.value;
+  if (!sel) return;
+  let val = sel.value;
+  if (!val) {
+    const checked = sel.querySelector('sl-option[checked]') || sel.querySelector('sl-option[selected]');
+    if (checked) val = checked.value;
+  }
   if (!val) return;
   state[kind].push(val);
+  try { sel.value = ''; } catch {}
   renderOrder(kind);
 }
 function renderOrder(kind){

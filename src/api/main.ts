@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 
 dotenv.config();
-const app = express();
+export const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -93,7 +93,7 @@ app.get("/runs/:id", async (req, res) => {
 
 app.get("/runs/:id/timeline", async (req, res) => {
   const runId = req.params.id;
-  const ev = await query<Record<string, unknown>>(`select * from nofx.event where run_id = $1 order by timestamp asc`, [runId]);
+  const ev = await query<Record<string, unknown>>(`select * from nofx.event where run_id = $1 order by created_at asc`, [runId]);
   res.json(ev.rows);
 });
 
@@ -124,7 +124,9 @@ function listenWithRetry(attempt = 0) {
   });
   server.listen(port, () => log.info(`API listening on :${port}`));
 }
-listenWithRetry();
+if (process.env.NODE_ENV !== 'test') {
+  listenWithRetry();
+}
 
 // Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
 if (process.env.DEV_RESTART_WATCH === '1') {
@@ -143,3 +145,5 @@ if (process.env.DEV_RESTART_WATCH === '1') {
 
 // Build a plan from simple prompt using Settings
 import { buildPlanFromPrompt } from './planBuilder';
+
+export default app;
