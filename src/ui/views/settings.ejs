@@ -120,7 +120,13 @@ async function load(){
   for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
     const sel = document.getElementById(selId);
     sel.innerHTML = '';
-    modelOptions.forEach(m => { const opt = document.createElement('sl-option'); opt.value = m.value; opt.textContent = m.label; sel.appendChild(opt); });
+    modelOptions.forEach(m => {
+      const opt = document.createElement('sl-option');
+      // Set both property and attribute to satisfy web component upgrade timing
+      opt.value = m.value; opt.setAttribute('value', m.value);
+      opt.textContent = m.label;
+      sel.appendChild(opt);
+    });
   }
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];
@@ -260,9 +266,15 @@ function collectProviderPricing(){
 const state = { docs: [], reasoning: [], codegen: [] };
 function addToOrder(kind){
   const sel = document.getElementById(kind+'Select');
-  const val = sel && sel.value;
+  if (!sel) return;
+  let val = sel.value;
+  if (!val) {
+    const checked = sel.querySelector('sl-option[checked]') || sel.querySelector('sl-option[selected]');
+    if (checked) val = checked.value;
+  }
   if (!val) return;
   state[kind].push(val);
+  try { sel.value = ''; } catch {}
   renderOrder(kind);
 }
 function renderOrder(kind){
