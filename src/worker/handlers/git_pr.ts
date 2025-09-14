@@ -9,7 +9,9 @@ import path from "node:path";
 
 type CommitItem = {
   path: string;               // repo-relative file path
-  fromArtifact?: string;      // Supabase storage path of artifact
+  fromArtifact?: string;      // Supabase storage path of artifact (direct)
+  fromStep?: string;          // resolve artifact by prior step name
+  artifactName?: string;      // filename within that step (e.g., README.md)
   content?: string;           // inline content
   mode?: 'overwrite';
 };
@@ -64,6 +66,16 @@ const handler: StepHandler = {
       ensureDir(outPath);
       if (c.fromArtifact) {
         const buf = await getArtifactBuffer(c.fromArtifact);
+        fs.writeFileSync(outPath, buf);
+      } else if (c.fromStep && c.artifactName) {
+        // resolve artifact by step name and filename
+        const stepRow = await query<any>(`select id from nofx.step where run_id=$1 and name=$2 limit 1`, [runId, c.fromStep]);
+        const sid = stepRow.rows[0]?.id;
+        if (!sid) throw new Error(`step not found: ${c.fromStep}`);
+        const art = await query<any>(`select coalesce(uri,path) as uri from nofx.artifact where step_id=$1 and (uri like $2 or path like $2) limit 1`, [sid, `%/${c.artifactName}`]);
+        const pth = art.rows[0]?.uri;
+        if (!pth) throw new Error(`artifact not found: ${c.artifactName} in step ${c.fromStep}`);
+        const buf = await getArtifactBuffer(pth);
         fs.writeFileSync(outPath, buf);
       } else if (typeof c.content === 'string') {
         fs.writeFileSync(outPath, c.content, 'utf8');
@@ -127,4 +139,3 @@ const handler: StepHandler = {
 };
 
 export default handler;
-

@@ -27,6 +27,16 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 const CreateRunSchema = z.object({ plan: PlanSchema });
 
 app.post("/runs", async (req, res) => {
+  // Standard mode: build a plan from plain-language prompt and settings
+  if (req.body && req.body.standard) {
+    try {
+      const { prompt, quality = true, openPr = false } = req.body.standard || {};
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr });
+      req.body = { plan: built };
+    } catch (e:any) {
+      return res.status(400).json({ error: e.message || 'bad standard request' });
+    }
+  }
   const parsed = CreateRunSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { plan } = parsed.data;
@@ -111,4 +121,29 @@ if (process.env.DEV_RESTART_WATCH === '1') {
       if (m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
     } catch {}
   }, 1500);
+}
+
+// Build a plan from simple prompt using Settings
+import { getSettings } from "../lib/settings";
+function guessTopicFromPrompt(p:string){
+  if (!p) return 'NOFX';
+  // simple heuristic: take first sentence or 6 words
+  const m = p.split(/[\.\n]/)[0] || p;
+  const words = m.trim().split(/\s+/).slice(0, 8).join(' ');
+  return words || 'NOFX';
+}
+async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; openPr: boolean }){
+  const { gates } = await getSettings();
+  const steps: any[] = [];
+  if (opts.quality) {
+    if (gates.typecheck) steps.push({ name: 'typecheck', tool: 'gate:typecheck' });
+    if (gates.lint) steps.push({ name: 'lint', tool: 'gate:lint' });
+    if (gates.unit) steps.push({ name: 'unit', tool: 'gate:unit' });
+  }
+  const topic = guessTopicFromPrompt(prompt);
+  steps.push({ name: 'write readme', tool: 'codegen', inputs: { topic, bullets: ['Control plane','Verification','Workers'] } });
+  if (opts.openPr) {
+    steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${topic.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24)}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: 'README.md', fromStep: 'write readme', artifactName: 'README.md' } ] } });
+  }
+  return { goal: prompt || 'ad-hoc run', steps };
 }

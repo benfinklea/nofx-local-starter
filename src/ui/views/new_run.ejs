@@ -11,19 +11,23 @@
   </div>
 </div></div>
 <div class="container">
-<div class="section-title"><h1 style="margin:12px 0">New Run</h1><span class="tip" data-tip="Create ad-hoc runs with presets or custom JSON.">?</span></div>
+<div class="section-title"><h1 style="margin:12px 0">New Run</h1><span class="tip" data-tip="Tell NOFX what you want in plain language. Quality checks run automatically based on Settings. Developers can expand the JSON editor below.">?</span></div>
 
 <section class="card"><div class="bd">
-  <h2>Presets</h2>
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <button class="btn" onclick="presetGatedCodegen()">Gated Codegen README <span class="tip" data-tip="Runs typecheck, lint, unit, then generates a README.">?</span></button>
-    <button class="btn" onclick="presetManualDeploy()">Manual Deploy Gate <span class="tip" data-tip="Creates a pending manual:deploy approval.">?</span></button>
-    <button class="btn" onclick="presetCodegenPR()">Codegen + PR <span class="tip" data-tip="Generates README then opens a PR with the change.">?</span></button>
+  <h2>Standard</h2>
+  <label>What should it do?
+    <textarea id="std_prompt" rows="5" placeholder="Example: Create a clear README that explains NOFX’s control plane, verification gates, and workers. Open a PR with the change."></textarea>
+  </label>
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <label style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks</label>
+    <label style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR</label>
+    <button class="btn primary" onclick="createStandardRun()">Create Run</button>
   </div>
+  <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
 </div></section>
 
 <section class="card" style="margin-top:16px"><div class="bd">
-  <h2>Plan</h2>
+  <h2>Developers</h2>
   <label>Goal <input id="goal" placeholder="Describe the goal" style="max-width:420px"/></label>
   <div>
     <textarea id="plan" rows="18" style="width:100%;max-width:900px" placeholder='{
@@ -35,7 +39,7 @@
   ]
 }'></textarea>
   </div>
-  <p><button class="btn primary" onclick="createRun()">Create Run</button> <span id="status" class="muted"></span></p>
+  <p><button class="btn" onclick="createRun()">Create Run (Developers)</button> <span id="status" class="muted"></span></p>
 </div></section>
 </div>
 
@@ -84,6 +88,17 @@ async function createRun(){
       await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(updated) });
     }
   } catch {}
+  window.location.href = `/ui/runs/${data.id}`;
+}
+async function createStandardRun(){
+  const prompt = document.getElementById('std_prompt').value.trim();
+  const quality = document.getElementById('std_quality').checked;
+  const openPr = document.getElementById('std_openpr').checked;
+  if (!prompt) { document.getElementById('status').textContent = 'Please describe what you want to do.'; return; }
+  const body = { standard: { prompt, quality, openPr } };
+  const rsp = await fetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!rsp.ok) { document.getElementById('status').textContent = 'Failed to create'; return; }
+  const data = await rsp.json();
   window.location.href = `/ui/runs/${data.id}`;
 }
 </script>
