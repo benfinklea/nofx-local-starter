@@ -1,6 +1,8 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><title>NOFX - Models</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
 </head><body>
 <div class="header"><div class="inner">
   <div class="brand"><a href="/ui/runs">NOFX</a></div>
@@ -13,8 +15,8 @@
 
 <div class="container">
   <div class="section-title"><h1 style="margin:12px 0">Models</h1><span class="tip" data-tip="Manage models and pricing per 1M tokens. These populate routing dropdowns.">?</span></div>
-  <div class="card"><div class="bd">
-    <h2 style="margin-top:0">Add Models</h2>
+  <sl-card>
+    <div slot="header">Add Models</div>
 
     <div class="card" style="margin:12px 0"><div class="bd">
       <div class="section-title"><h3 style="margin:0">OpenAI</h3><span class="tip" data-tip="Fetch and add OpenAI models. Use filters to narrow the list. Recommended-only adds GPT‑5 family by default.">?</span></div>
@@ -40,7 +42,7 @@
         </div>
       </div>
       <small class="muted">Requires OPENAI_API_KEY in .env.</small>
-    </div></div>
+    </div>
 
     <div class="card" style="margin:12px 0"><div class="bd">
       <div class="section-title"><h3 style="margin:0">Anthropic</h3><span class="tip" data-tip="Add common Claude models, or paste names to add specific ones.">?</span></div>
@@ -53,7 +55,7 @@
         </div>
         <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('anthropic','anthropicList')">Add Models</button></div>
       </div>
-    </div></div>
+    </div>
 
     <div class="card" style="margin:12px 0"><div class="bd">
       <div class="section-title"><h3 style="margin:0">Gemini</h3><span class="tip" data-tip="Add common Gemini models, or paste names to add specific ones.">?</span></div>
@@ -66,12 +68,12 @@
         </div>
         <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('gemini','geminiList')">Add Models</button></div>
       </div>
-    </div></div>
+    </div>
 
-    <div><span id="importStatus" class="muted"></span></div>
-  </div></div>
+    <div style="margin-top:8px"><span id="importStatus" class="muted"></span></div>
+  </sl-card>
 
-  <div class="card" style="margin-top:16px"><div class="hd">Add / Update</div><div class="bd">
+  <sl-card style="margin-top:16px"><div slot="header">Add / Update</div><div class="bd">
     <label>Provider <input id="m_provider" placeholder="openai|anthropic|gemini|grok|local"/></label>
     <div id="warn_provider" class="warn-text" style="display:none">Tip: provider helps group models (e.g., openai, anthropic, gemini)</div>
     <label>Name <input id="m_name" placeholder="gpt-4o-mini"/></label>
@@ -97,16 +99,16 @@
       <div class="col-6"><label>Max Output <input id="m_max" type="number" step="1" min="0"/></label></div>
     </div>
     <label><input id="m_active" type="checkbox" checked/> Active</label>
-    <button class="btn primary" onclick="saveModel()">Save</button>
+    <sl-button variant="primary" onclick="saveModel()">Save</sl-button>
     <span id="status" class="muted" style="margin-left:8px"></span>
     <p class="muted" style="margin-top:10px">Secrets are not stored here. Set env vars like LLM_&lt;PROVIDER&gt;_API_KEY.</p>
-  </div></div>
+  </div></sl-card>
 
-  <div class="card" style="margin-top:16px"><div class="hd">Model List</div><div class="bd">
+  <sl-card style="margin-top:16px"><div slot="header">Model List</div><div class="bd">
     <table id="models">
       <tr><th>Provider</th><th>Name</th><th>Display</th><th>Kind</th><th>Base URL</th><th>In/1M</th><th>Out/1M</th><th>Pricing</th><th>Context</th><th>Active</th><th></th></tr>
     </table>
-  </div></div>
+  </div></sl-card>
 </div>
 
 <script>
@@ -252,12 +254,17 @@ function openPreview(names){
     byGroup.get(key).push(n);
   });
   for (const [title, arr] of byGroup.entries()){
-    const h = document.createElement('h4'); h.textContent = title; h.style.margin = '10px 0 6px'; list.appendChild(h);
+    const hWrap = document.createElement('div'); hWrap.style.display='flex'; hWrap.style.alignItems='center'; hWrap.style.gap='8px'; hWrap.style.margin='10px 0 6px';
+    const h = document.createElement('h4'); h.textContent = title; h.style.margin='0'; hWrap.appendChild(h);
+    const spacer = document.createElement('div'); spacer.style.flex='1'; hWrap.appendChild(spacer);
+    const sel = document.createElement('button'); sel.className='btn small'; sel.textContent='Select group'; sel.onclick=()=>toggleGroup(title,true); hWrap.appendChild(sel);
+    const clr = document.createElement('button'); clr.className='btn small'; clr.textContent='Clear group'; clr.onclick=()=>toggleGroup(title,false); hWrap.appendChild(clr);
+    list.appendChild(hWrap);
     arr.forEach(n => {
       const id = 'pv_' + n.replace(/[^a-z0-9_\-\.]/gi,'_');
       const row = document.createElement('div');
       row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='6px 0';
-      row.innerHTML = `<input type=\"checkbox\" class=\"pv-check\" id=\"${id}\" data-name=\"${n}\" checked/> <label for=\"${id}\"><code>${n}</code></label>`;
+      row.innerHTML = `<input type=\"checkbox\" class=\"pv-check\" id=\"${id}\" data-group=\"${title}\" data-name=\"${n}\" checked/> <label for=\"${id}\"><code>${n}</code></label>`;
       list.appendChild(row);
     });
   }
@@ -281,6 +288,10 @@ function updatePreviewCount(){
   const total = document.querySelectorAll('#previewList .pv-check').length;
   const sel = Array.from(document.querySelectorAll('#previewList .pv-check')).filter(c=>c.checked).length;
   const el = document.getElementById('previewCount'); if (el) el.textContent = sel + ' of ' + total + ' selected';
+}
+function toggleGroup(title, checked){
+  document.querySelectorAll(`#previewList .pv-check[data-group="${CSS.escape(title)}"]`).forEach(c=>{ c.checked = !!checked; });
+  updatePreviewCount();
 }
 async function seedList(v, inputId){
   const names = document.getElementById(inputId).value;
