@@ -237,13 +237,31 @@ function openPreview(names){
   const list = document.getElementById('previewList');
   list.innerHTML = '';
   if (!names.length){ list.innerHTML = '<p class="muted">No models matched your filters.</p>'; }
+  const groups = [
+    { title: 'GPT‑5', test: /^gpt-5/i },
+    { title: 'GPT‑4o', test: /^gpt-4o/i },
+    { title: 'GPT‑4.1', test: /^gpt-4\.1/i },
+    { title: 'O‑series', test: /^o3/i },
+    { title: 'Other', test: /.*/ }
+  ];
+  function titleFor(n){ const g = groups.find(x=>x.test.test(n)) || groups[groups.length-1]; return g.title; }
+  const byGroup = new Map();
   names.forEach(n => {
-    const id = 'pv_' + n.replace(/[^a-z0-9_\-\.]/gi,'_');
-    const row = document.createElement('div');
-    row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='6px 0';
-    row.innerHTML = `<input type="checkbox" id="${id}" data-name="${n}" checked/> <label for="${id}"><code>${n}</code></label>`;
-    list.appendChild(row);
+    const key = titleFor(n);
+    if (!byGroup.has(key)) byGroup.set(key, []);
+    byGroup.get(key).push(n);
   });
+  for (const [title, arr] of byGroup.entries()){
+    const h = document.createElement('h4'); h.textContent = title; h.style.margin = '10px 0 6px'; list.appendChild(h);
+    arr.forEach(n => {
+      const id = 'pv_' + n.replace(/[^a-z0-9_\-\.]/gi,'_');
+      const row = document.createElement('div');
+      row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='6px 0';
+      row.innerHTML = `<input type=\"checkbox\" class=\"pv-check\" id=\"${id}\" data-name=\"${n}\" checked/> <label for=\"${id}\"><code>${n}</code></label>`;
+      list.appendChild(row);
+    });
+  }
+  updatePreviewCount();
   backdrop.style.display = 'flex';
 }
 function closePreview(){ document.getElementById('previewBackdrop').style.display='none'; }
@@ -256,6 +274,13 @@ async function addSelectedFromPreview(){
   document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
   closePreview();
   if (rsp.ok) load();
+}
+function selectAllPreview(){ document.querySelectorAll('#previewList .pv-check').forEach(c=>c.checked=true); updatePreviewCount(); }
+function selectNonePreview(){ document.querySelectorAll('#previewList .pv-check').forEach(c=>c.checked=false); updatePreviewCount(); }
+function updatePreviewCount(){
+  const total = document.querySelectorAll('#previewList .pv-check').length;
+  const sel = Array.from(document.querySelectorAll('#previewList .pv-check')).filter(c=>c.checked).length;
+  const el = document.getElementById('previewCount'); if (el) el.textContent = sel + ' of ' + total + ' selected';
 }
 async function seedList(v, inputId){
   const names = document.getElementById(inputId).value;
@@ -275,6 +300,11 @@ load();
     <div class="hd">Preview OpenAI Models</div>
     <div class="bd">
       <p class="muted">Select which models to add:</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <button class="btn small" onclick="selectAllPreview()">Select All</button>
+        <button class="btn small" onclick="selectNonePreview()">Select None</button>
+        <span id="previewCount" class="muted" style="margin-left:auto"></span>
+      </div>
       <div id="previewList"></div>
     </div>
     <div class="ft">

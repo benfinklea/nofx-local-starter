@@ -51,6 +51,15 @@ export default function mount(app: Express){
         return res.json({ imported: count, via: 'custom-list' });
       }
       if (v === 'openai') {
+        // If explicit names are provided, upsert just those.
+        if (names.length) {
+          let count = 0;
+          for (const n of names) {
+            await upsertModel({ provider: 'openai', name: n, kind: 'openai', display_name: n });
+            count++;
+          }
+          return res.json({ imported: count, via: 'explicit-list' });
+        }
         const filterRaw = (req.body && (req.body.filter || req.body.includes)) || '';
         const excludeRaw = (req.body && (req.body.exclude || req.body.excludes)) || '';
         const filter = Array.isArray(filterRaw) ? filterRaw : String(filterRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
