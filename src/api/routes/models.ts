@@ -1,8 +1,7 @@
 import type { Express } from 'express';
 import { isAdmin } from '../../lib/auth';
-import { listModels, upsertModel, deleteModel } from '../../lib/models';
+import { listModels, upsertModel, deleteModel, getModelByName } from '../../lib/models';
 import { importOpenAIModels, seedAnthropicModels, seedGeminiModels, listOpenAIModels } from '../../lib/modelImporters';
-import { getModelByName, upsertModel } from '../../lib/models';
 import { getSettings, updateSettings } from '../../lib/settings';
 
 export default function mount(app: Express){

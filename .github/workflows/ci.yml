@@ -20,6 +20,14 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run gate:typecheck
+      - name: Upload typecheck artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts-typecheck
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
 
   gate-lint:
     name: gate-lint
@@ -34,6 +42,14 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run gate:lint
+      - name: Upload lint artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts-lint
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
 
   gate-unit:
     name: gate-unit
@@ -54,6 +70,16 @@ jobs:
         env:
           CI: true
         run: npm run gate:unit
+      - name: Upload to Codecov
+        if: ${{ always() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unit
+          name: codecov
+          fail_ci_if_error: true
+          verbose: false
       - name: Upload gate artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -88,29 +114,4 @@ jobs:
           CI: true
         run: npm run test:unit
 
-  codecov:
-    name: codecov
-    needs: [gate-unit]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - name: Re-run vitest to ensure coverage exists (no-op if cached)
-        env:
-          CI: true
-        run: npm run gate:unit || true
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/coverage-final.json
-          flags: unit
-          name: codecov
-          fail_ci_if_error: true
-          verbose: false
+  # removed separate codecov job; upload happens within gate-unit

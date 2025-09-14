@@ -23,6 +23,8 @@ export type LlmSettings = {
     docs: Array<'openai'|'anthropic'|'gemini'>;
   };
   modelOrder?: { docs?: string[]; reasoning?: string[]; codegen?: string[] };
+  providers?: Record<string, { kind: 'openai-compatible'|'http'; baseUrl?: string }>;
+  pricing?: Record<string, { inputPer1M?: number; outputPer1M?: number }>;
 };
 
 const DEFAULTS: Settings = {
@@ -34,7 +36,9 @@ const DEFAULTS: Settings = {
       reasoning: ['anthropic','openai','gemini'],
       docs: ['gemini','anthropic','openai']
     },
-    modelOrder: { docs: [], reasoning: [], codegen: [] }
+    modelOrder: { docs: [], reasoning: [], codegen: [] },
+    providers: {},
+    pricing: {}
   }
 };
 
@@ -47,7 +51,7 @@ async function ensureSettingsSchema() {
 export async function getSettings(): Promise<Settings> {
   try {
     await ensureSettingsSchema();
-    const r = await query<any>(`select approvals, gates, llm from nofx.settings where id='default' limit 1`);
+    const r = await query<{ approvals: any; gates: any; llm: any }>(`select approvals, gates, llm from nofx.settings where id='default' limit 1`);
     if (!r.rows[0]) return DEFAULTS;
     const approvals = { ...DEFAULTS.approvals, ...(r.rows[0].approvals || {}) };
     const gates = { ...DEFAULTS.gates, ...(r.rows[0].gates || {}) };
@@ -61,7 +65,9 @@ export async function getSettings(): Promise<Settings> {
         docs: r.rows[0].llm?.modelOrder?.docs || [],
         reasoning: r.rows[0].llm?.modelOrder?.reasoning || [],
         codegen: r.rows[0].llm?.modelOrder?.codegen || []
-      }
+      },
+      providers: r.rows[0].llm?.providers || {},
+      pricing: r.rows[0].llm?.pricing || {}
     };
     return { approvals, gates, llm };
   } catch {
@@ -84,7 +90,9 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
         docs: (patch as any).llm?.modelOrder?.docs || current.llm.modelOrder?.docs || [],
         reasoning: (patch as any).llm?.modelOrder?.reasoning || current.llm.modelOrder?.reasoning || [],
         codegen: (patch as any).llm?.modelOrder?.codegen || current.llm.modelOrder?.codegen || []
-      }
+      },
+      providers: (patch as any).llm?.providers || current.llm.providers || {},
+      pricing: normalizePricing((patch as any).llm?.pricing || current.llm.pricing || {})
     }
   };
   try {

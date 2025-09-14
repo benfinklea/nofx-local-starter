@@ -9,7 +9,6 @@ import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
 import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
 import fs from 'node:fs';
-import path from 'node:path';
 import http from 'node:http';
 
 dotenv.config();
@@ -31,12 +30,13 @@ app.post('/runs/preview', async (req, res) => {
   try {
     if (req.body && req.body.standard) {
       const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
-      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget } as any);
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget });
       return res.json({ steps: built.steps, plan: built });
     }
     return res.status(400).json({ error: 'missing standard' });
-  } catch (e:any) {
-    return res.status(400).json({ error: e.message || 'failed to preview' });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'failed to preview';
+    return res.status(400).json({ error: message });
   }
 });
 
@@ -45,10 +45,11 @@ app.post("/runs", async (req, res) => {
   if (req.body && req.body.standard) {
     try {
       const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
-      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget } as any);
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget });
       req.body = { plan: built };
-    } catch (e:any) {
-      return res.status(400).json({ error: e.message || 'bad standard request' });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'bad standard request';
+      return res.status(400).json({ error: message });
     }
   }
   const parsed = CreateRunSchema.safeParse(req.body);
@@ -77,14 +78,14 @@ app.post("/runs", async (req, res) => {
 
 app.get("/runs/:id", async (req, res) => {
   const runId = req.params.id;
-  const run = await query<any>(`select * from nofx.run where id = $1`, [runId]);
+  const run = await query<Record<string, unknown>>(`select * from nofx.run where id = $1`, [runId]);
   if (!run.rows[0]) return res.status(404).json({ error: "not found" });
-  const steps = await query<any>(`select * from nofx.step where run_id = $1 order by created_at`, [runId]).catch(async () => {
+  const steps = await query<Record<string, unknown>>(`select * from nofx.step where run_id = $1 order by created_at`, [runId]).catch(async () => {
     // created_at might not exist; fallback order by started/ended
-    const s = await query<any>(`select * from nofx.step where run_id = $1`, [runId]);
+    const s = await query<Record<string, unknown>>(`select * from nofx.step where run_id = $1`, [runId]);
     return s;
   });
-  const artifacts = await query<any>(
+  const artifacts = await query<Record<string, unknown>>(
     `select a.*, s.name as step_name from nofx.artifact a join nofx.step s on s.id = a.step_id where s.run_id = $1`, [runId]
   );
   res.json({ run: run.rows[0], steps: steps.rows, artifacts: artifacts.rows });
@@ -92,7 +93,7 @@ app.get("/runs/:id", async (req, res) => {
 
 app.get("/runs/:id/timeline", async (req, res) => {
   const runId = req.params.id;
-  const ev = await query<any>(`select * from nofx.event where run_id = $1 order by timestamp asc`, [runId]);
+  const ev = await query<Record<string, unknown>>(`select * from nofx.event where run_id = $1 order by timestamp asc`, [runId]);
   res.json(ev.rows);
 });
 
@@ -100,10 +101,11 @@ app.get("/runs/:id/timeline", async (req, res) => {
 mountRouters(app);
 
 const port = Number(process.env.PORT || 3000);
-function listenWithRetry(attempt=0){
+function listenWithRetry(attempt = 0) {
   const server = http.createServer(app);
-  server.once('error', (err: any) => {
-    if (err && err.code === 'EADDRINUSE') {
+  server.once('error', (err: unknown) => {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code === 'EADDRINUSE') {
       const delay = 500 + attempt*250;
       if (attempt < 4) {
         log.warn({ attempt, delay }, 'Port in use; retrying listen');
@@ -133,9 +135,11 @@ if (process.env.DEV_RESTART_WATCH === '1') {
       const stat = fs.statSync(flagPath);
       const m = stat.mtimeMs;
       if (m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
-    } catch {}
+    } catch {
+      // ignore missing flag or stat errors in dev restart watcher
+    }
   }, 1500);
-}
+  }
 
 // Build a plan from simple prompt using Settings
 import { buildPlanFromPrompt } from './planBuilder';

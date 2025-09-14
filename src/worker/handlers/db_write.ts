@@ -14,7 +14,7 @@ type Inputs = {
 };
 
 function isSafeIdent(v: string){
-  return /^[a-zA-Z0-9_\.]+$/.test(v);
+  return /^[a-zA-Z0-9_.]+$/.test(v);
 }
 function isSafeColumn(v: string){
   return /^[a-zA-Z0-9_]+$/.test(v);
