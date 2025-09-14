@@ -167,9 +167,13 @@ async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; ope
       steps.push({ name: 'open pr (summary)', tool: 'git_pr', inputs: { branch: `feat/summary-${Date.now().toString().slice(-4)}`, base: 'main', title: `docs: summary of ${opts.summarizeQuery}`, commits: [ { path: sumPath, fromStep: 'summarize', artifactName: sumName } ] } });
     }
   }
-  if (opts.openPr === true || (opts.openPr === undefined && /\bopen a pr\b/i.test(prompt))) {
+  const prAskedInPrompt = /\bopen a pr\b/i.test(prompt);
+  const prBySetting = opts.openPr === true;
+  const shouldPR = prBySetting || prAskedInPrompt;
+  if (shouldPR) {
     const branchBase = topic.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24) || 'update-docs';
-    steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${branchBase}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: targetPath, fromStep: 'write readme', artifactName: filename } ] } });
+    const reason = prBySetting ? 'Setting' : 'Prompt';
+    steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${branchBase}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: targetPath, fromStep: 'write readme', artifactName: filename } ], reason } });
   }
   // If prompt mentions manual approval, add a manual gate
   if (/manual approval|human approve|require approval/i.test(prompt)) {
