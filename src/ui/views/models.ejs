@@ -69,11 +69,12 @@ async function load(){
   const rsp = await fetch('/models');
   if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
   const data = await rsp.json();
+  window._models = data.models||[];
   const t = document.getElementById('models');
   while (t.rows.length > 1) t.deleteRow(1);
-  (data.models||[]).forEach(m => addRow(m));
+  _models.forEach((m, i) => addRow(m, i));
 }
-function addRow(m){
+function addRow(m, idx){
   const t = document.getElementById('models');
   const tr = document.createElement('tr');
   tr.innerHTML = `
@@ -86,7 +87,10 @@ function addRow(m){
     <td>${m.output_per_1m ?? ''}</td>
     <td>${m.context_tokens ?? ''}</td>
     <td>${m.active? 'yes':'no'}</td>
-    <td><button class="btn small danger" onclick="del('${m.id}')">Delete</button></td>
+    <td>
+      <button class="btn small" onclick="edit(${idx})">Edit</button>
+      <button class="btn small danger" onclick="del('${m.id}')">Delete</button>
+    </td>
   `;
   t.appendChild(tr);
 }
@@ -106,6 +110,22 @@ async function saveModel(){
   const rsp = await fetch('/models', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   document.getElementById('status').textContent = rsp.ok ? 'Saved' : 'Error';
   if (rsp.ok) load();
+}
+function edit(i){
+  const m = (_models||[])[i];
+  if (!m) return;
+  document.getElementById('m_provider').value = m.provider || '';
+  document.getElementById('m_name').value = m.name || '';
+  document.getElementById('m_display').value = m.display_name || '';
+  document.getElementById('m_kind').value = m.kind || 'openai';
+  document.getElementById('m_base').value = m.base_url || '';
+  document.getElementById('m_in').value = m.input_per_1m ?? '';
+  document.getElementById('m_out').value = m.output_per_1m ?? '';
+  document.getElementById('m_ctx').value = m.context_tokens ?? '';
+  document.getElementById('m_max').value = m.max_output_tokens ?? '';
+  document.getElementById('m_active').checked = m.active !== false;
+  document.getElementById('status').textContent = 'Loaded model for edit — click Save to update';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 async function del(id){
   const rsp = await fetch('/models/' + id, { method:'DELETE' });
