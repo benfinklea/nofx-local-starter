@@ -14,22 +14,60 @@
 <div class="container">
   <div class="section-title"><h1 style="margin:12px 0">Models</h1><span class="tip" data-tip="Manage models and pricing per 1M tokens. These populate routing dropdowns.">?</span></div>
   <div class="card"><div class="bd">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-      <button class="btn" onclick="importOpenAI()">Import from OpenAI</button>
-      <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="openaiRec" checked/> Recommended only</label>
-      <input id="openaiFilter" placeholder="filter contains (comma separated)" style="width:260px"/>
-      <input id="openaiExclude" placeholder="exclude contains (comma separated)" style="width:260px"/>
-      <button class="btn" onclick="importVendor('anthropic')">Seed Anthropic</button>
-      <input id="anthropicList" placeholder="opus-4.1, sonnet-4, claude-3-5-sonnet-latest" style="width:360px"/>
-      <button class="btn" onclick="seedList('anthropic','anthropicList')">Seed List</button>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <button class="btn" onclick="importVendor('gemini')">Seed Gemini</button>
-      <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite" style="width:360px"/>
-      <button class="btn" onclick="seedList('gemini','geminiList')">Seed List</button>
-      <span id="importStatus" class="muted"></span>
-    </div>
-    <small class="muted">OpenAI import requires OPENAI_API_KEY in .env.</small>
+    <h2 style="margin-top:0">Import / Seed Models</h2>
+
+    <div class="card" style="margin:12px 0"><div class="bd">
+      <div class="section-title"><h3 style="margin:0">OpenAI</h3><span class="tip" data-tip="Import a curated set or filter by substrings. Recommended-only imports GPT-5 family by default.">?</span></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12">
+          <label style="display:inline-flex;align-items:center;gap:8px">
+            <input type="checkbox" id="openaiRec" checked/> Recommended only
+          </label>
+        </div>
+        <div class="col-6">
+          <label>Filter contains
+            <input id="openaiFilter" placeholder="e.g. gpt-5, mini"/>
+          </label>
+        </div>
+        <div class="col-6">
+          <label>Exclude contains
+            <input id="openaiExclude" placeholder="e.g. legacy, audio"/>
+          </label>
+        </div>
+        <div class="col-12">
+          <button class="btn" onclick="importOpenAI()">Import from OpenAI</button>
+        </div>
+      </div>
+      <small class="muted">Requires OPENAI_API_KEY in .env.</small>
+    </div></div>
+
+    <div class="card" style="margin:12px 0"><div class="bd">
+      <div class="section-title"><h3 style="margin:0">Anthropic</h3><span class="tip" data-tip="Seed common Claude models or paste a list to upsert.">?</span></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12"><button class="btn" onclick="importVendor('anthropic')">Seed Anthropic (default set)</button></div>
+        <div class="col-9">
+          <label>Seed list (comma separated)
+            <input id="anthropicList" placeholder="opus-4.1, sonnet-4, haiku-3.5"/>
+          </label>
+        </div>
+        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('anthropic','anthropicList')">Seed List</button></div>
+      </div>
+    </div></div>
+
+    <div class="card" style="margin:12px 0"><div class="bd">
+      <div class="section-title"><h3 style="margin:0">Gemini</h3><span class="tip" data-tip="Seed common Gemini models or paste a list to upsert.">?</span></div>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12"><button class="btn" onclick="importVendor('gemini')">Seed Gemini (default set)</button></div>
+        <div class="col-9">
+          <label>Seed list (comma separated)
+            <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite"/>
+          </label>
+        </div>
+        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('gemini','geminiList')">Seed List</button></div>
+      </div>
+    </div></div>
+
+    <div><span id="importStatus" class="muted"></span></div>
   </div></div>
 
   <div class="card" style="margin-top:16px"><div class="hd">Add / Update</div><div class="bd">
