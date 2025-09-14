@@ -2,47 +2,66 @@
 <meta charset="utf-8"/><title>NOFX - Models</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
 </head><body>
-<h1>Models</h1>
-<p><a href="/ui/settings">Back to Settings</a></p>
-<p>
-  <button onclick="importVendor('openai')">Import from OpenAI</button>
-  <button onclick="importVendor('anthropic')">Seed Anthropic</button>
-  <input id="anthropicList" placeholder="opus-4.1, sonnet-4, claude-3-5-sonnet-latest" style="width:360px"/>
-  <button onclick="seedList('anthropic','anthropicList')">Seed List</button>
-  <br/>
-  <button onclick="importVendor('gemini')">Seed Gemini</button>
-  <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite" style="width:360px"/>
-  <button onclick="seedList('gemini','geminiList')">Seed List</button>
-  <span id="importStatus"></span>
-  <small style="color:#666; display:block; margin-top:4px;">OpenAI import requires OPENAI_API_KEY in .env.</small>
-  <small style="color:#666; display:block;">You can add other vendors manually below.</small>
-</p>
-<table id="models">
-  <tr><th>Provider</th><th>Name</th><th>Display</th><th>Kind</th><th>Base URL</th><th>In/1M</th><th>Out/1M</th><th>Context</th><th>Active</th><th></th></tr>
-</table>
-<h2>Add / Update</h2>
-<div>
-  <label>Provider <input id="m_provider" placeholder="openai|anthropic|gemini|grok|local"/></label>
-  <label>Name <input id="m_name" placeholder="gpt-4o-mini"/></label>
-  <label>Display <input id="m_display" placeholder="OpenAI GPT-4o mini"/></label>
-  <label>Kind
-    <select id="m_kind">
-      <option>openai</option>
-      <option>anthropic</option>
-      <option>gemini</option>
-      <option>openai-compatible</option>
-      <option>http</option>
-    </select>
-  </label>
-  <label>Base URL <input id="m_base" placeholder="http://localhost:11434/v1/chat/completions"/></label>
-  <label>Input/1M <input id="m_in" type="number" step="0.01" min="0"/></label>
-  <label>Output/1M <input id="m_out" type="number" step="0.01" min="0"/></label>
-  <label>Context <input id="m_ctx" type="number" step="1" min="0"/></label>
-  <label>Max Output <input id="m_max" type="number" step="1" min="0"/></label>
-  <label><input id="m_active" type="checkbox" checked/> Active</label>
-  <button onclick="saveModel()">Save</button>
-  <span id="status"></span>
-  <p style="color:#666">Secrets are not stored here. Set env vars like LLM_<PROVIDER>_API_KEY.</p>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+
+<div class="container">
+  <div class="section-title"><h1 style="margin:12px 0">Models</h1><span class="tip" data-tip="Manage models and pricing per 1M tokens. These populate routing dropdowns.">?</span></div>
+  <div class="card"><div class="bd">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <button class="btn" onclick="importVendor('openai')">Import from OpenAI</button>
+      <button class="btn" onclick="importVendor('anthropic')">Seed Anthropic</button>
+      <input id="anthropicList" placeholder="opus-4.1, sonnet-4, claude-3-5-sonnet-latest" style="width:360px"/>
+      <button class="btn" onclick="seedList('anthropic','anthropicList')">Seed List</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <button class="btn" onclick="importVendor('gemini')">Seed Gemini</button>
+      <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite" style="width:360px"/>
+      <button class="btn" onclick="seedList('gemini','geminiList')">Seed List</button>
+      <span id="importStatus" class="muted"></span>
+    </div>
+    <small class="muted">OpenAI import requires OPENAI_API_KEY in .env.</small>
+  </div></div>
+
+  <div class="card" style="margin-top:16px"><div class="hd">Add / Update</div><div class="bd">
+    <label>Provider <input id="m_provider" placeholder="openai|anthropic|gemini|grok|local"/></label>
+    <label>Name <input id="m_name" placeholder="gpt-4o-mini"/></label>
+    <label>Display <input id="m_display" placeholder="OpenAI GPT-4o mini"/></label>
+    <label>Kind
+      <select id="m_kind">
+        <option>openai</option>
+        <option>anthropic</option>
+        <option>gemini</option>
+        <option>openai-compatible</option>
+        <option>http</option>
+      </select>
+    </label>
+    <label>Base URL <input id="m_base" placeholder="http://localhost:11434/v1/chat/completions"/></label>
+    <div class="grid">
+      <div class="col-6"><label>Input/1M <input id="m_in" type="number" step="0.01" min="0"/></label></div>
+      <div class="col-6"><label>Output/1M <input id="m_out" type="number" step="0.01" min="0"/></label></div>
+    </div>
+    <div class="grid">
+      <div class="col-6"><label>Context <input id="m_ctx" type="number" step="1" min="0"/></label></div>
+      <div class="col-6"><label>Max Output <input id="m_max" type="number" step="1" min="0"/></label></div>
+    </div>
+    <label><input id="m_active" type="checkbox" checked/> Active</label>
+    <button class="btn primary" onclick="saveModel()">Save</button>
+    <span id="status" class="muted" style="margin-left:8px"></span>
+    <p class="muted" style="margin-top:10px">Secrets are not stored here. Set env vars like LLM_&lt;PROVIDER&gt;_API_KEY.</p>
+  </div></div>
+
+  <div class="card" style="margin-top:16px"><div class="hd">Model List</div><div class="bd">
+    <table id="models">
+      <tr><th>Provider</th><th>Name</th><th>Display</th><th>Kind</th><th>Base URL</th><th>In/1M</th><th>Out/1M</th><th>Context</th><th>Active</th><th></th></tr>
+    </table>
+  </div></div>
 </div>
 
 <script>
@@ -67,7 +86,7 @@ function addRow(m){
     <td>${m.output_per_1m ?? ''}</td>
     <td>${m.context_tokens ?? ''}</td>
     <td>${m.active? 'yes':'no'}</td>
-    <td><button onclick="del('${m.id}')">Delete</button></td>
+    <td><button class="btn small danger" onclick="del('${m.id}')">Delete</button></td>
   `;
   t.appendChild(tr);
 }

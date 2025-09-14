@@ -2,14 +2,33 @@
 <meta charset="utf-8"/><title>NOFX - Runs</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
 </head><body>
-<h1>Runs</h1>
-<p>
-  <a href="/ui/settings" title="Configure approvals, gates, and AI routing.">Settings</a>
-  | <a href="/ui/runs/new" title="Create a new run with presets or custom plan.">New Run</a>
-</p>
-<ul>
-<% runs.forEach(r => { %>
-  <li><a href="/ui/runs/<%= r.id %>"><%= r.id %></a> — <%= r.status %></li>
-<% }) %>
-</ul>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/runs/new">New Run</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+<div class="container">
+  <div class="section-title"><h1 style="margin:12px 0">Runs</h1><span class="tip" data-tip="All workflow runs. Click to see timeline, artifacts, gates, and costs.">?</span></div>
+  <div class="card"><div class="bd">
+    <table>
+      <thead><tr><th>ID</th><th>Status</th><th>Created</th></tr></thead>
+      <tbody>
+      <% runs.forEach(r => { %>
+        <tr>
+          <td><a href="/ui/runs/<%= r.id %>"><code><%= r.id %></code></a></td>
+          <td>
+            <% const s = String(r.status||'').toLowerCase(); %>
+            <span class="badge <%= s==='succeeded'?'ok':(s==='failed'?'err':(s==='queued'?'warn':'')) %>"><%= r.status %></span>
+          </td>
+          <td class="muted"><%= r.created_at %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div></div>
+</div>
 </body></html>

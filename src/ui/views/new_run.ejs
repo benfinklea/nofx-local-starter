@@ -2,21 +2,31 @@
 <meta charset="utf-8"/><title>NOFX - New Run</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
 </head><body>
-<h1>New Run</h1>
-<p>Create a run from a simple preset or custom JSON. Hover the (?) icons for guidance.</p>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+<div class="container">
+<div class="section-title"><h1 style="margin:12px 0">New Run</h1><span class="tip" data-tip="Create ad-hoc runs with presets or custom JSON.">?</span></div>
 
-<section>
+<section class="card"><div class="bd">
   <h2>Presets</h2>
-  <button onclick="presetGatedCodegen()">Gated Codegen README <span title="Runs typecheck, lint, unit, then generates a README via your model routing.">?</span></button>
-  <button onclick="presetManualDeploy()">Manual Deploy Gate <span title="Creates a pending manual:deploy approval you can approve in the UI.">?</span></button>
-  <button onclick="presetCodegenPR()">Codegen + PR <span title="Generates README then opens a branch + PR with the change.">?</span></button>
-</section>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" onclick="presetGatedCodegen()">Gated Codegen README <span class="tip" data-tip="Runs typecheck, lint, unit, then generates a README.">?</span></button>
+    <button class="btn" onclick="presetManualDeploy()">Manual Deploy Gate <span class="tip" data-tip="Creates a pending manual:deploy approval.">?</span></button>
+    <button class="btn" onclick="presetCodegenPR()">Codegen + PR <span class="tip" data-tip="Generates README then opens a PR with the change.">?</span></button>
+  </div>
+</div></section>
 
-<section>
+<section class="card" style="margin-top:16px"><div class="bd">
   <h2>Plan</h2>
-  <label>Goal <input id="goal" placeholder="Describe the goal" style="width:360px"/></label>
+  <label>Goal <input id="goal" placeholder="Describe the goal" style="max-width:420px"/></label>
   <div>
-    <textarea id="plan" rows="18" style="width:720px" placeholder='{
+    <textarea id="plan" rows="18" style="width:100%;max-width:900px" placeholder='{
   "steps": [
     { "name": "typecheck", "tool": "gate:typecheck" },
     { "name": "lint", "tool": "gate:lint" },
@@ -25,8 +35,9 @@
   ]
 }'></textarea>
   </div>
-  <p><button onclick="createRun()">Create Run</button> <span id="status"></span></p>
-</section>
+  <p><button class="btn primary" onclick="createRun()">Create Run</button> <span id="status" class="muted"></span></p>
+</div></section>
+</div>
 
 <script>
 function setPlan(obj){ document.getElementById('plan').value = JSON.stringify(obj, null, 2); }
@@ -77,4 +88,3 @@ async function createRun(){
 }
 </script>
 </body></html>
-
