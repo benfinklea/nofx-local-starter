@@ -1,8 +1,8 @@
 import { getSettings } from "../lib/settings";
 
-export function guessTopicFromPrompt(p:string){
+export function guessTopicFromPrompt(p: string) {
   if (!p) return 'NOFX';
-  const m = p.split(/[\.\n]/)[0] || p;
+  const m = p.split(/[.\n]/)[0] || p;
   const words = m.trim().split(/\s+/).slice(0, 8).join(' ');
   return words || 'NOFX';
 }
@@ -15,9 +15,14 @@ export function guessMarkdownPath(p: string): string | undefined {
   return undefined;
 }
 
-export async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; openPr: boolean; filePath?: string; summarizeQuery?: string; summarizeTarget?: string }){
+type StepDef = { name: string; tool: string; inputs?: Record<string, unknown> };
+
+export async function buildPlanFromPrompt(
+  prompt: string,
+  opts: { quality: boolean; openPr: boolean; filePath?: string; summarizeQuery?: string; summarizeTarget?: string }
+) {
   const { gates } = await getSettings();
-  const steps: any[] = [];
+  const steps: StepDef[] = [];
   if (opts.quality) {
     if (gates.typecheck) steps.push({ name: 'typecheck', tool: 'gate:typecheck' });
     if (gates.lint) steps.push({ name: 'lint', tool: 'gate:lint' });
@@ -49,4 +54,3 @@ export async function buildPlanFromPrompt(prompt: string, opts: { quality: boole
   }
   return { goal: prompt || 'ad-hoc run', steps };
 }
-

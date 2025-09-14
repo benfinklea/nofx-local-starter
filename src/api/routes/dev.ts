@@ -14,8 +14,9 @@ export default function mount(app: Express){
       fs.writeFileSync(apiFlag, now);
       fs.writeFileSync(workerFlag, now);
       res.json({ ok: true });
-    } catch (e:any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'restart failed';
+      res.status(500).json({ error: message });
     }
   });
 }
