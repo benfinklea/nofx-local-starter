@@ -16,12 +16,15 @@ log.info("Worker up");
 // Dev-only restart watcher to exit when flag changes
 if (process.env.DEV_RESTART_WATCH === '1') {
   const flagPath = path.join(process.cwd(), '.dev-restart-worker');
+  const startedAt = Date.now();
   let last = 0;
+  // Clean up stale flag from previous run
+  try { const st = fs.statSync(flagPath); if (st.mtimeMs <= startedAt) fs.unlinkSync(flagPath); } catch {}
   setInterval(() => {
     try {
       const stat = fs.statSync(flagPath);
       const m = stat.mtimeMs;
-      if (m > last) { last = m; log.info('Dev restart flag changed; exiting worker'); process.exit(0); }
+      if (m > startedAt && m > last) { last = m; log.info('Dev restart flag changed; exiting worker'); process.exit(0); }
     } catch {}
   }, 1500);
 }
