@@ -26,12 +26,26 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 const CreateRunSchema = z.object({ plan: PlanSchema });
 
+// Preview a plan built from standard (plain-language) input
+app.post('/runs/preview', async (req, res) => {
+  try {
+    if (req.body && req.body.standard) {
+      const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget } as any);
+      return res.json({ steps: built.steps, plan: built });
+    }
+    return res.status(400).json({ error: 'missing standard' });
+  } catch (e:any) {
+    return res.status(400).json({ error: e.message || 'failed to preview' });
+  }
+});
+
 app.post("/runs", async (req, res) => {
   // Standard mode: build a plan from plain-language prompt and settings
   if (req.body && req.body.standard) {
     try {
-      const { prompt, quality = true, openPr = false } = req.body.standard || {};
-      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr });
+      const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
+      const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget } as any);
       req.body = { plan: built };
     } catch (e:any) {
       return res.status(400).json({ error: e.message || 'bad standard request' });
@@ -132,7 +146,7 @@ function guessTopicFromPrompt(p:string){
   const words = m.trim().split(/\s+/).slice(0, 8).join(' ');
   return words || 'NOFX';
 }
-async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; openPr: boolean }){
+async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; openPr: boolean; filePath?: string; summarizeQuery?: string; summarizeTarget?: string }){
   const { gates } = await getSettings();
   const steps: any[] = [];
   if (opts.quality) {
@@ -141,9 +155,18 @@ async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; ope
     if (gates.unit) steps.push({ name: 'unit', tool: 'gate:unit' });
   }
   const topic = guessTopicFromPrompt(prompt);
-  const targetPath = guessMarkdownPath(prompt) || 'README.md';
+  const hinted = guessMarkdownPath(prompt);
+  const targetPath = (opts.filePath && String(opts.filePath).trim()) || hinted || 'README.md';
   const filename = targetPath.split('/').pop() || 'README.md';
   steps.push({ name: 'write readme', tool: 'codegen', inputs: { topic, bullets: ['Control plane','Verification','Workers'], filename } });
+  if (opts.summarizeQuery && (opts.summarizeTarget || /summarize/i.test(prompt))) {
+    const sumPath = String(opts.summarizeTarget || 'docs/summary.md');
+    const sumName = sumPath.split('/').pop() || 'summary.md';
+    steps.push({ name: 'summarize', tool: 'codegen', inputs: { topic: `Summarize: ${opts.summarizeQuery}`, bullets: ['Key points','Action items','References'], filename: sumName } });
+    if (opts.openPr) {
+      steps.push({ name: 'open pr (summary)', tool: 'git_pr', inputs: { branch: `feat/summary-${Date.now().toString().slice(-4)}`, base: 'main', title: `docs: summary of ${opts.summarizeQuery}`, commits: [ { path: sumPath, fromStep: 'summarize', artifactName: sumName } ] } });
+    }
+  }
   if (opts.openPr || /\bopen a pr\b/i.test(prompt)) {
     const branchBase = topic.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24) || 'update-docs';
     steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${branchBase}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: targetPath, fromStep: 'write readme', artifactName: filename } ] } });
