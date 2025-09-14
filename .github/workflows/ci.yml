@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -22,14 +24,41 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Set BASE_REF for PRs
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "BASE_REF=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
 
-      - name: Lint
-        run: npm run lint
+      - name: Gate - typecheck
+        run: npm run gate:typecheck
+
+      - name: Gate - lint
+        run: npm run gate:lint
+
+      - name: Gate - unit (changed-lines coverage)
+        env:
+          CI: true
+        run: npm run gate:unit
 
       - name: Unit tests (Jest)
+        if: ${{ always() }}
         env:
           CI: true
         run: npm run test:unit
 
+      - name: Upload gate artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
