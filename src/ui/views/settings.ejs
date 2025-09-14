@@ -100,14 +100,17 @@ async function load(){
   for (const r of db_write_rules) {
     addRuleRow(r.table_name, r.allowed_ops||[]);
   }
-  // Load models for dropdowns
+  // Load models for dropdowns with friendly labels
   const modelsRsp = await fetch('/models');
   const modelsData = await modelsRsp.json();
-  const models = (modelsData.models||[]).filter(m => m.active !== false).map(m=>m.name);
+  const activeModels = (modelsData.models||[]).filter(m => m.active !== false);
+  window._labelByName = {};
+  const modelOptions = activeModels.map(m => ({ value: m.name, label: `${m.provider}: ${m.display_name || m.name}` }));
+  modelOptions.forEach(m => _labelByName[m.value] = m.label);
   for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
     const sel = document.getElementById(selId);
     sel.innerHTML = '';
-    models.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; sel.appendChild(opt); });
+    modelOptions.forEach(m => { const opt = document.createElement('option'); opt.value = m.value; opt.textContent = m.label; sel.appendChild(opt); });
   }
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];
@@ -254,7 +257,8 @@ function renderOrder(kind){
   ul.innerHTML = '';
   state[kind].forEach((name, idx) => {
     const li = document.createElement('li');
-    li.textContent = name + ' ';
+    const label = (window._labelByName && window._labelByName[name]) || name;
+    li.textContent = label + ' ';
     const up = document.createElement('button'); up.textContent = '↑'; up.onclick = ()=>{ if (idx>0){ const t=state[kind][idx-1]; state[kind][idx-1]=state[kind][idx]; state[kind][idx]=t; renderOrder(kind);} };
     const down = document.createElement('button'); down.textContent = '↓'; down.onclick = ()=>{ if (idx<state[kind].length-1){ const t=state[kind][idx+1]; state[kind][idx+1]=state[kind][idx]; state[kind][idx]=t; renderOrder(kind);} };
     const rm = document.createElement('button'); rm.textContent = '✕'; rm.onclick = ()=>{ state[kind].splice(idx,1); renderOrder(kind); };

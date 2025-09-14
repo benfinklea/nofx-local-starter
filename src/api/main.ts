@@ -79,10 +79,19 @@ const port = Number(process.env.PORT || 3000);
 function listenWithRetry(attempt=0){
   const server = http.createServer(app);
   server.once('error', (err: any) => {
-    if (err && err.code === 'EADDRINUSE' && attempt < 5) {
+    if (err && err.code === 'EADDRINUSE') {
       const delay = 500 + attempt*250;
-      log.warn({ attempt, delay }, 'Port in use; retrying listen');
-      setTimeout(() => listenWithRetry(attempt+1), delay);
+      if (attempt < 4) {
+        log.warn({ attempt, delay }, 'Port in use; retrying listen');
+        setTimeout(() => listenWithRetry(attempt+1), delay);
+      } else {
+        log.warn('Port still in use after retries');
+        if (process.env.DEV_RESTART_WATCH === '1') {
+          log.warn('Dev mode: exiting to allow clean restart');
+          process.exit(0);
+        }
+        throw err;
+      }
     } else {
       throw err;
     }
