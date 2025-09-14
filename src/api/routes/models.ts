@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { isAdmin } from '../../lib/auth';
 import { listModels, upsertModel, deleteModel } from '../../lib/models';
-import { importOpenAIModels, seedAnthropicModels, seedGeminiModels } from '../../lib/modelImporters';
+import { importOpenAIModels, seedAnthropicModels, seedGeminiModels, listOpenAIModels } from '../../lib/modelImporters';
 import { getModelByName, upsertModel } from '../../lib/models';
 import { getSettings, updateSettings } from '../../lib/settings';
 
@@ -16,6 +16,20 @@ export default function mount(app: Express){
     try {
       const m = await upsertModel(req.body || {});
       res.status(201).json(m);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+  app.post('/models/preview/openai', async (req, res) => {
+    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    try {
+      const filterRaw = (req.body && (req.body.filter || req.body.includes)) || '';
+      const excludeRaw = (req.body && (req.body.exclude || req.body.excludes)) || '';
+      const filter = Array.isArray(filterRaw) ? filterRaw : String(filterRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
+      const exclude = Array.isArray(excludeRaw) ? excludeRaw : String(excludeRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
+      const recommendedOnly = filter.length === 0 ? !!(req.body && (req.body.recommendedOnly ?? true)) : false;
+      const candidates = await listOpenAIModels({ filter, exclude, recommendedOnly });
+      res.json({ candidates, count: candidates.length });
     } catch (e:any) {
       res.status(400).json({ error: e.message });
     }

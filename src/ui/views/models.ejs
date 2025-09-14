@@ -14,10 +14,10 @@
 <div class="container">
   <div class="section-title"><h1 style="margin:12px 0">Models</h1><span class="tip" data-tip="Manage models and pricing per 1M tokens. These populate routing dropdowns.">?</span></div>
   <div class="card"><div class="bd">
-    <h2 style="margin-top:0">Import / Seed Models</h2>
+    <h2 style="margin-top:0">Add Models</h2>
 
     <div class="card" style="margin:12px 0"><div class="bd">
-      <div class="section-title"><h3 style="margin:0">OpenAI</h3><span class="tip" data-tip="Import a curated set or filter by substrings. Recommended-only imports GPT-5 family by default.">?</span></div>
+      <div class="section-title"><h3 style="margin:0">OpenAI</h3><span class="tip" data-tip="Fetch and add OpenAI models. Use filters to narrow the list. Recommended-only adds GPT‑5 family by default.">?</span></div>
       <div class="grid" style="margin-top:8px">
         <div class="col-12">
           <label style="display:inline-flex;align-items:center;gap:8px">
@@ -34,36 +34,37 @@
             <input id="openaiExclude" placeholder="e.g. legacy, audio"/>
           </label>
         </div>
-        <div class="col-12">
-          <button class="btn" onclick="importOpenAI()">Import from OpenAI</button>
+        <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" onclick="previewOpenAI()">Preview From OpenAI</button>
+          <button class="btn primary" onclick="importOpenAI()">Add From OpenAI</button>
         </div>
       </div>
       <small class="muted">Requires OPENAI_API_KEY in .env.</small>
     </div></div>
 
     <div class="card" style="margin:12px 0"><div class="bd">
-      <div class="section-title"><h3 style="margin:0">Anthropic</h3><span class="tip" data-tip="Seed common Claude models or paste a list to upsert.">?</span></div>
+      <div class="section-title"><h3 style="margin:0">Anthropic</h3><span class="tip" data-tip="Add common Claude models, or paste names to add specific ones.">?</span></div>
       <div class="grid" style="margin-top:8px">
-        <div class="col-12"><button class="btn" onclick="importVendor('anthropic')">Seed Anthropic (default set)</button></div>
+        <div class="col-12"><button class="btn" onclick="importVendor('anthropic')">Add Common Anthropic Models</button></div>
         <div class="col-9">
-          <label>Seed list (comma separated)
+          <label>Add models by name (comma separated)
             <input id="anthropicList" placeholder="opus-4.1, sonnet-4, haiku-3.5"/>
           </label>
         </div>
-        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('anthropic','anthropicList')">Seed List</button></div>
+        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('anthropic','anthropicList')">Add Models</button></div>
       </div>
     </div></div>
 
     <div class="card" style="margin:12px 0"><div class="bd">
-      <div class="section-title"><h3 style="margin:0">Gemini</h3><span class="tip" data-tip="Seed common Gemini models or paste a list to upsert.">?</span></div>
+      <div class="section-title"><h3 style="margin:0">Gemini</h3><span class="tip" data-tip="Add common Gemini models, or paste names to add specific ones.">?</span></div>
       <div class="grid" style="margin-top:8px">
-        <div class="col-12"><button class="btn" onclick="importVendor('gemini')">Seed Gemini (default set)</button></div>
+        <div class="col-12"><button class="btn" onclick="importVendor('gemini')">Add Common Gemini Models</button></div>
         <div class="col-9">
-          <label>Seed list (comma separated)
+          <label>Add models by name (comma separated)
             <input id="geminiList" placeholder="gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite"/>
           </label>
         </div>
-        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('gemini','geminiList')">Seed List</button></div>
+        <div class="col-3" style="display:flex;align-items:flex-end"><button class="btn" onclick="seedList('gemini','geminiList')">Add Models</button></div>
       </div>
     </div></div>
 
@@ -220,6 +221,42 @@ async function importOpenAI(){
   document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
   if (rsp.ok) load();
 }
+async function previewOpenAI(){
+  const body = {
+    recommendedOnly: document.getElementById('openaiRec').checked,
+    filter: document.getElementById('openaiFilter').value,
+    exclude: document.getElementById('openaiExclude').value
+  };
+  const rsp = await fetch('/models/preview/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (rsp.status === 401) { window.location.href='/ui/login'; return; }
+  const data = await rsp.json();
+  openPreview(data.candidates||[]);
+}
+function openPreview(names){
+  const backdrop = document.getElementById('previewBackdrop');
+  const list = document.getElementById('previewList');
+  list.innerHTML = '';
+  if (!names.length){ list.innerHTML = '<p class="muted">No models matched your filters.</p>'; }
+  names.forEach(n => {
+    const id = 'pv_' + n.replace(/[^a-z0-9_\-\.]/gi,'_');
+    const row = document.createElement('div');
+    row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='6px 0';
+    row.innerHTML = `<input type="checkbox" id="${id}" data-name="${n}" checked/> <label for="${id}"><code>${n}</code></label>`;
+    list.appendChild(row);
+  });
+  backdrop.style.display = 'flex';
+}
+function closePreview(){ document.getElementById('previewBackdrop').style.display='none'; }
+async function addSelectedFromPreview(){
+  const checks = Array.from(document.querySelectorAll('#previewList input[type=checkbox]'));
+  const names = checks.filter(c=>c.checked).map(c=>c.getAttribute('data-name'));
+  if (!names.length){ closePreview(); return; }
+  const rsp = await fetch('/models/import/openai', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names }) });
+  const data = await rsp.json();
+  document.getElementById('importStatus').textContent = rsp.ok ? `Imported ${data.imported||0}` : (data.error||'Error');
+  closePreview();
+  if (rsp.ok) load();
+}
 async function seedList(v, inputId){
   const names = document.getElementById(inputId).value;
   if (!names) return;
@@ -231,4 +268,19 @@ async function seedList(v, inputId){
 }
 load();
 </script>
+
+<!-- Preview Modal -->
+<div id="previewBackdrop" class="modal-backdrop" onclick="if(event.target===this) closePreview()">
+  <div class="modal">
+    <div class="hd">Preview OpenAI Models</div>
+    <div class="bd">
+      <p class="muted">Select which models to add:</p>
+      <div id="previewList"></div>
+    </div>
+    <div class="ft">
+      <button class="btn" onclick="closePreview()">Cancel</button>
+      <button class="btn primary" onclick="addSelectedFromPreview()">Add Selected</button>
+    </div>
+  </div>
+</div>
 </body></html>

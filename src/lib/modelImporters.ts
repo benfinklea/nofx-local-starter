@@ -30,6 +30,32 @@ export async function importOpenAIModels(opts?: { apiKey?: string; filter?: stri
   return { imported: n };
 }
 
+export async function listOpenAIModels(opts?: { apiKey?: string; filter?: string[]; exclude?: string[]; recommendedOnly?: boolean }): Promise<string[]> {
+  const { default: OpenAI } = await import('openai');
+  const client = new OpenAI({ apiKey: (opts?.apiKey || process.env.OPENAI_API_KEY!) });
+  const list = await client.models.list();
+  const filters = (opts?.filter || []).map(s => s.toLowerCase()).filter(Boolean);
+  const excludes = (opts?.exclude || []).map(s => s.toLowerCase()).filter(Boolean);
+  const recommended = new Set([
+    'gpt-5',
+    'gpt-5-mini'
+  ]);
+  const out: string[] = [];
+  for (const m of list.data) {
+    const name = m.id;
+    if (typeof name !== 'string') continue;
+    const lname = name.toLowerCase();
+    if (/embedding|whisper|tts|audio|realtime|vision|omni|fine-tune|moderation|responses|batch/.test(lname)) continue;
+    if ((opts?.recommendedOnly && (!filters || filters.length === 0))) {
+      if (![...recommended].some(r => lname.startsWith(r))) continue;
+    }
+    if (filters.length && !filters.some(f => lname.includes(f))) continue;
+    if (excludes.length && excludes.some(x => lname.includes(x))) continue;
+    out.push(name);
+  }
+  return out;
+}
+
 export async function seedAnthropicModels(){
   const names = [
     // Current common Anthropic chat models
