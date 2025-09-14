@@ -117,3 +117,8 @@ a:hover{text-decoration:none}
 .modal .hd{padding:12px 14px;border-bottom:1px solid var(--border);font-weight:600}
 .modal .bd{padding:14px}
 .modal .ft{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* Shoelace tabs styling */
+sl-tab-group::part(base){ margin-top:8px; margin-bottom:8px }
+sl-tab::part(base){ padding:8px 14px; margin-right:12px; border-bottom:2px solid transparent; color:var(--muted) }
+sl-tab[active]::part(base){ border-color: var(--brand); color: var(--text) }
