@@ -7,9 +7,10 @@ export async function importOpenAIModels(opts?: { apiKey?: string; filter?: stri
   let n = 0;
   const filters = (opts?.filter || []).map(s => s.toLowerCase()).filter(Boolean);
   const excludes = (opts?.exclude || []).map(s => s.toLowerCase()).filter(Boolean);
+  // Recommended list: only GPT-5 family by default
   const recommended = new Set([
-    'gpt-5','gpt-5-mini',
-    'gpt-4o','gpt-4o-mini','gpt-4.1','gpt-4.1-mini','o3','o3-mini'
+    'gpt-5',       // matches gpt-5, gpt-5-*, gpt-5.*
+    'gpt-5-mini'
   ]);
   for (const m of list.data) {
     const name = m.id;
