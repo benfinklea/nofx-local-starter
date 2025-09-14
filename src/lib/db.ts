@@ -6,7 +6,7 @@ export const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
 
-export async function query<T = any>(text: string, params?: any[]) {
-  const res = await pool.query(text, params);
+export async function query<T = unknown>(text: string, params?: unknown[]) {
+  const res = await pool.query(text as string, params as any[] | undefined);
   return res as { rows: T[] };
 }
