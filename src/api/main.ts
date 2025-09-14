@@ -141,9 +141,24 @@ async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; ope
     if (gates.unit) steps.push({ name: 'unit', tool: 'gate:unit' });
   }
   const topic = guessTopicFromPrompt(prompt);
-  steps.push({ name: 'write readme', tool: 'codegen', inputs: { topic, bullets: ['Control plane','Verification','Workers'] } });
-  if (opts.openPr) {
-    steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${topic.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24)}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: 'README.md', fromStep: 'write readme', artifactName: 'README.md' } ] } });
+  const targetPath = guessMarkdownPath(prompt) || 'README.md';
+  const filename = targetPath.split('/').pop() || 'README.md';
+  steps.push({ name: 'write readme', tool: 'codegen', inputs: { topic, bullets: ['Control plane','Verification','Workers'], filename } });
+  if (opts.openPr || /\bopen a pr\b/i.test(prompt)) {
+    const branchBase = topic.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24) || 'update-docs';
+    steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${branchBase}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: targetPath, fromStep: 'write readme', artifactName: filename } ] } });
+  }
+  // If prompt mentions manual approval, add a manual gate
+  if (/manual approval|human approve|require approval/i.test(prompt)) {
+    steps.unshift({ name: 'approval', tool: 'manual:deploy' });
   }
   return { goal: prompt || 'ad-hoc run', steps };
+}
+
+function guessMarkdownPath(p: string): string | undefined {
+  if (!p) return undefined;
+  const m = p.match(/(?:^|\s)([\w\-/.]+\.md)\b/i);
+  if (m) return m[1];
+  if (/\bin docs\b/i.test(p)) return 'docs/README.md';
+  return undefined;
 }

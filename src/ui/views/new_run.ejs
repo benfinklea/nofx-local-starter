@@ -24,6 +24,14 @@
     <button class="btn primary" onclick="createStandardRun()">Create Run</button>
   </div>
   <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
+  <div style="margin-top:12px">
+    <div class="muted" style="margin-bottom:6px">Examples</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn small" onclick="ex('Write a clear README explaining NOFX’s control plane, verification gates, and workers. Open a PR with the change.', true, true)">README + PR</button>
+      <button class="btn small" onclick="ex('Create docs/overview.md that explains how to add models and set pricing. Open a PR.', true, true)">Docs/overview.md</button>
+      <button class="btn small" onclick="ex('Draft CONTRIBUTING.md with setup steps, run commands, and code style. Require manual approval before opening a PR.', true, true)">Contributing + Approval</button>
+    </div>
+  </div>
 </div></section>
 
 <section class="card" style="margin-top:16px"><div class="bd">
@@ -100,6 +108,11 @@ async function createStandardRun(){
   if (!rsp.ok) { document.getElementById('status').textContent = 'Failed to create'; return; }
   const data = await rsp.json();
   window.location.href = `/ui/runs/${data.id}`;
+}
+function ex(text, quality=true, pr=true){
+  document.getElementById('std_prompt').value = text;
+  document.getElementById('std_quality').checked = !!quality;
+  document.getElementById('std_openpr').checked = !!pr;
 }
 </script>
 </body></html>

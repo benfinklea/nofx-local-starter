@@ -13,7 +13,9 @@ const handler: StepHandler = {
     await query(`update nofx.step set status='running', started_at=now() where id=$1`, [stepId]);
     await recordEvent(runId, "step.started", { name: step.name, tool: step.tool }, stepId);
 
-    const result = await codegenReadme(step.inputs || {});
+    const inputs = step.inputs || {} as any;
+    const filename = typeof inputs.filename === 'string' && inputs.filename.trim().length > 0 ? String(inputs.filename).trim() : 'README.md';
+    const result = await codegenReadme(inputs || {});
     let costUSD: number | undefined;
     if (result.usage) {
       const { llm } = await getSettings();
@@ -41,7 +43,7 @@ const handler: StepHandler = {
     if (result.usage) {
       await recordEvent(runId, 'llm.usage', { provider: result.provider, model: result.model, usage: result.usage }, stepId);
     }
-    const artifactName = "README.md";
+    const artifactName = filename;
     const path = `runs/${runId}/steps/${stepId}/${artifactName}`;
     const { error } = await supabase.storage.from(ARTIFACT_BUCKET).upload(path, new Blob([result.content]), { upsert: true } as any);
     if (error) throw error;
