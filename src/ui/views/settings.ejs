@@ -53,19 +53,19 @@
   <p>Select model order for each task. Manage models on the <a href="/ui/models">Models</a> page.</n>
   <div>
     <h3>Docs</h3>
-    <select id="docsSelect"></select>
+    <sl-select id="docsSelect" clearable></sl-select>
     <button onclick="addToOrder('docs')">Add</button>
     <ul id="docsOrder"></ul>
   </div>
   <div>
     <h3>Reasoning</h3>
-    <select id="reasoningSelect"></select>
+    <sl-select id="reasoningSelect" clearable></sl-select>
     <button onclick="addToOrder('reasoning')">Add</button>
     <ul id="reasoningOrder"></ul>
   </div>
   <div>
     <h3>Codegen</h3>
-    <select id="codegenSelect"></select>
+    <sl-select id="codegenSelect" clearable></sl-select>
     <button onclick="addToOrder('codegen')">Add</button>
     <ul id="codegenOrder"></ul>
   </div>
@@ -112,7 +112,7 @@ async function load(){
   for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
     const sel = document.getElementById(selId);
     sel.innerHTML = '';
-    modelOptions.forEach(m => { const opt = document.createElement('option'); opt.value = m.value; opt.textContent = m.label; sel.appendChild(opt); });
+    modelOptions.forEach(m => { const opt = document.createElement('sl-option'); opt.value = m.value; opt.textContent = m.label; sel.appendChild(opt); });
   }
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];

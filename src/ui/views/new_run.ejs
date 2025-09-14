@@ -31,14 +31,15 @@
         <div class="col-6"><label>Search & summarize (optional) <input id="std_sumq" placeholder="e.g. pricing policy"/></label></div>
         <div class="col-6"><label>Summarize into (optional) <input id="std_sumtarget" placeholder="e.g. docs/summary.md"/></label></div>
       </div>
-      <div class="grid" style="margin-top:8px;align-items:center">
-        <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks</label></div>
-        <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR</label></div>
-        <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px">
-          <button class="btn" onclick="previewStandard()">Preview</button>
-          <button class="btn primary" onclick="createStandardRun()">Create Run</button>
-        </div>
-      </div>
+  <div class="grid" style="margin-top:8px;align-items:center">
+    <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks</label></div>
+    <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR</label></div>
+    <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px">
+      <button class="btn" onclick="previewStandard()">Preview</button>
+      <button class="btn primary" onclick="createStandardRun()">Create Run</button>
+    </div>
+  </div>
+  <div id="whatHappens" class="muted" style="margin-top:6px"></div>
       <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
       <div style="margin-top:12px">
         <div class="muted" style="margin-bottom:6px">Examples</div>
@@ -144,6 +145,19 @@ async function previewStandard(){
   const ul = document.getElementById('previewSteps');
   ul.innerHTML = '';
   (data.steps||[]).forEach(s => { const li = document.createElement('li'); li.textContent = `${s.tool} — ${s.name}`; ul.appendChild(li); });
+  // Update inline summary sentence
+  const what = document.getElementById('whatHappens');
+  try {
+    const tools = (data.steps||[]).map(s=>s.tool);
+    const hasPR = tools.includes('git_pr');
+    const code = (data.steps||[]).find(s=>s.tool==='codegen');
+    const filename = code?.inputs?.filename || 'README.md';
+    const parts = [];
+    if (quality && (tools.some(t=>t.startsWith('gate:')))) parts.push('run quality checks');
+    parts.push(`generate ${filename}`);
+    if (hasPR) parts.push('open a PR');
+    what.textContent = `We will ${parts.join(', ')}.`;
+  } catch { what.textContent = '' }
   document.querySelector('#planPreview').show();
 }
 function ex(text, quality=true, pr=true){
@@ -151,6 +165,14 @@ function ex(text, quality=true, pr=true){
   document.getElementById('std_quality').checked = !!quality;
   document.getElementById('std_openpr').checked = !!pr;
 }
+// Auto-preview (debounced) to update inline summary as users type
+let _pvTimer;
+['std_prompt','std_quality','std_openpr','std_file','std_sumq','std_sumtarget'].forEach(id=>{
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', ()=>{ clearTimeout(_pvTimer); _pvTimer = setTimeout(previewStandard, 400); });
+  el.addEventListener('change', ()=>{ clearTimeout(_pvTimer); _pvTimer = setTimeout(previewStandard, 50); });
+});
 </script>
 <sl-dialog id="planPreview" label="Plan Preview">
   <div>
