@@ -8,6 +8,7 @@ export async function importOpenAIModels(opts?: { apiKey?: string; filter?: stri
   const filters = (opts?.filter || []).map(s => s.toLowerCase()).filter(Boolean);
   const excludes = (opts?.exclude || []).map(s => s.toLowerCase()).filter(Boolean);
   const recommended = new Set([
+    'gpt-5','gpt-5-mini',
     'gpt-4o','gpt-4o-mini','gpt-4.1','gpt-4.1-mini','o3','o3-mini'
   ]);
   for (const m of list.data) {
@@ -16,7 +17,8 @@ export async function importOpenAIModels(opts?: { apiKey?: string; filter?: stri
     const lname = name.toLowerCase();
     // Default skip clutter
     if (/embedding|whisper|tts|audio|realtime|vision|omni|fine-tune|moderation|responses|batch/.test(lname)) continue;
-    if (opts?.recommendedOnly) {
+    // If recommendedOnly and no explicit filters, only import curated prefixes
+    if ((opts?.recommendedOnly && filters.length === 0)) {
       if (![...recommended].some(r => lname.startsWith(r))) continue;
     }
     if (filters.length && !filters.some(f => lname.includes(f))) continue;

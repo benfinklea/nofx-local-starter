@@ -41,7 +41,8 @@ export default function mount(app: Express){
         const excludeRaw = (req.body && (req.body.exclude || req.body.excludes)) || '';
         const filter = Array.isArray(filterRaw) ? filterRaw : String(filterRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
         const exclude = Array.isArray(excludeRaw) ? excludeRaw : String(excludeRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
-        const recommendedOnly = !!(req.body && (req.body.recommendedOnly ?? true));
+        // If user provided filters, don't restrict to recommended only.
+        const recommendedOnly = filter.length === 0 ? !!(req.body && (req.body.recommendedOnly ?? true)) : false;
         const r = await importOpenAIModels({ filter, exclude, recommendedOnly });
         return res.json(r);
       }
