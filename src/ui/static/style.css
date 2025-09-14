@@ -122,3 +122,4 @@ a:hover{text-decoration:none}
 sl-tab-group::part(base){ margin-top:8px; margin-bottom:8px }
 sl-tab::part(base){ padding:8px 14px; margin-right:12px; border-bottom:2px solid transparent; color:var(--muted) }
 sl-tab[active]::part(base){ border-color: var(--brand); color: var(--text) }
+.small-link{font-size:.9em; color:var(--link); text-decoration:underline; cursor:pointer}

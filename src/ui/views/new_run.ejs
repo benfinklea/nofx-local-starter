@@ -24,21 +24,33 @@
   <sl-tab-panel name="std">
     <section class="card"><div class="bd">
       <div class="section-title" style="margin-bottom:6px">Standard <sl-tooltip content="Standard = plain language. Developers = JSON."><span class="tip">?</span></sl-tooltip></div>
-      <label>What should it do?
+      <label>What should it do? <a href="#" class="small-link" onclick="openInfo('info_prompt');return false;">Learn more</a>
         <textarea id="std_prompt" rows="5" placeholder="Example: Create docs/overview.md that explains models and pricing. Open a PR."></textarea>
       </label>
-      <div class="grid" style="margin-top:8px">
-        <div class="col-6"><label>Search & summarize (optional) <input id="std_sumq" placeholder="e.g. pricing policy"/></label></div>
-        <div class="col-6"><label>Summarize into (optional) <input id="std_sumtarget" placeholder="e.g. docs/summary.md"/></label></div>
+      <sl-details summary="Advanced Options" style="margin-top:8px">
+        <div class="grid">
+          <div class="col-6"><label>Search & summarize <a href="#" class="small-link" onclick="openInfo('info_sum');return false;">Learn more</a>
+            <input id="std_sumq" placeholder="e.g. pricing policy"/></label></div>
+          <div class="col-6"><label>Summarize into <a href="#" class="small-link" onclick="openInfo('info_sumtarget');return false;">Learn more</a>
+            <input id="std_sumtarget" placeholder="e.g. docs/summary.md"/></label></div>
+        </div>
+        <div class="grid" style="align-items:center">
+          <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks <a href="#" class="small-link" onclick="openInfo('info_quality');return false;">Learn more</a></label></div>
+          <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR <a href="#" class="small-link" onclick="openInfo('info_pr');return false;">Learn more</a></label></div>
+        </div>
+        <div class="muted" style="margin-top:6px">Examples</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn small" onclick="ex('Write a clear README explaining NOFX’s control plane, verification gates, and workers. Open a PR with the change.', true, true)">README + PR</button>
+          <button class="btn small" onclick="ex('Create docs/overview.md that explains how to add models and set pricing. Open a PR.', true, true)">Docs/overview.md</button>
+          <button class="btn small" onclick="ex('Draft CONTRIBUTING.md with setup steps, run commands, and code style. Require manual approval before opening a PR.', true, true)">Contributing + Approval</button>
+        </div>
+      </sl-details>
+      <div class="grid" style="margin-top:8px;align-items:center">
+        <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px">
+          <button class="btn" onclick="previewStandard()">Preview</button>
+          <button class="btn primary" onclick="createStandardRun()">Create Run</button>
+        </div>
       </div>
-  <div class="grid" style="margin-top:8px;align-items:center">
-    <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks</label></div>
-    <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR</label></div>
-    <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px">
-      <button class="btn" onclick="previewStandard()">Preview</button>
-      <button class="btn primary" onclick="createStandardRun()">Create Run</button>
-    </div>
-  </div>
   <div id="whatHappens" class="muted" style="margin-top:6px"></div>
       <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
       <div style="margin-top:12px">
@@ -178,5 +190,42 @@ let _pvTimer;
     <ul id="previewSteps"></ul>
   </div>
   <sl-button slot="footer" onclick="document.querySelector('#planPreview').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_prompt" label="What should it do?">
+  <div>
+    Write in plain language. Examples:
+    <ul>
+      <li>Create docs/overview.md describing models and pricing.</li>
+      <li>Write a README explaining the control plane and gates.</li>
+      <li>Open a PR with the changes.</li>
+    </ul>
+    If you ask to “open a PR”, we will add a PR step (marked “Prompt”).
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_prompt').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_sum" label="Search & summarize">
+  <div>
+    Summarizes local code/docs related to your topic into a short Markdown document. This does not search the web, only your project.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_sum').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_sumtarget" label="Summarize into">
+  <div>
+    Where to write the summary (e.g., docs/summary.md). Leave blank to let NOFX choose a sensible default.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_sumtarget').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_quality" label="Quality checks">
+  <div>
+    Runs Typecheck, Lint, and Unit tests as configured in Settings. Recommended On for reliable changes and auditability.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_quality').hide()">Close</sl-button>
+</sl-dialog>
+<sl-dialog id="info_pr" label="Open a GitHub PR">
+  <div>
+    Creates a branch, commits generated files, and opens a PR. Requires your git remote to point to GitHub and GITHUB_TOKEN in .env.
+    If your prompt explicitly asks for a PR, we add it even if the toggle is off; the step will be labeled “Prompt”.
+  </div>
+  <sl-button slot="footer" onclick="document.querySelector('#info_pr').hide()">Close</sl-button>
 </sl-dialog>
 </body></html>
