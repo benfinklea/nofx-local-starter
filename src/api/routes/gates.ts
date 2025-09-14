@@ -32,7 +32,8 @@ export default function mount(app: Express){
       `update nofx.gate set status='passed', approved_by=$2, approved_at=now() where id=$1 returning *`,
       [id, approvedBy]
     );
-    const gate = r.rows[0];
+    type GateRow = { id: string; run_id: string; status: string };
+    const gate = r.rows[0] as unknown as GateRow;
     if (!gate) return res.status(404).json({ error: 'not found' });
     await recordEvent(gate.run_id, 'gate.approved', { gateId: gate.id, approvedBy });
     res.json(gate);
@@ -47,7 +48,8 @@ export default function mount(app: Express){
       `update nofx.gate set status='waived', approved_by=$2, approved_at=now() where id=$1 returning *`,
       [id, approvedBy]
     );
-    const gate = r.rows[0];
+    type GateRow = { id: string; run_id: string; status: string };
+    const gate = r.rows[0] as unknown as GateRow;
     if (!gate) return res.status(404).json({ error: 'not found' });
     await recordEvent(gate.run_id, 'gate.waived', { gateId: gate.id, approvedBy });
     res.json(gate);
