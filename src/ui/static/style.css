@@ -93,6 +93,7 @@ input,select,textarea{width:100%;background:#0e1522;border:1px solid var(--borde
 label{display:block;margin:8px 0;color:#cdd6e8}
 .input-warn{border-color: #8c6b1f; box-shadow: inset 0 0 0 2px rgba(255,210,110,.08)}
 .warn-text{color: var(--warn); font-size:.9em}
+.nowrap{white-space:nowrap}
 
 /* Shoelace spacing helpers */
 sl-card::part(base){ background: var(--panel); border:1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); }

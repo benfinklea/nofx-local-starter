@@ -3,6 +3,8 @@
 <link rel="stylesheet" href="/ui/static/style.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
 </head><body>
 <div class="header"><div class="inner">
   <div class="brand"><a href="/ui/runs">NOFX</a></div>
@@ -15,38 +17,45 @@
 <div class="container">
 <div class="section-title"><h1 style="margin:12px 0">New Run</h1><span class="tip" data-tip="Tell NOFX what you want in plain language. Quality checks run automatically based on Settings. Developers can expand the JSON editor below.">?</span></div>
 
-<section class="card"><div class="bd">
-  <h2>Standard</h2>
-  <label>What should it do?
-    <textarea id="std_prompt" rows="5" placeholder="Example: Create docs/overview.md that explains models and pricing. Open a PR."></textarea>
-  </label>
-  <div class="grid" style="margin-top:8px">
-    <div class="col-12"><label>Create / Update file (optional) <input id="std_file" placeholder="e.g. docs/overview.md"/></label></div>
-    <div class="col-6"><label>Search & summarize (optional) <input id="std_sumq" placeholder="e.g. pricing policy"/></label></div>
-    <div class="col-6"><label>Summarize into (optional) <input id="std_sumtarget" placeholder="e.g. docs/summary.md"/></label></div>
-  </div>
-  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px">
-    <label style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks</label>
-    <label style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR</label>
-    <button class="btn" onclick="previewStandard()">Preview</button>
-    <button class="btn primary" onclick="createStandardRun()">Create Run</button>
-  </div>
-  <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
-  <div style="margin-top:12px">
-    <div class="muted" style="margin-bottom:6px">Examples</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn small" onclick="ex('Write a clear README explaining NOFX’s control plane, verification gates, and workers. Open a PR with the change.', true, true)">README + PR</button>
-      <button class="btn small" onclick="ex('Create docs/overview.md that explains how to add models and set pricing. Open a PR.', true, true)">Docs/overview.md</button>
-      <button class="btn small" onclick="ex('Draft CONTRIBUTING.md with setup steps, run commands, and code style. Require manual approval before opening a PR.', true, true)">Contributing + Approval</button>
-    </div>
-  </div>
-</div></section>
+<sl-tab-group activation="manual" style="margin-top:8px">
+  <sl-tab slot="nav" panel="std" active>Standard</sl-tab>
+  <sl-tab slot="nav" panel="dev">Developers</sl-tab>
 
-<section class="card" style="margin-top:16px"><div class="bd">
-  <h2>Developers</h2>
-  <label>Goal <input id="goal" placeholder="Describe the goal" style="max-width:420px"/></label>
-  <div>
-    <textarea id="plan" rows="18" style="width:100%;max-width:900px" placeholder='{
+  <sl-tab-panel name="std">
+    <section class="card"><div class="bd">
+      <label>What should it do?
+        <textarea id="std_prompt" rows="5" placeholder="Example: Create docs/overview.md that explains models and pricing. Open a PR."></textarea>
+      </label>
+      <div class="grid" style="margin-top:8px">
+        <div class="col-12"><label>Create / Update file (optional) <input id="std_file" placeholder="e.g. docs/overview.md"/></label></div>
+        <div class="col-6"><label>Search & summarize (optional) <input id="std_sumq" placeholder="e.g. pricing policy"/></label></div>
+        <div class="col-6"><label>Summarize into (optional) <input id="std_sumtarget" placeholder="e.g. docs/summary.md"/></label></div>
+      </div>
+      <div class="grid" style="margin-top:8px;align-items:center">
+        <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_quality" type="checkbox" checked/> Include quality checks</label></div>
+        <div class="col-6"><label class="nowrap" style="display:inline-flex;gap:6px;align-items:center"><input id="std_openpr" type="checkbox"/> Open a GitHub PR</label></div>
+        <div class="col-12" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px">
+          <button class="btn" onclick="previewStandard()">Preview</button>
+          <button class="btn primary" onclick="createStandardRun()">Create Run</button>
+        </div>
+      </div>
+      <small class="muted">Checks and approvals follow your Settings. You can adjust them any time.</small>
+      <div style="margin-top:12px">
+        <div class="muted" style="margin-bottom:6px">Examples</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn small" onclick="ex('Write a clear README explaining NOFX’s control plane, verification gates, and workers. Open a PR with the change.', true, true)">README + PR</button>
+          <button class="btn small" onclick="ex('Create docs/overview.md that explains how to add models and set pricing. Open a PR.', true, true)">Docs/overview.md</button>
+          <button class="btn small" onclick="ex('Draft CONTRIBUTING.md with setup steps, run commands, and code style. Require manual approval before opening a PR.', true, true)">Contributing + Approval</button>
+        </div>
+      </div>
+    </div></section>
+  </sl-tab-panel>
+
+  <sl-tab-panel name="dev">
+    <section class="card" style="margin-top:8px"><div class="bd">
+      <label>Goal <input id="goal" placeholder="Describe the goal" style="max-width:420px"/></label>
+      <div>
+        <textarea id="plan" rows="18" style="width:100%;max-width:900px" placeholder='{
   "steps": [
     { "name": "typecheck", "tool": "gate:typecheck" },
     { "name": "lint", "tool": "gate:lint" },
@@ -54,9 +63,11 @@
     { "name": "write readme", "tool": "codegen", "inputs": { "topic": "Welcome", "bullets": ["Control plane","Verification","Workers"] } }
   ]
 }'></textarea>
-  </div>
-  <p><button class="btn" onclick="createRun()">Create Run (Developers)</button> <span id="status" class="muted"></span></p>
-</div></section>
+      </div>
+      <p><button class="btn" onclick="createRun()">Create Run (Developers)</button> <span id="status" class="muted"></span></p>
+    </div></section>
+  </sl-tab-panel>
+</sl-tab-group>
 </div>
 
 <script>
