@@ -12,6 +12,7 @@
     "import:models:openai": "ts-node-dev --transpile-only scripts/importModels.ts openai",
     "import:models:anthropic": "ts-node-dev --transpile-only scripts/importModels.ts anthropic",
     "import:models:gemini": "ts-node-dev --transpile-only scripts/importModels.ts gemini",
+    "settings:set:order": "ts-node-dev --transpile-only scripts/setPreferredOrder.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --format=json --ext .ts src",
     "test": "vitest run --coverage",

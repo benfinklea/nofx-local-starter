@@ -131,17 +131,20 @@ if (process.env.NODE_ENV !== 'test') {
 // Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
 if (process.env.DEV_RESTART_WATCH === '1') {
   const flagPath = path.join(process.cwd(), '.dev-restart-api');
+  const startedAt = Date.now();
   let last = 0;
+  // Clean up stale flag from previous run
+  try { const st = fs.statSync(flagPath); if (st.mtimeMs <= startedAt) fs.unlinkSync(flagPath); } catch {}
   setInterval(() => {
     try {
       const stat = fs.statSync(flagPath);
       const m = stat.mtimeMs;
-      if (m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
+      if (m > startedAt && m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
     } catch {
       // ignore missing flag or stat errors in dev restart watcher
     }
   }, 1500);
-  }
+}
 
 // Build a plan from simple prompt using Settings
 import { buildPlanFromPrompt } from './planBuilder';

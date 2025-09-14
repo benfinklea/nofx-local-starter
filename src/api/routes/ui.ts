@@ -1,6 +1,8 @@
 import type { Express } from 'express';
 import { query } from '../../lib/db';
 import { supabase, ARTIFACT_BUCKET } from '../../lib/supabase';
+import { getSettings } from '../../lib/settings';
+import { listModels } from '../../lib/models';
 import { isAdmin } from '../../lib/auth';
 
 export default function mount(app: Express){
@@ -23,7 +25,10 @@ export default function mount(app: Express){
   });
   app.get('/ui/settings', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
-    res.render('settings');
+    let settings: any = null; let models: any[] = [];
+    try { settings = await getSettings(); } catch {}
+    try { models = await listModels(); } catch {}
+    res.render('settings', { preloaded: { settings, models } });
   });
   app.get('/ui/models', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');

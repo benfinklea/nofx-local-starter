@@ -19,4 +19,30 @@ export default function mount(app: Express){
       res.status(500).json({ error: message });
     }
   });
+
+  app.post('/dev/restart/api', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'not found' });
+    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+    try {
+      const apiFlag = path.join(process.cwd(), '.dev-restart-api');
+      fs.writeFileSync(apiFlag, String(Date.now()));
+      res.json({ ok: true });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'restart failed';
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post('/dev/restart/worker', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'not found' });
+    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+    try {
+      const workerFlag = path.join(process.cwd(), '.dev-restart-worker');
+      fs.writeFileSync(workerFlag, String(Date.now()));
+      res.json({ ok: true });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'restart failed';
+      res.status(500).json({ error: message });
+    }
+  });
 }
