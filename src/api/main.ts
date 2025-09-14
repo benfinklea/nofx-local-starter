@@ -167,7 +167,7 @@ async function buildPlanFromPrompt(prompt: string, opts: { quality: boolean; ope
       steps.push({ name: 'open pr (summary)', tool: 'git_pr', inputs: { branch: `feat/summary-${Date.now().toString().slice(-4)}`, base: 'main', title: `docs: summary of ${opts.summarizeQuery}`, commits: [ { path: sumPath, fromStep: 'summarize', artifactName: sumName } ] } });
     }
   }
-  if (opts.openPr || /\bopen a pr\b/i.test(prompt)) {
+  if (opts.openPr === true || (opts.openPr === undefined && /\bopen a pr\b/i.test(prompt))) {
     const branchBase = topic.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24) || 'update-docs';
     steps.push({ name: 'open pr', tool: 'git_pr', inputs: { branch: `feat/${branchBase}`, base: 'main', title: `docs: ${topic}`, commits: [ { path: targetPath, fromStep: 'write readme', artifactName: filename } ] } });
   }
