@@ -53,19 +53,19 @@
   <p>Select model order for each task. Manage models on the <a href="/ui/models">Models</a> page.</n>
   <div>
     <h3>Docs</h3>
-    <sl-select id="docsSelect" clearable></sl-select>
+    <sl-select id="docsSelect" clearable hoist></sl-select>
     <button onclick="addToOrder('docs')">Add</button>
     <ul id="docsOrder"></ul>
   </div>
   <div>
     <h3>Reasoning</h3>
-    <sl-select id="reasoningSelect" clearable></sl-select>
+    <sl-select id="reasoningSelect" clearable hoist></sl-select>
     <button onclick="addToOrder('reasoning')">Add</button>
     <ul id="reasoningOrder"></ul>
   </div>
   <div>
     <h3>Codegen</h3>
-    <sl-select id="codegenSelect" clearable></sl-select>
+    <sl-select id="codegenSelect" clearable hoist></sl-select>
     <button onclick="addToOrder('codegen')">Add</button>
     <ul id="codegenOrder"></ul>
   </div>
@@ -89,7 +89,7 @@
 <script>
 async function load(){
   const rsp = await fetch('/settings');
-  const { settings, db_write_rules } = await rsp.json();
+  const { settings, db_write_rules, models } = await rsp.json();
   document.getElementById('dbWrites').value = settings.approvals.dbWrites;
   document.getElementById('allowWaive').checked = !!settings.approvals.allowWaive;
   document.getElementById('gateTypecheck').checked = !!settings.gates.typecheck;
@@ -102,10 +102,8 @@ async function load(){
   for (const r of db_write_rules) {
     addRuleRow(r.table_name, r.allowed_ops||[]);
   }
-  // Load models for dropdowns with friendly labels
-  const modelsRsp = await fetch('/models');
-  const modelsData = await modelsRsp.json().catch(()=>({ models: [] }));
-  let activeModels = (modelsData.models||[]).filter(m => m.active !== false);
+  // Load models for dropdowns with friendly labels (provided in same response)
+  let activeModels = (models||[]).filter(m => m.active !== false);
   // Fallback options if no DB models exist yet
   if (!activeModels.length) {
     activeModels = [

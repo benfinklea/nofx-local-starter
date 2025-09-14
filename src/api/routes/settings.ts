@@ -1,5 +1,6 @@
 import type { Express } from 'express';
 import { getSettings, updateSettings } from '../../lib/settings';
+import { listModels } from '../../lib/models';
 import { query } from '../../lib/db';
 import { isAdmin } from '../../lib/auth';
 
@@ -9,7 +10,9 @@ export default function mount(app: Express){
     const settings = await getSettings();
     const rules = await query<any>(`select table_name, allowed_ops, constraints from nofx.db_write_rule where tenant_id='local' order by table_name`)
       .catch(()=>({ rows: [] as any[] }));
-    res.json({ settings, db_write_rules: rules.rows });
+    let models: any[] = [];
+    try { models = await listModels(); } catch { models = []; }
+    res.json({ settings, db_write_rules: rules.rows, models });
   });
 
   app.post('/settings', async (req, res) => {
