@@ -104,8 +104,16 @@ async function load(){
   }
   // Load models for dropdowns with friendly labels
   const modelsRsp = await fetch('/models');
-  const modelsData = await modelsRsp.json();
-  const activeModels = (modelsData.models||[]).filter(m => m.active !== false);
+  const modelsData = await modelsRsp.json().catch(()=>({ models: [] }));
+  let activeModels = (modelsData.models||[]).filter(m => m.active !== false);
+  // Fallback options if no DB models exist yet
+  if (!activeModels.length) {
+    activeModels = [
+      { provider: 'openai', name: (window.OPENAI_MODEL || 'gpt-5'), display_name: 'OpenAI (gpt-5)' },
+      { provider: 'anthropic', name: (window.ANTHROPIC_MODEL || 'claude-4-sonnet'), display_name: 'Anthropic (Claude 4 Sonnet)' },
+      { provider: 'gemini', name: (window.GEMINI_MODEL || 'gemini-2.5-pro'), display_name: 'Gemini (2.5 Pro)' }
+    ];
+  }
   window._labelByName = {};
   const modelOptions = activeModels.map(m => ({ value: m.name, label: `${m.provider}: ${m.display_name || m.name}` }));
   modelOptions.forEach(m => _labelByName[m.value] = m.label);
@@ -117,6 +125,10 @@ async function load(){
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];
   state.codegen = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.codegen) || [];
+  // If model order is empty and we have fallback options, prefill one entry each for quick start
+  if (!state.docs.length && modelOptions.length) state.docs = [modelOptions[0].value];
+  if (!state.reasoning.length && modelOptions.length) state.reasoning = [modelOptions[0].value];
+  if (!state.codegen.length && modelOptions.length) state.codegen = [modelOptions[0].value];
   renderOrder('docs'); renderOrder('reasoning'); renderOrder('codegen');
 
   // Providers UI removed; manage providers via Models page
