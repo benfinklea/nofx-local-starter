@@ -207,9 +207,19 @@ export const store = {
   getRun: async (id:string) => DATA_DRIVER === 'db'
     ? (await pgQuery<RunRow>(`select * from nofx.run where id = $1`, [id])).rows[0]
     : fsGetRun(id),
-  updateRun: async (id:string, patch: Partial<RunRow>) => DATA_DRIVER === 'db'
-    ? pgQuery(`update nofx.run set status=coalesce($2,status), ended_at=coalesce($3,ended_at) where id=$1`, [id, (patch as any).status, (patch as any).ended_at])
-    : fsUpdateRun(id, patch),
+  updateRun: async (id:string, patch: Partial<RunRow>) => {
+    if (DATA_DRIVER !== 'db') return fsUpdateRun(id, patch);
+    // Try ended_at first; if column missing, fall back to completed_at
+    try {
+      await pgQuery(`update nofx.run set status=coalesce($2,status), ended_at=coalesce($3,ended_at) where id=$1`, [id, (patch as any).status, (patch as any).ended_at]);
+    } catch (e) {
+      try {
+        await pgQuery(`update nofx.run set status=coalesce($2,status), completed_at=coalesce($3,completed_at) where id=$1`, [id, (patch as any).status, (patch as any).ended_at || (patch as any).completed_at]);
+      } catch {
+        throw e;
+      }
+    }
+  },
   listRuns: async (limit=100) => DATA_DRIVER === 'db'
     ? (await pgQuery<any>(`select id,status,created_at, coalesce(plan->>'goal','') as title from nofx.run order by created_at desc limit ${limit}`)).rows
     : fsListRuns(limit),
@@ -228,9 +238,18 @@ export const store = {
   getStepByIdempotencyKey: async (runId:string, key:string) => DATA_DRIVER === 'db'
     ? (await pgQuery<StepRow>(`select * from nofx.step where run_id=$1 and idempotency_key=$2`, [runId, key])).rows[0]
     : fsFindStepByIdempotencyKey(runId, key),
-  updateStep: async (id:string, patch: Partial<StepRow>) => DATA_DRIVER === 'db'
-    ? pgQuery(`update nofx.step set status=coalesce($2,status), started_at=coalesce($3,started_at), ended_at=coalesce($4,ended_at), outputs=coalesce($5,outputs) where id=$1`, [id, (patch as any).status, (patch as any).started_at, (patch as any).ended_at, (patch as any).outputs])
-    : fsUpdateStep(id, patch),
+  updateStep: async (id:string, patch: Partial<StepRow>) => {
+    if (DATA_DRIVER !== 'db') return fsUpdateStep(id, patch);
+    try {
+      await pgQuery(`update nofx.step set status=coalesce($2,status), started_at=coalesce($3,started_at), ended_at=coalesce($4,ended_at), outputs=coalesce($5,outputs) where id=$1`, [id, (patch as any).status, (patch as any).started_at, (patch as any).ended_at, (patch as any).outputs]);
+    } catch (e) {
+      try {
+        await pgQuery(`update nofx.step set status=coalesce($2,status), started_at=coalesce($3,started_at), completed_at=coalesce($4,completed_at), outputs=coalesce($5,outputs) where id=$1`, [id, (patch as any).status, (patch as any).started_at, (patch as any).ended_at || (patch as any).completed_at, (patch as any).outputs]);
+      } catch {
+        throw e;
+      }
+    }
+  },
   listStepsByRun: async (runId:string) => DATA_DRIVER === 'db'
     ? (await pgQuery<StepRow>(`select * from nofx.step where run_id = $1 order by created_at`, [runId])).rows
     : fsListStepsByRun(runId),

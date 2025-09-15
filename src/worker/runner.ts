@@ -5,7 +5,6 @@ import { loadHandlers } from "./handlers/loader";
 import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
 import type { Step } from "./handlers/types";
 import { metrics } from "../lib/metrics";
-import { query } from "../lib/db";
 
 const handlers = loadHandlers();
 
@@ -62,7 +61,7 @@ export async function runStep(runId: string, stepId: string) {
   const h = handlers.find(h => h.match(step.tool));
   if (!h) {
     await recordEvent(runId, "step.failed", { error: "no handler for tool", tool: step.tool }, stepId);
-    await query(`update nofx.step set status='failed', ended_at=now() where id=$1`, [stepId]);
+    await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString() });
     throw new Error("no handler for " + step.tool);
   }
 
