@@ -12,6 +12,7 @@ import { mountRouters } from './loader';
 import fs from 'node:fs';
 import http from 'node:http';
 import { initAutoBackupFromSettings } from '../lib/autobackup';
+import startOutboxRelay from '../worker/relay';
 import { requestObservability, setContext } from '../lib/observability';
 import { initTracing } from '../lib/tracing';
 
@@ -198,3 +199,5 @@ export default app;
 
 // Background: optional periodic backups driven by Settings
 initAutoBackupFromSettings().catch(()=>{});
+// Start outbox relay for event fan-out (non-blocking)
+try { startOutboxRelay(); } catch {}
