@@ -1,9 +1,0 @@
-{
-  "id": "9001cad5-5899-4c8e-aa6b-360047093e54",
-  "status": "queued",
-  "plan": {
-    "goal": "idempotency",
-    "steps": []
-  },
-  "created_at": "2025-09-15T19:22:02.460Z"
-}
