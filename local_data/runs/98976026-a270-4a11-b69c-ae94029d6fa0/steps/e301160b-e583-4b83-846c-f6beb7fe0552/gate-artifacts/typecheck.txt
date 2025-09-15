@@ -1,0 +1,6 @@
+src/api/routes/gates.ts(36,26): error TS2783: 'run_id' is specified more than once, so this usage will be overwritten.
+src/api/routes/gates.ts(56,26): error TS2783: 'run_id' is specified more than once, so this usage will be overwritten.
+src/worker/handlers/gate.ts(34,13): error TS2304: Cannot find name 'query'.
+src/worker/handlers/gate.ts(38,15): error TS2304: Cannot find name 'query'.
+src/worker/runner.ts(17,11): error TS2304: Cannot find name 'query'.
+

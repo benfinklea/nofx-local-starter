@@ -1,0 +1,25 @@
+{
+  "id": "81fc88b2-e63d-4715-ba9c-099b5ee520d4",
+  "status": "succeeded",
+  "plan": {
+    "goal": "Data integrity test",
+    "steps": [
+      {
+        "name": "step1",
+        "tool": "codegen",
+        "inputs": {
+          "value": 123
+        }
+      },
+      {
+        "name": "step2",
+        "tool": "codegen",
+        "inputs": {
+          "value": 456
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:34:50.359Z",
+  "ended_at": "2025-09-15T22:35:40.596Z"
+}

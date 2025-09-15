@@ -1,0 +1,13 @@
+{
+  "id": "031eaf01-7457-483f-af2c-23246c6b0738",
+  "run_id": "b8bc612c-22bf-4744-8d32-eeec170df45f",
+  "name": "xss_test",
+  "tool": "test",
+  "inputs": {
+    "data": "<script>alert(\"XSS\")</script>",
+    "_policy": {}
+  },
+  "status": "queued",
+  "created_at": "2025-09-15T23:06:05.424Z",
+  "idempotency_key": "b8bc612c-22bf-4744-8d32-eeec170df45f:xss_test:be9eac458318"
+}

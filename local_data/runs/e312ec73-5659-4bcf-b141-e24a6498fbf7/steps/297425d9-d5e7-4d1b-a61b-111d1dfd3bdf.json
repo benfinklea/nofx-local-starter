@@ -1,0 +1,15 @@
+{
+  "id": "297425d9-d5e7-4d1b-a61b-111d1dfd3bdf",
+  "run_id": "e312ec73-5659-4bcf-b141-e24a6498fbf7",
+  "name": "step_0",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Step 0",
+    "data": "Quis vespillo officiis deficio. Commodo cetera approbo viduo umerus amaritudo toties. Curia vindico censura bos aegrotatio voluptatibus volo pecto comitatus.\nCubo suppellex nostrum adficio libero. Depono cruentus bellum cicuta absum cum. Sustineo quidem testimonium cubicularis dolore thymbra cervus caveo.\nBardus absum totidem laudantium autem comis. Decerno anser vigor. Volutabrum at adeo alius.\nArbor aureus candidus delicate comis suffoco appello fuga torrens sint. Sint ipsa vesper asper valde tempore claro vester. Quaerat tollo dolorum tibi viduo.\nConfero casus cometes tracto vos decumbo sulum. Sufficio officia arcesso cauda assumenda cogo. Cura sponte tabella cerno curvo.\nTamquam sonitus triumphus perspiciatis cognomen adsuesco. Labore vulnus copia. Textilis illum asperiores aurum uterque.\nAcerbitas coepi tres usque suffoco unde sonitus patruus super. Concedo adaugeo a vulgus conculco natus via. Argumentum cohors amaritudo adiuvo suspendo sortitus compono corrupti optio tenetur.\nSpargo fuga aufero desidero alveus tremo aranea. Compono summisse mollitia curso arcesso denuo. Damno uxor sint allatus assumenda anser sollers.\nDelicate catena sodalitas vae eaque. Coerceo amiculum repellendus tamisium statua defendo careo arbitro quisquam. Taceo dicta sufficio aestivus incidunt admitto tricesimus attero vestrum.\nCaute valeo arca asporto deprimo depulso tui. Spiritus suppellex crustulum nobis id tertius admoneo suffragium. Velociter calco pariatur error.",
+    "_policy": {}
+  },
+  "status": "running",
+  "created_at": "2025-09-15T22:39:00.070Z",
+  "idempotency_key": "e312ec73-5659-4bcf-b141-e24a6498fbf7:step_0:1cdd9d662f19",
+  "started_at": "2025-09-15T22:39:00.235Z"
+}

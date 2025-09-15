@@ -1,0 +1,150 @@
+[
+  {
+    "id": "50d3dca2-fe01-417b-9309-eef33b08ad85",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "Data integrity test",
+        "steps": [
+          {
+            "name": "step1",
+            "tool": "codegen",
+            "inputs": {
+              "value": 123
+            }
+          },
+          {
+            "name": "step2",
+            "tool": "codegen",
+            "inputs": {
+              "value": 456
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T23:06:09.927Z"
+  },
+  {
+    "id": "9304ddd0-3c29-489b-9adb-5d51dcb50051",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "933fe7ca-af50-4017-a73b-165781597ca6",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step1",
+      "tool": "codegen",
+      "idempotency_key": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c:step1:0cbec3a211c9"
+    },
+    "created_at": "2025-09-15T23:06:09.928Z"
+  },
+  {
+    "id": "72761628-816a-46c5-93ac-9fca6f8cd113",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "a7747701-09ab-425a-bc46-23a9616d9778",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step2",
+      "tool": "codegen",
+      "idempotency_key": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c:step2:23f443706f45"
+    },
+    "created_at": "2025-09-15T23:06:10.030Z"
+  },
+  {
+    "id": "3ebcbcae-1b62-4e1d-85de-5418f33e8a61",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "933fe7ca-af50-4017-a73b-165781597ca6",
+    "type": "step.started",
+    "payload": {
+      "name": "step1",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T23:06:10.036Z"
+  },
+  {
+    "id": "15c348c2-52ba-44d7-9454-aa2af249aa00",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "a7747701-09ab-425a-bc46-23a9616d9778",
+    "type": "step.started",
+    "payload": {
+      "name": "step2",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T23:06:10.045Z"
+  },
+  {
+    "id": "f18d6deb-aeea-43ab-83bc-4e727fcf88a2",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "933fe7ca-af50-4017-a73b-165781597ca6",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 31,
+        "outputTokens": 320,
+        "totalTokens": 351,
+        "latencyMs": 6991
+      },
+      "costUSD": 0.0006477500000000001
+    },
+    "created_at": "2025-09-15T23:06:10.067Z"
+  },
+  {
+    "id": "de15d138-3ccb-4856-b364-5576cc2e3aca",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "933fe7ca-af50-4017-a73b-165781597ca6",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 31,
+        "outputTokens": 320,
+        "totalTokens": 351,
+        "latencyMs": 6991
+      }
+    },
+    "created_at": "2025-09-15T23:06:10.068Z"
+  },
+  {
+    "id": "17f1f08e-bd22-4c4a-a342-f60028e8f570",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "a7747701-09ab-425a-bc46-23a9616d9778",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c/steps/a7747701-09ab-425a-bc46-23a9616d9778/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.0006477500000000001
+    },
+    "created_at": "2025-09-15T23:06:10.072Z"
+  },
+  {
+    "id": "f50ce5c2-228d-471b-916a-df11be8400d0",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "type": "run.succeeded",
+    "payload": {},
+    "created_at": "2025-09-15T23:06:10.082Z"
+  },
+  {
+    "id": "d7d52ad3-0779-4717-95a2-a975dd802f2b",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "step_id": "933fe7ca-af50-4017-a73b-165781597ca6",
+    "type": "step.failed",
+    "payload": {
+      "error": "Unexpected end of JSON input"
+    },
+    "created_at": "2025-09-15T23:06:10.083Z"
+  },
+  {
+    "id": "2b06751f-20dd-462d-9e62-0fc3679c4fd2",
+    "run_id": "7d4989b8-e250-4eca-a0eb-3a7fbfd8ff4c",
+    "type": "run.failed",
+    "payload": {
+      "reason": "step failed",
+      "stepId": "933fe7ca-af50-4017-a73b-165781597ca6"
+    },
+    "created_at": "2025-09-15T23:06:10.084Z"
+  }
+]

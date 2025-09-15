@@ -1,0 +1,12 @@
+{
+  "id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+  "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+  "name": "'; DROP TABLE runs; --",
+  "tool": "test",
+  "inputs": {
+    "_policy": {}
+  },
+  "status": "queued",
+  "created_at": "2025-09-15T22:34:50.275Z",
+  "idempotency_key": "ebd1efee-f940-42ce-bd35-1cced60dd5b9:'; DROP TABLE runs; --:fb25605282db"
+}

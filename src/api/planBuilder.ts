@@ -27,6 +27,10 @@ export async function buildPlanFromPrompt(
     if (gates.typecheck) steps.push({ name: 'typecheck', tool: 'gate:typecheck' });
     if (gates.lint) steps.push({ name: 'lint', tool: 'gate:lint' });
     if (gates.unit) steps.push({ name: 'unit', tool: 'gate:unit' });
+    const gx = gates as Record<string, unknown>;
+    if (gx.sast === true) steps.push({ name: 'sast', tool: 'gate:sast' });
+    if (gx.secrets === true) steps.push({ name: 'secret scan', tool: 'gate:secrets' });
+    if (gx.audit === true) steps.push({ name: 'dependency audit', tool: 'gate:audit' });
   }
   const topic = guessTopicFromPrompt(prompt);
   const hinted = guessMarkdownPath(prompt);

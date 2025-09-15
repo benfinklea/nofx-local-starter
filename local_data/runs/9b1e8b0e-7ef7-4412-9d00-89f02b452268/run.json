@@ -1,0 +1,9 @@
+{
+  "id": "9b1e8b0e-7ef7-4412-9d00-89f02b452268",
+  "status": "queued",
+  "plan": {
+    "goal": "idempotency",
+    "steps": []
+  },
+  "created_at": "2025-09-15T19:22:35.632Z"
+}

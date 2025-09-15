@@ -1,0 +1,289 @@
+[
+  {
+    "id": "1e01bc3f-cdb7-4f2f-9870-04f85e9e1064",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "Multi-step workflow",
+        "steps": [
+          {
+            "name": "step1",
+            "tool": "codegen",
+            "inputs": {
+              "topic": "Step 1"
+            }
+          },
+          {
+            "name": "step2",
+            "tool": "codegen",
+            "inputs": {
+              "topic": "Step 2"
+            }
+          },
+          {
+            "name": "step3",
+            "tool": "codegen",
+            "inputs": {
+              "topic": "Step 3"
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T23:05:29.696Z"
+  },
+  {
+    "id": "5d2e8299-3bc8-4c4b-aedb-fa1c87e877f5",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "5c443f91-493f-43fe-a8a6-c133c2755b52",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step1",
+      "tool": "codegen",
+      "idempotency_key": "ade63a61-2624-436e-b3a3-9c1e4c142d44:step1:c273bd3680de"
+    },
+    "created_at": "2025-09-15T23:05:29.697Z"
+  },
+  {
+    "id": "dd85283b-2032-4a03-9848-4fb8313c13c3",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "5c443f91-493f-43fe-a8a6-c133c2755b52",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 18792,
+      "delayMs": 6896
+    },
+    "created_at": "2025-09-15T23:05:29.697Z"
+  },
+  {
+    "id": "eeb3a088-054b-4dfa-b6b6-15878cd7230c",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "ed6b3956-ff80-4e73-975c-7b7f3b723f19",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step2",
+      "tool": "codegen",
+      "idempotency_key": "ade63a61-2624-436e-b3a3-9c1e4c142d44:step2:5b2ea9521c5f"
+    },
+    "created_at": "2025-09-15T23:05:29.698Z"
+  },
+  {
+    "id": "25cac939-5cd4-45e5-91f0-d697091127c6",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "ed6b3956-ff80-4e73-975c-7b7f3b723f19",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 18793,
+      "delayMs": 6896
+    },
+    "created_at": "2025-09-15T23:05:29.698Z"
+  },
+  {
+    "id": "236d3d05-90cb-4baa-be28-9b90921e79a6",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "a2f744c2-4ec0-46bd-935a-087cfe289a01",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step3",
+      "tool": "codegen",
+      "idempotency_key": "ade63a61-2624-436e-b3a3-9c1e4c142d44:step3:9adb93ad6986"
+    },
+    "created_at": "2025-09-15T23:05:29.699Z"
+  },
+  {
+    "id": "105c0b20-3699-4120-aac4-3fe84660f71d",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "a2f744c2-4ec0-46bd-935a-087cfe289a01",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 18794,
+      "delayMs": 6897
+    },
+    "created_at": "2025-09-15T23:05:29.699Z"
+  },
+  {
+    "id": "38055022-4ffe-408d-bb10-70cf0286b2d4",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "5c443f91-493f-43fe-a8a6-c133c2755b52",
+    "type": "step.started",
+    "payload": {
+      "name": "step1",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T23:05:29.708Z"
+  },
+  {
+    "id": "4de1b14f-6529-4eae-911d-ab0e7a731bba",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "ed6b3956-ff80-4e73-975c-7b7f3b723f19",
+    "type": "step.started",
+    "payload": {
+      "name": "step2",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T23:05:29.708Z"
+  },
+  {
+    "id": "f9cd72bc-233c-4746-a879-fd0825704ac7",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "a2f744c2-4ec0-46bd-935a-087cfe289a01",
+    "type": "step.started",
+    "payload": {
+      "name": "step3",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T23:05:29.709Z"
+  },
+  {
+    "id": "edd80b19-bee4-4ff6-ae48-1568042914fc",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "5c443f91-493f-43fe-a8a6-c133c2755b52",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 268,
+        "totalTokens": 300,
+        "latencyMs": 3816
+      },
+      "costUSD": 0.000544
+    },
+    "created_at": "2025-09-15T23:05:33.551Z"
+  },
+  {
+    "id": "2b415a73-a6d9-4e7c-80d5-d99979ac78b0",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "5c443f91-493f-43fe-a8a6-c133c2755b52",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 268,
+        "totalTokens": 300,
+        "latencyMs": 3816
+      }
+    },
+    "created_at": "2025-09-15T23:05:33.551Z"
+  },
+  {
+    "id": "8e53083b-91ac-4efc-9da2-53c8c88d9790",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "5c443f91-493f-43fe-a8a6-c133c2755b52",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/ade63a61-2624-436e-b3a3-9c1e4c142d44/steps/5c443f91-493f-43fe-a8a6-c133c2755b52/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.000544
+    },
+    "created_at": "2025-09-15T23:05:33.556Z"
+  },
+  {
+    "id": "9856cefb-d4be-4049-8188-110218f829fb",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "ed6b3956-ff80-4e73-975c-7b7f3b723f19",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 475,
+        "totalTokens": 507,
+        "latencyMs": 7878
+      },
+      "costUSD": 0.000958
+    },
+    "created_at": "2025-09-15T23:05:37.609Z"
+  },
+  {
+    "id": "fd8f8399-b6e6-4348-8379-be05c26b5de5",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "ed6b3956-ff80-4e73-975c-7b7f3b723f19",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 475,
+        "totalTokens": 507,
+        "latencyMs": 7878
+      }
+    },
+    "created_at": "2025-09-15T23:05:37.610Z"
+  },
+  {
+    "id": "94ea2aa3-7c38-408e-a7d7-82d0adf267ea",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "ed6b3956-ff80-4e73-975c-7b7f3b723f19",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/ade63a61-2624-436e-b3a3-9c1e4c142d44/steps/ed6b3956-ff80-4e73-975c-7b7f3b723f19/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.000958
+    },
+    "created_at": "2025-09-15T23:05:37.615Z"
+  },
+  {
+    "id": "4f049074-c3a2-4406-9e00-dcd4050da7bb",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "a2f744c2-4ec0-46bd-935a-087cfe289a01",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 526,
+        "totalTokens": 558,
+        "latencyMs": 9714
+      },
+      "costUSD": 0.00106
+    },
+    "created_at": "2025-09-15T23:05:39.450Z"
+  },
+  {
+    "id": "0a0736e2-59ce-490b-9056-3315c46bc856",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "a2f744c2-4ec0-46bd-935a-087cfe289a01",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 526,
+        "totalTokens": 558,
+        "latencyMs": 9714
+      }
+    },
+    "created_at": "2025-09-15T23:05:39.451Z"
+  },
+  {
+    "id": "577d885c-12a7-491b-8f7e-fc9c13222a34",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "step_id": "a2f744c2-4ec0-46bd-935a-087cfe289a01",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/ade63a61-2624-436e-b3a3-9c1e4c142d44/steps/a2f744c2-4ec0-46bd-935a-087cfe289a01/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.00106
+    },
+    "created_at": "2025-09-15T23:05:39.455Z"
+  },
+  {
+    "id": "76632d23-37ec-4b4a-8bd2-199d9cf62ac9",
+    "run_id": "ade63a61-2624-436e-b3a3-9c1e4c142d44",
+    "type": "run.succeeded",
+    "payload": {},
+    "created_at": "2025-09-15T23:05:39.457Z"
+  }
+]

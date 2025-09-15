@@ -1,0 +1,12 @@
+{
+  "id": "4acae3d2-5f7d-4914-9e50-62adb204b09e",
+  "run_id": "ab535c87-b5aa-4211-93c2-ebee873a8591",
+  "name": "1; DELETE FROM steps WHERE 1=1",
+  "tool": "test",
+  "inputs": {
+    "_policy": {}
+  },
+  "status": "queued",
+  "created_at": "2025-09-15T22:34:50.297Z",
+  "idempotency_key": "ab535c87-b5aa-4211-93c2-ebee873a8591:1; DELETE FROM steps WHERE 1=1:fb25605282db"
+}

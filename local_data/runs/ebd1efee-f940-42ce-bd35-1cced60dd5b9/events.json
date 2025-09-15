@@ -1,0 +1,86 @@
+[
+  {
+    "id": "8993a3e9-98ec-4928-b46a-06afbc16777a",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "'; DROP TABLE runs; --",
+        "steps": [
+          {
+            "name": "'; DROP TABLE runs; --",
+            "tool": "test"
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T22:34:50.275Z"
+  },
+  {
+    "id": "86b117bb-ba1f-4f87-86d6-0759c848fcc4",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "step_id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "'; DROP TABLE runs; --",
+      "tool": "test",
+      "idempotency_key": "ebd1efee-f940-42ce-bd35-1cced60dd5b9:'; DROP TABLE runs; --:fb25605282db"
+    },
+    "created_at": "2025-09-15T22:34:50.276Z"
+  },
+  {
+    "id": "fa49eed1-8455-4d3a-840b-b86391f49cc3",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "step_id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 136362,
+      "delayMs": 15000
+    },
+    "created_at": "2025-09-15T22:34:50.276Z"
+  },
+  {
+    "id": "ab974514-682f-4a55-966b-ef1438fae9b2",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "step_id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:40.523Z"
+  },
+  {
+    "id": "0969e1c1-a747-4aaf-8401-9142fbb7b6d7",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "step_id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:42.528Z"
+  },
+  {
+    "id": "acadbbee-4b55-46d6-b6e8-dc63a3e0df59",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "step_id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:47.537Z"
+  },
+  {
+    "id": "90808b28-c069-455d-b4bc-af57d7625b58",
+    "run_id": "ebd1efee-f940-42ce-bd35-1cced60dd5b9",
+    "step_id": "a78a1830-3e89-4d97-b4c0-772afbd35a1a",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:57.558Z"
+  }
+]

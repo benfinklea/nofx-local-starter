@@ -4,6 +4,9 @@ import { Pool } from 'pg';
 // Load test environment
 dotenv.config({ path: '.env.test' });
 
+// Ensure queue tests use Redis adapter (mocks);
+process.env.QUEUE_DRIVER = process.env.QUEUE_DRIVER || 'redis';
+
 // Global test utilities
 global.testUtils = {
   // Database cleanup between tests

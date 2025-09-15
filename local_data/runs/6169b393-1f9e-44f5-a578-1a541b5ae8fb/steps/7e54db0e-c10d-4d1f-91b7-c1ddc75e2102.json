@@ -1,0 +1,35 @@
+{
+  "id": "7e54db0e-c10d-4d1f-91b7-c1ddc75e2102",
+  "run_id": "6169b393-1f9e-44f5-a578-1a541b5ae8fb",
+  "name": "write readme (detailed-3)",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "NOFX README (detailed 3)",
+    "bullets": [
+      "Setup",
+      "Run",
+      "Observability",
+      "Troubleshooting",
+      "CI"
+    ],
+    "filename": "README_batch_1757975553041_03.md",
+    "maxOutputTokens": 480,
+    "_policy": {}
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:32:33.079Z",
+  "idempotency_key": "6169b393-1f9e-44f5-a578-1a541b5ae8fb:write readme (detailed-3):5757be923fb1",
+  "started_at": "2025-09-15T22:32:39.883Z",
+  "ended_at": "2025-09-15T22:32:47.710Z",
+  "outputs": {
+    "artifact": "runs/6169b393-1f9e-44f5-a578-1a541b5ae8fb/steps/7e54db0e-c10d-4d1f-91b7-c1ddc75e2102/README_batch_1757975553041_03.md",
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "usage": {
+      "inputTokens": 42,
+      "outputTokens": 448,
+      "totalTokens": 490,
+      "latencyMs": 7790
+    }
+  }
+}

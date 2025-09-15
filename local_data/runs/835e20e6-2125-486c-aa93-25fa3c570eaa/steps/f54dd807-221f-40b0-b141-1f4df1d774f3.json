@@ -1,0 +1,12 @@
+{
+  "id": "f54dd807-221f-40b0-b141-1f4df1d774f3",
+  "run_id": "835e20e6-2125-486c-aa93-25fa3c570eaa",
+  "name": "echo",
+  "tool": "test:echo",
+  "inputs": {
+    "foo": "bar"
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:35:25.544Z",
+  "ended_at": "2025-09-15T22:35:25.548Z"
+}

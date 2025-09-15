@@ -9,12 +9,14 @@
   <div class="nav">
     <a href="/ui/runs">Runs</a>
     <a href="/ui/models">Models</a>
-    <a href="/ui/settings">Settings</a>
+    <a href="/ui/settings" class="active">Settings</a>
+    <a href="/ui/dev">Dev</a>
   </div>
 </div></div>
 <div class="container">
 <div class="section-title"><h1 style="margin:12px 0">Settings</h1><span class="tip" data-tip="Configure approvals, gates, and AI routing.">?</span></div>
 
+<div class="settings-grid">
 <sl-card><div class="bd">
   <div slot="header">Approvals</div>
   <label>DB Writes require approval:
@@ -31,7 +33,7 @@
 
 <!-- Providers are managed on the Models page -->
 
-<sl-card style="margin-top:16px"><div class="bd">
+<sl-card><div class="bd">
   <div slot="header">Checks (Gates)</div>
   <label><input type="checkbox" id="gateTypecheck"/> Typecheck</label>
   <label><input type="checkbox" id="gateLint"/> Lint</label>
@@ -39,13 +41,15 @@
   <label>Coverage Threshold: <input type="number" id="coverage" min="0" max="100" step="1"/> %</label>
 </div></sl-card>
 
-<sl-card style="margin-top:16px"><div class="bd">
+<sl-card><div class="bd">
   <div slot="header">Data Writes (Allow-list)</div>
   <p>Allowed operations by table. Add rows as needed.</p>
   <table id="rulesTable">
     <tr><th>Table</th><th>Insert</th><th>Update</th><th>Delete</th><th></th></tr>
   </table>
   <button onclick="addRuleRow()">Add Rule</button>
+
+</div>
 </div></sl-card>
 
 <sl-card style="margin-top:16px"><div class="bd">
@@ -53,19 +57,19 @@
   <p>Select model order for each task. Manage models on the <a href="/ui/models">Models</a> page.</n>
   <div>
     <h3>Docs</h3>
-    <sl-select id="docsSelect" clearable hoist></sl-select>
+    <select id="docsSelect" class="native"></select>
     <button onclick="addToOrder('docs')">Add</button>
     <ul id="docsOrder"></ul>
   </div>
   <div>
     <h3>Reasoning</h3>
-    <sl-select id="reasoningSelect" clearable hoist></sl-select>
+    <select id="reasoningSelect" class="native"></select>
     <button onclick="addToOrder('reasoning')">Add</button>
     <ul id="reasoningOrder"></ul>
   </div>
   <div>
     <h3>Codegen</h3>
-    <sl-select id="codegenSelect" clearable hoist></sl-select>
+    <select id="codegenSelect" class="native"></select>
     <button onclick="addToOrder('codegen')">Add</button>
     <ul id="codegenOrder"></ul>
   </div>
@@ -77,25 +81,96 @@
   <a style="margin-left:12px" href="/ui/models">Manage Models</a>
 </div>
 
+<sl-card style="margin-top:16px"><div class="bd">
+  <div slot="header">Backups</div>
+  <div class="row-inline" style="margin-bottom:8px">
+    <input id="backupNote" placeholder="Optional note for this backup" style="max-width:360px"/>
+    <button class="btn" onclick="backupNow()">Backup Now</button>
+  </div>
+  <div class="row-inline" style="margin-bottom:8px">
+    <label>Scope
+      <select id="backupScope" class="native" style="max-width:220px">
+        <option value="data">Data only (NOFX runs/artifacts/settings)</option>
+        <option value="with-project">Data + Project (repo working copy)</option>
+      </select>
+    </label>
+  </div>
+  <div class="row-inline" style="margin-bottom:8px">
+    <label style="display:flex;gap:6px;align-items:center">Auto-backup every <input id="backupEvery" type="number" min="0" step="5" style="width:90px"/> minutes (0 to disable)</label>
+    <button class="btn small" onclick="saveBackupInterval()">Save Interval</button>
+    <span id="backupStatus" class="muted"></span>
+  </div>
+  <div id="backupList" class="muted">Loading…</div>
+</div></sl-card>
+
 <% /* Dev-only restart (visible always; backend checks NODE_ENV/role) */ %>
 <sl-card style="margin-top:16px"><div class="bd">
   <div slot="header">Development</div>
-  <button class="btn" onclick="restartBackend()" title="Writes a restart flag; dev server exits and restarts.">Restart Backend</button>
+  <div class="row-inline">
+    <button class="btn" onclick="restartBackend()" title="Writes restart flags for API and Worker">Restart Both</button>
+    <button class="btn" onclick="restartOne('api')" title="Touch API flag">Restart API</button>
+    <button class="btn" onclick="restartOne('worker')" title="Touch Worker flag">Restart Worker</button>
+  </div>
   <small style="color:#666">Requires DEV_RESTART_WATCH=1 in .env and admin login. No effect in production.</small>
   <span id="devStatus"></span>
   <p>Tip: This restarts both API and Worker processes started by npm run dev.</p>
 </div></sl-card>
 
+<script id="preloaded" type="application/json"><%- JSON.stringify(preloaded||{}) %></script>
+<div id="debug" style="position:sticky;top:64px;right:12px;max-width:1100px;margin:8px 0;padding:8px;border:1px dashed #334155;color:#9ca3af;background:#0b0f16;display:none"></div>
 <script>
+// Read preloaded JSON safely in all browsers (including Safari)
+(() => {
+  try {
+    const el = document.getElementById('preloaded');
+    const txt = el && (el.textContent || el.innerText) || '{}';
+    window.__PRELOADED__ = JSON.parse(txt);
+  } catch { window.__PRELOADED__ = {}; }
+})();
+
+function dbg(msg, obj){
+  try { console.log('[settings]', msg, obj||''); } catch {}
+  const box = document.getElementById('debug');
+  if (!box) return;
+  box.style.display = 'block';
+  const line = document.createElement('div');
+  line.textContent = typeof obj === 'undefined' ? String(msg) : `${msg}: ${typeof obj==='string'?obj:JSON.stringify(obj)}`;
+  box.appendChild(line);
+}
 async function load(){
-  const rsp = await fetch('/settings');
-  const { settings, db_write_rules, models } = await rsp.json();
+  // Preload introspection
+  try {
+    const el = document.getElementById('preloaded');
+    const txt = el && (el.textContent || el.innerText) || '';
+    dbg('preloaded.length', txt.length);
+    dbg('preloaded.head', txt.slice(0,100));
+  } catch(e){ dbg('preloaded.read.error', String(e)); }
+  let settings = (window.__PRELOADED__ && window.__PRELOADED__.settings) || null;
+  let models = (window.__PRELOADED__ && window.__PRELOADED__.models) || null;
+  let db_write_rules = [];
+  if (!settings || !models) {
+    try {
+      dbg('fetch.settings.start');
+      const rsp = await fetch('/settings', { credentials: 'include' });
+      if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
+      const json = await rsp.json();
+      settings = json.settings; db_write_rules = json.db_write_rules || []; models = json.models || [];
+      dbg('fetch.settings.ok', { models: models.length });
+    } catch (e) {
+      dbg('fetch.settings.error', String(e));
+      document.getElementById('status').textContent = 'Failed to load settings';
+      settings = settings || { approvals:{dbWrites:'none',allowWaive:false}, gates:{typecheck:true,lint:true,unit:true,coverageThreshold:0.9}, llm:{ modelOrder:{docs:[],reasoning:[],codegen:[]} }};
+      models = models || [];
+    }
+  }
+  dbg('models.count', (models||[]).length);
   document.getElementById('dbWrites').value = settings.approvals.dbWrites;
   document.getElementById('allowWaive').checked = !!settings.approvals.allowWaive;
   document.getElementById('gateTypecheck').checked = !!settings.gates.typecheck;
   document.getElementById('gateLint').checked = !!settings.gates.lint;
   document.getElementById('gateUnit').checked = !!settings.gates.unit;
   document.getElementById('coverage').value = Math.round((settings.gates.coverageThreshold||0.9)*100);
+  try { document.getElementById('backupEvery').value = Number((settings.ops && settings.ops.backupIntervalMin) || 0); } catch {}
   const table = document.getElementById('rulesTable');
   // clear existing rows except header
   while (table.rows.length > 1) table.deleteRow(1);
@@ -104,6 +179,7 @@ async function load(){
   }
   // Load models for dropdowns with friendly labels (provided in same response)
   let activeModels = (models||[]).filter(m => m.active !== false);
+  dbg('activeModels.count', activeModels.length);
   // Fallback options if no DB models exist yet
   if (!activeModels.length) {
     activeModels = [
@@ -111,21 +187,25 @@ async function load(){
       { provider: 'anthropic', name: (window.ANTHROPIC_MODEL || 'claude-4-sonnet'), display_name: 'Anthropic (Claude 4 Sonnet)' },
       { provider: 'gemini', name: (window.GEMINI_MODEL || 'gemini-2.5-pro'), display_name: 'Gemini (2.5 Pro)' }
     ];
+    dbg('using.fallback.models', activeModels.length);
   }
   window._labelByName = {};
   const modelOptions = activeModels.map(m => ({ value: m.name, label: `${m.provider}: ${m.display_name || m.name}` }));
   modelOptions.forEach(m => _labelByName[m.value] = m.label);
-  // Ensure web components are defined before injecting options
-  if (window.customElements && window.customElements.whenDefined) {
-    try { await customElements.whenDefined('sl-select'); await customElements.whenDefined('sl-option'); } catch {}
-  }
-  const optionsHtml = modelOptions.map(m => `<sl-option value="${m.value}">${m.label}</sl-option>`).join('');
-  for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
+  dbg('modelOptions.count', modelOptions.length);
+  // Populate native selects programmatically (Safari-safe)
+  const selectIds = ['docsSelect','reasoningSelect','codegenSelect'];
+  for (const selId of selectIds){
     const sel = document.getElementById(selId);
     if (!sel) continue;
-    sel.innerHTML = optionsHtml;
-    // Nudge the component to refresh its items, if supported
-    try { sel.requestUpdate && sel.requestUpdate(); } catch {}
+    sel.innerHTML = '';
+    for (const m of modelOptions) {
+      const opt = document.createElement('option');
+      opt.value = m.value;
+      opt.textContent = m.label;
+      sel.appendChild(opt);
+    }
+    dbg(selId + '.options', sel.querySelectorAll('option').length);
   }
   state.docs = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.docs) || [];
   state.reasoning = (settings.llm && settings.llm.modelOrder && settings.llm.modelOrder.reasoning) || [];
@@ -135,33 +215,7 @@ async function load(){
   if (!state.reasoning.length && modelOptions.length) state.reasoning = [modelOptions[0].value];
   if (!state.codegen.length && modelOptions.length) state.codegen = [modelOptions[0].value];
 
-  // Fallback: if for any reason options didn't attach, render a native <select>
-  setTimeout(() => {
-    for (const selId of ['docsSelect','reasoningSelect','codegenSelect']){
-      const sel = document.getElementById(selId);
-      if (!sel) continue;
-      const hasOptions = sel.querySelector('sl-option');
-      if (!hasOptions) {
-        const native = document.createElement('select');
-        native.id = selId + '-native';
-        native.innerHTML = modelOptions.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-        sel.replaceWith(native);
-        // Wire Add button to read from native select
-        const kind = selId.replace('Select','');
-        const btn = kind === 'docs' ? document.querySelector("button[onclick=\"addToOrder('docs')\"]")
-                  : kind === 'reasoning' ? document.querySelector("button[onclick=\"addToOrder('reasoning')\"]")
-                  : document.querySelector("button[onclick=\"addToOrder('codegen')\"]");
-        if (btn) {
-          btn.onclick = () => {
-            const val = (native as HTMLSelectElement).value;
-            if (!val) return;
-            state[kind].push(val);
-            renderOrder(kind);
-          };
-        }
-      }
-    }
-  }, 0);
+  // Native selects are used for reliability
   renderOrder('docs'); renderOrder('reasoning'); renderOrder('codegen');
 
   // Providers UI removed; manage providers via Models page
@@ -213,16 +267,67 @@ async function save(){
     },
     db_write_rules: collectRules()
   };
-  const rsp = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const be = document.getElementById('backupEvery');
+  if (be) { body.settings.ops = { backupIntervalMin: Math.max(0, Number(be.value||0)) }; }
+  const rsp = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials: 'include' });
   const ok = rsp.ok;
   document.getElementById('status').textContent = ok ? 'Saved ✓' : 'Failed to save';
   if (ok) setTimeout(()=>document.getElementById('status').textContent='', 2000);
 }
 
 async function restartBackend(){
-  const rsp = await fetch('/dev/restart', { method:'POST' });
+  const rsp = await fetch('/dev/restart', { method:'POST', credentials: 'include' });
   if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
   document.getElementById('devStatus').textContent = rsp.ok ? 'Restarting…' : 'Failed';
+}
+async function restartOne(which){
+  const url = which === 'api' ? '/dev/restart/api' : '/dev/restart/worker';
+  const rsp = await fetch(url, { method:'POST', credentials: 'include' });
+  if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
+  document.getElementById('devStatus').textContent = rsp.ok ? `Restarting ${which}…` : 'Failed';
+}
+
+// -------- Backups --------
+async function loadBackups(){
+  try {
+    const rsp = await fetch('/backups', { credentials: 'include' });
+    if (rsp.status === 401) { document.getElementById('backupList').textContent = 'Login required'; return; }
+    const rows = await rsp.json();
+    if (!Array.isArray(rows) || !rows.length) { document.getElementById('backupList').textContent = 'No backups yet.'; return; }
+    const html = ['<table><tr><th>When</th><th>Title</th><th>Note</th><th>Size</th><th>Cloud</th><th></th></tr>']
+      .concat(rows.map(b => `<tr>
+        <td>${escapeHtml(b.created_at)}</td>
+        <td>${escapeHtml(b.title||'')}</td>
+        <td>${escapeHtml(b.note||'')}</td>
+        <td>${b.size_bytes ? Math.round(b.size_bytes/1024) + ' KB' : ''}</td>
+        <td>${b.cloud?.uploaded ? 'uploaded' : (b.cloud?.error ? 'error' : '')}</td>
+        <td><button class=\"btn small\" onclick=\"restoreBackup('${b.id}')\">Restore</button></td>
+      </tr>`)).concat(['</table>']).join('');
+    document.getElementById('backupList').innerHTML = html;
+  } catch { document.getElementById('backupList').textContent = 'Failed to load backups'; }
+}
+async function backupNow(){
+  const note = (document.getElementById('backupNote').value||'').trim();
+  const scope = document.getElementById('backupScope').value || 'data';
+  const rsp = await fetch('/backups', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ note, scope }), credentials: 'include' });
+  if (!rsp.ok) { alert('Backup failed'); return; }
+  loadBackups();
+}
+async function restoreBackup(id){
+  if (!confirm('Restore this backup? A safety backup will be created first.')) return;
+  const rsp = await fetch('/backups/' + id + '/restore', { method:'POST', credentials: 'include' });
+  if (!rsp.ok) { alert('Restore failed'); return; }
+  alert('Restored. Reloading…');
+  location.reload();
+}
+setInterval(loadBackups, 5000);
+
+async function saveBackupInterval(){
+  const mins = Math.max(0, Number(document.getElementById('backupEvery').value||0));
+  const body = { settings: { ops: { backupIntervalMin: mins } } };
+  const rsp = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials: 'include' });
+  document.getElementById('backupStatus').textContent = rsp.ok ? 'Saved ✓' : 'Failed';
+  if (rsp.ok) setTimeout(()=>document.getElementById('backupStatus').textContent='', 1500);
 }
 
 function escapeHtml(s){
@@ -295,10 +400,6 @@ function addToOrder(kind){
   const sel = document.getElementById(kind+'Select');
   if (!sel) return;
   let val = sel.value;
-  if (!val) {
-    const checked = sel.querySelector('sl-option[checked]') || sel.querySelector('sl-option[selected]');
-    if (checked) val = checked.value;
-  }
   if (!val) return;
   state[kind].push(val);
   try { sel.value = ''; } catch {}
@@ -321,6 +422,6 @@ function renderOrder(kind){
 }
 
 load();
-</div>
 </script>
+</div>
 </body></html>

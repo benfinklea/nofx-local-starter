@@ -1,0 +1,292 @@
+[
+  {
+    "id": "53bc89c1-51e0-4b5b-8dd3-d3c4729523f9",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/coverage-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:34.498Z"
+  },
+  {
+    "id": "4ca46572-835c-416c-8015-519f19496ec5",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/eslint.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:34.500Z"
+  },
+  {
+    "id": "befac03f-af28-4f7f-861d-4069984aa86b",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/typecheck.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:34.501Z"
+  },
+  {
+    "id": "344c2489-d1a8-4183-a760-40b763f28419",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/vitest.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:34.501Z"
+  },
+  {
+    "id": "0bcdca15-e0da-413d-a045-c8627721f929",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:34.502Z"
+  },
+  {
+    "id": "7d3bc162-22b9-4577-82e6-a7dda1b10884",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/coverage-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:35.318Z"
+  },
+  {
+    "id": "71ad7184-f074-402f-9aeb-942e37afed6b",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/eslint.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:35.320Z"
+  },
+  {
+    "id": "b49f5fee-55d8-45f5-b54b-109800097f04",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/typecheck.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:35.320Z"
+  },
+  {
+    "id": "20bbef46-ca79-47ad-b9d2-063599268329",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-artifacts/vitest.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:35.321Z"
+  },
+  {
+    "id": "64a77c6b-a677-433f-a8ea-b5c84313c1c5",
+    "step_id": "5237aeac-f113-41de-b1e0-88b10886393e",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/5237aeac-f113-41de-b1e0-88b10886393e/gate-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:35.321Z"
+  },
+  {
+    "id": "a2525154-0862-4a72-960b-1d60730a257e",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/coverage-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.304Z"
+  },
+  {
+    "id": "62c54fff-7716-4637-88ae-60275d5116a3",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/coverage-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.305Z"
+  },
+  {
+    "id": "6b7329b7-d325-45be-8cdd-1119add3eb49",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/coverage-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.305Z"
+  },
+  {
+    "id": "a45ce46a-edd1-40e1-9a3a-411b330a5d21",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/eslint.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.305Z"
+  },
+  {
+    "id": "7d67f61c-3a98-4c1d-b65d-9cbc937112d1",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/eslint.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.305Z"
+  },
+  {
+    "id": "a1705e2c-de88-4870-8cf3-487309c2d752",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/eslint.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.306Z"
+  },
+  {
+    "id": "e7ce2d2a-e4e3-4113-8a95-d5ccde7154da",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/typecheck.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.306Z"
+  },
+  {
+    "id": "4b275a9a-82a8-404e-87b5-ca3d4a6be26b",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/typecheck.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.306Z"
+  },
+  {
+    "id": "26b9f073-c87a-409a-8825-3f5e1eff7a61",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/typecheck.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.306Z"
+  },
+  {
+    "id": "29d74d72-e83c-41cf-ab71-65c99b6f3949",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/vitest.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.306Z"
+  },
+  {
+    "id": "80f1aceb-21ba-4d7a-af87-555b71c7d945",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/vitest.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.307Z"
+  },
+  {
+    "id": "022fcf96-a630-4249-8410-f77a0c17a0d6",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-artifacts/vitest.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.307Z"
+  },
+  {
+    "id": "c0878a72-3bec-467e-b53c-f5042bc8252f",
+    "step_id": "e301160b-e583-4b83-846c-f6beb7fe0552",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/e301160b-e583-4b83-846c-f6beb7fe0552/gate-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.307Z"
+  },
+  {
+    "id": "5eb8dfe8-bfab-48de-9214-90c31810fc64",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.307Z"
+  },
+  {
+    "id": "573207ab-3cd3-4ebf-b6d7-7f15884ecc6c",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/coverage-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.901Z"
+  },
+  {
+    "id": "de231b51-b3f5-44f2-9971-07a00f7bf288",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/eslint.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.901Z"
+  },
+  {
+    "id": "480ee8f0-3242-44dd-865b-30c7cec49bda",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/typecheck.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.902Z"
+  },
+  {
+    "id": "99eec564-c761-4180-aa68-d64f6581b931",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "text/plain",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-artifacts/vitest.txt",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.902Z"
+  },
+  {
+    "id": "88cc6166-11e7-4df7-88a8-a50bc9f7d8c4",
+    "step_id": "60e63ea1-b145-48b2-929c-524f80e7dbaa",
+    "type": "application/json",
+    "path": "runs/98976026-a270-4a11-b69c-ae94029d6fa0/steps/60e63ea1-b145-48b2-929c-524f80e7dbaa/gate-summary.json",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-14T19:42:38.902Z"
+  }
+]
