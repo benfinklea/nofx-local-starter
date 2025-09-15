@@ -1,0 +1,89 @@
+[
+  {
+    "id": "cd6994d8-5281-40f2-ae93-8ffd3dcbfe8a",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "javascript:alert(1)",
+        "steps": [
+          {
+            "name": "xss_test",
+            "tool": "test",
+            "inputs": {
+              "data": "javascript:alert(1)"
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T22:32:34.262Z"
+  },
+  {
+    "id": "2827f294-9abd-47a7-b1e0-d64da0d282bf",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "step_id": "6c18d6ae-9626-44e8-9a2d-f9a54c82a98f",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "xss_test",
+      "tool": "test",
+      "idempotency_key": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9:xss_test:b2c2da8024cb"
+    },
+    "created_at": "2025-09-15T22:32:34.262Z"
+  },
+  {
+    "id": "b8147120-bc58-4705-8329-ca8ab7bed47f",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "step_id": "6c18d6ae-9626-44e8-9a2d-f9a54c82a98f",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 5951,
+      "delayMs": 475
+    },
+    "created_at": "2025-09-15T22:32:34.263Z"
+  },
+  {
+    "id": "52fe7460-d3cf-4884-81bf-9eac7ef3834e",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "step_id": "6c18d6ae-9626-44e8-9a2d-f9a54c82a98f",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:33.344Z"
+  },
+  {
+    "id": "63a43a13-9550-46f6-becf-003bca7163b4",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "step_id": "6c18d6ae-9626-44e8-9a2d-f9a54c82a98f",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:40.631Z"
+  },
+  {
+    "id": "c29e2803-5177-4565-b294-b97a562387a1",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "step_id": "6c18d6ae-9626-44e8-9a2d-f9a54c82a98f",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:45.647Z"
+  },
+  {
+    "id": "3cfbb204-d3ed-4d01-913a-952c474d3f75",
+    "run_id": "29c5429e-abd4-4cd5-93c2-365fdcaa16a9",
+    "step_id": "6c18d6ae-9626-44e8-9a2d-f9a54c82a98f",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:55.666Z"
+  }
+]

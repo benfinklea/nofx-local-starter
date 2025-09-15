@@ -1,0 +1,105 @@
+[
+  {
+    "id": "3aa8558c-2640-4548-bd52-440045103e58",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "E2E test run",
+        "steps": [
+          {
+            "name": "test_step",
+            "tool": "codegen",
+            "inputs": {
+              "topic": "E2E Test",
+              "bullets": [
+                "Test 1",
+                "Test 2",
+                "Test 3"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T22:37:33.976Z"
+  },
+  {
+    "id": "e54ea92e-0375-4c09-ac63-7c6e1fff2228",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "step_id": "adbb14b5-224d-49d4-bd5d-486c1f217763",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "test_step",
+      "tool": "codegen",
+      "idempotency_key": "6c762c0c-d670-4edb-b41f-aad5f6271544:test_step:bcdd2c9216af"
+    },
+    "created_at": "2025-09-15T22:37:33.977Z"
+  },
+  {
+    "id": "1986e150-9166-46b0-b1f3-890864803901",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "step_id": "adbb14b5-224d-49d4-bd5d-486c1f217763",
+    "type": "step.started",
+    "payload": {
+      "name": "test_step",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T22:37:33.984Z"
+  },
+  {
+    "id": "13c35e20-ae28-44bb-a7d7-a607d1f0bb4e",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "step_id": "adbb14b5-224d-49d4-bd5d-486c1f217763",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 38,
+        "outputTokens": 153,
+        "totalTokens": 191,
+        "latencyMs": 6432
+      },
+      "costUSD": 0.0003155
+    },
+    "created_at": "2025-09-15T22:37:34.003Z"
+  },
+  {
+    "id": "5670c343-2a34-4833-b14f-a094ab463718",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "step_id": "adbb14b5-224d-49d4-bd5d-486c1f217763",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 38,
+        "outputTokens": 153,
+        "totalTokens": 191,
+        "latencyMs": 6432
+      }
+    },
+    "created_at": "2025-09-15T22:37:34.003Z"
+  },
+  {
+    "id": "9938b4ad-5aa7-44dc-823d-2e92607fd94d",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "step_id": "adbb14b5-224d-49d4-bd5d-486c1f217763",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/6c762c0c-d670-4edb-b41f-aad5f6271544/steps/adbb14b5-224d-49d4-bd5d-486c1f217763/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.0003155
+    },
+    "created_at": "2025-09-15T22:37:34.007Z"
+  },
+  {
+    "id": "f88cc784-8546-47b0-8aed-9d9c3cdd83ff",
+    "run_id": "6c762c0c-d670-4edb-b41f-aad5f6271544",
+    "type": "run.succeeded",
+    "payload": {},
+    "created_at": "2025-09-15T22:37:34.008Z"
+  }
+]

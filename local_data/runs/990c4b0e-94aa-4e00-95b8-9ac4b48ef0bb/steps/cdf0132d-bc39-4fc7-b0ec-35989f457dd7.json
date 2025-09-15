@@ -1,0 +1,32 @@
+{
+  "id": "cdf0132d-bc39-4fc7-b0ec-35989f457dd7",
+  "run_id": "990c4b0e-94aa-4e00-95b8-9ac4b48ef0bb",
+  "name": "write readme",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Write a short README explaining this project and",
+    "bullets": [
+      "Control plane",
+      "Verification",
+      "Workers"
+    ],
+    "filename": "README.md",
+    "_policy": {}
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:26:49.127Z",
+  "idempotency_key": "990c4b0e-94aa-4e00-95b8-9ac4b48ef0bb:write readme:ea52fb92c75b",
+  "started_at": "2025-09-15T22:26:49.130Z",
+  "ended_at": "2025-09-15T22:26:55.683Z",
+  "outputs": {
+    "artifact": "runs/990c4b0e-94aa-4e00-95b8-9ac4b48ef0bb/steps/cdf0132d-bc39-4fc7-b0ec-35989f457dd7/README.md",
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "usage": {
+      "inputTokens": 37,
+      "outputTokens": 367,
+      "totalTokens": 404,
+      "latencyMs": 6523
+    }
+  }
+}

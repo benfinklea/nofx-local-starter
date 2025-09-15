@@ -1,0 +1,13 @@
+{
+  "id": "2025-09-15T19-29-07-360Z-write-a-short-readme-explaining-this-pro",
+  "created_at": "2025-09-15T19:29:07.360Z",
+  "title": "Write a short README explaining this project and how to run it locally.",
+  "note": "auto-pre-restore:2025-09-15T19-24-59-331Z-dlq",
+  "size_bytes": 8742,
+  "kind": "db",
+  "scope": "data",
+  "cloud": {
+    "uploaded": true,
+    "path": "backups/2025-09-15T19-29-07-360Z-write-a-short-readme-explaining-this-pro.tar.gz"
+  }
+}

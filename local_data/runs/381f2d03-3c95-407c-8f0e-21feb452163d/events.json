@@ -1,0 +1,108 @@
+[
+  {
+    "id": "fe390e8d-8aea-41cf-8ac1-270f8de73ca3",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "Batch: NOFX README (medium 2)",
+        "steps": [
+          {
+            "name": "write readme (medium-2)",
+            "tool": "codegen",
+            "inputs": {
+              "topic": "NOFX README (medium 2)",
+              "bullets": [
+                "Architecture",
+                "Queue",
+                "Workers",
+                "DB"
+              ],
+              "filename": "README_batch_1757975553041_02.md",
+              "maxOutputTokens": 280
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T22:32:33.067Z"
+  },
+  {
+    "id": "4cb45411-f015-4681-b6eb-17d24405618e",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "step_id": "213733c7-e9c0-4ec4-a151-111df546a512",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "write readme (medium-2)",
+      "tool": "codegen",
+      "idempotency_key": "381f2d03-3c95-407c-8f0e-21feb452163d:write readme (medium-2):7d48fbc67513"
+    },
+    "created_at": "2025-09-15T22:32:33.069Z"
+  },
+  {
+    "id": "bce2f682-2281-4fbb-8905-98760ffaea8b",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "step_id": "213733c7-e9c0-4ec4-a151-111df546a512",
+    "type": "step.started",
+    "payload": {
+      "name": "write readme (medium-2)",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T22:32:38.063Z"
+  },
+  {
+    "id": "e81ede68-366f-4e4b-ba41-c0a7f8654553",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "step_id": "213733c7-e9c0-4ec4-a151-111df546a512",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 37,
+        "outputTokens": 231,
+        "totalTokens": 268,
+        "latencyMs": 9767
+      },
+      "costUSD": 0.00047125
+    },
+    "created_at": "2025-09-15T22:32:47.838Z"
+  },
+  {
+    "id": "1a1ac1ae-23a2-41d2-a050-b54162eeef17",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "step_id": "213733c7-e9c0-4ec4-a151-111df546a512",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 37,
+        "outputTokens": 231,
+        "totalTokens": 268,
+        "latencyMs": 9767
+      }
+    },
+    "created_at": "2025-09-15T22:32:47.839Z"
+  },
+  {
+    "id": "34101ee7-cb0b-473f-958e-fde425ee8cbe",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "step_id": "213733c7-e9c0-4ec4-a151-111df546a512",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/381f2d03-3c95-407c-8f0e-21feb452163d/steps/213733c7-e9c0-4ec4-a151-111df546a512/README_batch_1757975553041_02.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.00047125
+    },
+    "created_at": "2025-09-15T22:32:47.843Z"
+  },
+  {
+    "id": "8c7aeaed-7ac6-454c-ba5b-31b1a80eb6b8",
+    "run_id": "381f2d03-3c95-407c-8f0e-21feb452163d",
+    "type": "run.succeeded",
+    "payload": {},
+    "created_at": "2025-09-15T22:32:47.845Z"
+  }
+]

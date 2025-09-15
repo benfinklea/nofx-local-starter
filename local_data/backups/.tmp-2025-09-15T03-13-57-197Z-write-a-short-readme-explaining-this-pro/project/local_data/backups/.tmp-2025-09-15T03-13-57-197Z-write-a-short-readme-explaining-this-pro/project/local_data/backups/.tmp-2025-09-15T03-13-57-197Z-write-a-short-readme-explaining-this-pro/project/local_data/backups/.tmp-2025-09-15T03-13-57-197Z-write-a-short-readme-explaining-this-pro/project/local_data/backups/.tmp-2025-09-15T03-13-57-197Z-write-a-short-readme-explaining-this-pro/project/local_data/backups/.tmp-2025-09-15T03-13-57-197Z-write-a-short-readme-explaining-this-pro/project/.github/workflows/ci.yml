@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  gate-typecheck:
+    name: gate-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run gate:typecheck
+      - name: Upload typecheck artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts-typecheck
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+
+  gate-lint:
+    name: gate-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run gate:lint
+      - name: Upload lint artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts-lint
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+
+  gate-unit:
+    name: gate-unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Set BASE_REF for PRs
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "BASE_REF=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
+      - name: Run unit gate (Vitest)
+        env:
+          CI: true
+        run: npm run gate:unit
+      - name: Upload to Codecov
+        if: ${{ always() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unit
+          name: codecov
+          fail_ci_if_error: true
+          verbose: false
+      - name: Upload gate artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts
+          path: gate-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload coverage (artifact)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+  jest-unit:
+    name: jest-unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run Jest unit tests
+        env:
+          CI: true
+        run: npm run test:unit
+
+  # removed separate codecov job; upload happens within gate-unit

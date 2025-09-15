@@ -1,0 +1,12 @@
+[
+  {
+    "id": "3a82f6d1-35b5-4732-af51-385c93d8d552",
+    "step_id": "adbb14b5-224d-49d4-bd5d-486c1f217763",
+    "type": "text/markdown",
+    "path": "runs/6c762c0c-d670-4edb-b41f-aad5f6271544/steps/adbb14b5-224d-49d4-bd5d-486c1f217763/README.md",
+    "metadata": {
+      "driver": "fs"
+    },
+    "created_at": "2025-09-15T22:37:34.005Z"
+  }
+]

@@ -9,7 +9,8 @@
   <div class="nav">
     <a href="/ui/runs">Runs</a>
     <a href="/ui/models">Models</a>
-    <a href="/ui/settings">Settings</a>
+    <a href="/ui/settings" class="active">Settings</a>
+    <a href="/ui/dev">Dev</a>
   </div>
 </div></div>
 <div class="container">
@@ -80,6 +81,28 @@
   <a style="margin-left:12px" href="/ui/models">Manage Models</a>
 </div>
 
+<sl-card style="margin-top:16px"><div class="bd">
+  <div slot="header">Backups</div>
+  <div class="row-inline" style="margin-bottom:8px">
+    <input id="backupNote" placeholder="Optional note for this backup" style="max-width:360px"/>
+    <button class="btn" onclick="backupNow()">Backup Now</button>
+  </div>
+  <div class="row-inline" style="margin-bottom:8px">
+    <label>Scope
+      <select id="backupScope" class="native" style="max-width:220px">
+        <option value="data">Data only (NOFX runs/artifacts/settings)</option>
+        <option value="with-project">Data + Project (repo working copy)</option>
+      </select>
+    </label>
+  </div>
+  <div class="row-inline" style="margin-bottom:8px">
+    <label style="display:flex;gap:6px;align-items:center">Auto-backup every <input id="backupEvery" type="number" min="0" step="5" style="width:90px"/> minutes (0 to disable)</label>
+    <button class="btn small" onclick="saveBackupInterval()">Save Interval</button>
+    <span id="backupStatus" class="muted"></span>
+  </div>
+  <div id="backupList" class="muted">Loading…</div>
+</div></sl-card>
+
 <% /* Dev-only restart (visible always; backend checks NODE_ENV/role) */ %>
 <sl-card style="margin-top:16px"><div class="bd">
   <div slot="header">Development</div>
@@ -147,6 +170,7 @@ async function load(){
   document.getElementById('gateLint').checked = !!settings.gates.lint;
   document.getElementById('gateUnit').checked = !!settings.gates.unit;
   document.getElementById('coverage').value = Math.round((settings.gates.coverageThreshold||0.9)*100);
+  try { document.getElementById('backupEvery').value = Number((settings.ops && settings.ops.backupIntervalMin) || 0); } catch {}
   const table = document.getElementById('rulesTable');
   // clear existing rows except header
   while (table.rows.length > 1) table.deleteRow(1);
@@ -243,6 +267,8 @@ async function save(){
     },
     db_write_rules: collectRules()
   };
+  const be = document.getElementById('backupEvery');
+  if (be) { body.settings.ops = { backupIntervalMin: Math.max(0, Number(be.value||0)) }; }
   const rsp = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials: 'include' });
   const ok = rsp.ok;
   document.getElementById('status').textContent = ok ? 'Saved ✓' : 'Failed to save';
@@ -259,6 +285,49 @@ async function restartOne(which){
   const rsp = await fetch(url, { method:'POST', credentials: 'include' });
   if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
   document.getElementById('devStatus').textContent = rsp.ok ? `Restarting ${which}…` : 'Failed';
+}
+
+// -------- Backups --------
+async function loadBackups(){
+  try {
+    const rsp = await fetch('/backups', { credentials: 'include' });
+    if (rsp.status === 401) { document.getElementById('backupList').textContent = 'Login required'; return; }
+    const rows = await rsp.json();
+    if (!Array.isArray(rows) || !rows.length) { document.getElementById('backupList').textContent = 'No backups yet.'; return; }
+    const html = ['<table><tr><th>When</th><th>Title</th><th>Note</th><th>Size</th><th>Cloud</th><th></th></tr>']
+      .concat(rows.map(b => `<tr>
+        <td>${escapeHtml(b.created_at)}</td>
+        <td>${escapeHtml(b.title||'')}</td>
+        <td>${escapeHtml(b.note||'')}</td>
+        <td>${b.size_bytes ? Math.round(b.size_bytes/1024) + ' KB' : ''}</td>
+        <td>${b.cloud?.uploaded ? 'uploaded' : (b.cloud?.error ? 'error' : '')}</td>
+        <td><button class=\"btn small\" onclick=\"restoreBackup('${b.id}')\">Restore</button></td>
+      </tr>`)).concat(['</table>']).join('');
+    document.getElementById('backupList').innerHTML = html;
+  } catch { document.getElementById('backupList').textContent = 'Failed to load backups'; }
+}
+async function backupNow(){
+  const note = (document.getElementById('backupNote').value||'').trim();
+  const scope = document.getElementById('backupScope').value || 'data';
+  const rsp = await fetch('/backups', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ note, scope }), credentials: 'include' });
+  if (!rsp.ok) { alert('Backup failed'); return; }
+  loadBackups();
+}
+async function restoreBackup(id){
+  if (!confirm('Restore this backup? A safety backup will be created first.')) return;
+  const rsp = await fetch('/backups/' + id + '/restore', { method:'POST', credentials: 'include' });
+  if (!rsp.ok) { alert('Restore failed'); return; }
+  alert('Restored. Reloading…');
+  location.reload();
+}
+setInterval(loadBackups, 5000);
+
+async function saveBackupInterval(){
+  const mins = Math.max(0, Number(document.getElementById('backupEvery').value||0));
+  const body = { settings: { ops: { backupIntervalMin: mins } } };
+  const rsp = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials: 'include' });
+  document.getElementById('backupStatus').textContent = rsp.ok ? 'Saved ✓' : 'Failed';
+  if (rsp.ok) setTimeout(()=>document.getElementById('backupStatus').textContent='', 1500);
 }
 
 function escapeHtml(s){

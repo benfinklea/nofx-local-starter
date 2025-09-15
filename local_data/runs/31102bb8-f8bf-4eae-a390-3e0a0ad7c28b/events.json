@@ -1,0 +1,86 @@
+[
+  {
+    "id": "dd45e89d-e988-4918-b06e-fff581ada52e",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "1' OR '1'='1",
+        "steps": [
+          {
+            "name": "1' OR '1'='1",
+            "tool": "test"
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T22:34:50.282Z"
+  },
+  {
+    "id": "1450fcd4-9eac-4067-acf0-7e18ed55d255",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "step_id": "a289827c-a4e9-4cd4-a31d-bdd02032314c",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "1' OR '1'='1",
+      "tool": "test",
+      "idempotency_key": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b:1' OR '1'='1:fb25605282db"
+    },
+    "created_at": "2025-09-15T22:34:50.283Z"
+  },
+  {
+    "id": "88c01c6d-e60a-4de9-9e42-4e17a8b422ff",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "step_id": "a289827c-a4e9-4cd4-a31d-bdd02032314c",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 136369,
+      "delayMs": 15000
+    },
+    "created_at": "2025-09-15T22:34:50.283Z"
+  },
+  {
+    "id": "679d059e-6269-4cb8-9afd-929bb256bcfa",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "step_id": "a289827c-a4e9-4cd4-a31d-bdd02032314c",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:40.525Z"
+  },
+  {
+    "id": "9d179793-2871-4534-ab5e-aa12299e978f",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "step_id": "a289827c-a4e9-4cd4-a31d-bdd02032314c",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:42.535Z"
+  },
+  {
+    "id": "e6c09d3c-d28b-4c9e-b68d-924fa0292134",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "step_id": "a289827c-a4e9-4cd4-a31d-bdd02032314c",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:47.548Z"
+  },
+  {
+    "id": "59da1e25-56bc-4bd6-a39b-16f4f55f70ff",
+    "run_id": "31102bb8-f8bf-4eae-a390-3e0a0ad7c28b",
+    "step_id": "a289827c-a4e9-4cd4-a31d-bdd02032314c",
+    "type": "step.failed",
+    "payload": {
+      "error": "no handler for tool",
+      "tool": "test"
+    },
+    "created_at": "2025-09-15T22:35:57.562Z"
+  }
+]

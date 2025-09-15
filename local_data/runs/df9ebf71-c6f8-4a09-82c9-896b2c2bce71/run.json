@@ -1,0 +1,9 @@
+{
+  "id": "df9ebf71-c6f8-4a09-82c9-896b2c2bce71",
+  "status": "queued",
+  "plan": {
+    "goal": "dlq",
+    "steps": []
+  },
+  "created_at": "2025-09-15T23:20:51.651Z"
+}

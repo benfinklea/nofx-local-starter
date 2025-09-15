@@ -2,7 +2,7 @@ import { routeLLM } from "../models/router";
 import { log } from "../lib/logger";
 export type CodegenResult = { content: string; provider?: string; model?: string; usage?: any };
 
-export async function codegenReadme(inputs: { topic?: string; bullets?: string[] } = {}): Promise<CodegenResult> {
+export async function codegenReadme(inputs: { topic?: string; bullets?: string[]; maxOutputTokens?: number } = {}): Promise<CodegenResult> {
   const topic = inputs.topic || "NOFX";
   const bullets = inputs.bullets || ["Control plane", "Verification", "Workers"];
   const hasKeys = !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY);
@@ -11,7 +11,7 @@ export async function codegenReadme(inputs: { topic?: string; bullets?: string[]
     return { content: `# ${topic}\n\n- ${bullets.join("\n- ")}\n\n_Generated locally without LLM._\n`, provider: 'stub', model: 'stub' };
   }
   const prompt = `Write a concise README section titled "${topic}" with bullet points: ${bullets.join(", ")}. Keep it tight.`;
-  const res: any = await routeLLM('docs', prompt);
+  const res: any = await routeLLM('docs', prompt, { maxOutputTokens: Math.max(1, Number(inputs.maxOutputTokens ?? 800)) });
   if (typeof res === 'string') return { content: res };
   return { content: res.text, provider: res.provider, model: res.model, usage: res.usage };
 }

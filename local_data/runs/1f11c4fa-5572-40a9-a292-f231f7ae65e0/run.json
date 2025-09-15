@@ -1,0 +1,14 @@
+{
+  "id": "1f11c4fa-5572-40a9-a292-f231f7ae65e0",
+  "status": "queued",
+  "plan": {
+    "goal": "' OR '1'='1",
+    "steps": [
+      {
+        "name": "' OR '1'='1",
+        "tool": "test"
+      }
+    ]
+  },
+  "created_at": "2025-09-15T23:15:03.582Z"
+}

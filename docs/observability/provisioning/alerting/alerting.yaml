@@ -1,0 +1,80 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: NOFX Alerts
+    folder: NOFX
+    interval: 1m
+    rules:
+      - uid: nofx-error-rate
+        title: NOFX Error Rate > 5%
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: Prometheus
+            model:
+              expr: rate(steps_total{status="failed"}[5m]) / (rate(steps_total[5m]) + 1e-9)
+              instant: false
+              range: true
+          - refId: B
+            expression: reduce
+            type: reduce
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: last
+              settings:
+                mode: series
+          - refId: C
+            expression: threshold
+            type: threshold
+            datasourceUid: __expr__
+            model:
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator: { type: and }
+                  reducer: { type: last }
+                  type: query
+        for: 5m
+        annotations: { }
+        labels: { }
+        isPaused: false
+      - uid: nofx-queue-depth
+        title: NOFX Queue Depth > 50 (waiting)
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: Prometheus
+            model:
+              expr: queue_depth{state="waiting",topic="step.ready"}
+              instant: false
+              range: true
+          - refId: B
+            expression: reduce
+            type: reduce
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: max
+              settings:
+                mode: series
+          - refId: C
+            expression: threshold
+            type: threshold
+            datasourceUid: __expr__
+            model:
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [50]
+                    type: gt
+                  operator: { type: and }
+                  reducer: { type: last }
+                  type: query
+        for: 10m
+        annotations: { }
+        labels: { }
+        isPaused: false
+

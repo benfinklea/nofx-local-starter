@@ -1,0 +1,13 @@
+{
+  "id": "2025-09-15T19-24-59-331Z-dlq",
+  "created_at": "2025-09-15T19:24:59.331Z",
+  "title": "dlq",
+  "note": "checkpoint",
+  "size_bytes": 88343,
+  "kind": "fs",
+  "scope": "data",
+  "cloud": {
+    "uploaded": true,
+    "path": "backups/2025-09-15T19-24-59-331Z-dlq.tar.gz"
+  }
+}

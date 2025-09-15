@@ -49,9 +49,12 @@ test.describe('Settings routing UI', () => {
     await addCodegen.click();
 
     // Lists should show at least one entry each
-    await expect(page.locator('#docsOrder li')).toHaveCountGreaterThan(0);
-    await expect(page.locator('#reasoningOrder li')).toHaveCountGreaterThan(0);
-    await expect(page.locator('#codegenOrder li')).toHaveCountGreaterThan(0);
+    const docsCount = await page.locator('#docsOrder li').count();
+    const reasoningCount = await page.locator('#reasoningOrder li').count();
+    const codegenCount = await page.locator('#codegenOrder li').count();
+    expect(docsCount).toBeGreaterThan(0);
+    expect(reasoningCount).toBeGreaterThan(0);
+    expect(codegenCount).toBeGreaterThan(0);
 
     // Save
     await page.click('button:has-text("Save")');

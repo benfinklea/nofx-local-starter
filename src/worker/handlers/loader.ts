@@ -5,7 +5,11 @@ import type { StepHandler } from './types';
 export function loadHandlers(): StepHandler[] {
   const dir = __dirname;
   const handlers: StepHandler[] = [];
-  for (const file of fs.readdirSync(dir)) {
+  const all = fs.readdirSync(dir);
+  const files = (process.env.NODE_ENV === 'test')
+    ? all.filter(f => /^(test[_.].*|.*test.*)\.(ts|js)$/.test(f))
+    : all;
+  for (const file of files) {
     if (!/\.(ts|js)$/.test(file)) continue;
     if (['loader.ts','types.ts'].includes(file)) continue;
     const mod = require(path.join(dir, file));

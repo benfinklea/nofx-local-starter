@@ -1,1 +1,7 @@
+src/worker/handlers/git_pr.ts(2,10): error TS2300: Duplicate identifier 'store'.
+src/worker/handlers/git_pr.ts(9,10): error TS2300: Duplicate identifier 'store'.
+src/worker/handlers/git_pr.ts(61,11): error TS2304: Cannot find name 'query'.
+src/worker/handlers/git_pr.ts(62,32): error TS2304: Cannot find name 'query'.
+src/worker/handlers/git_pr.ts(81,15): error TS2304: Cannot find name 'query'.
+src/worker/handlers/git_pr.ts(82,36): error TS2304: Cannot find name 'query'.
 

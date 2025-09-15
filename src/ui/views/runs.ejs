@@ -9,26 +9,83 @@
     <a href="/ui/runs/new">New Run</a>
     <a href="/ui/models">Models</a>
     <a href="/ui/settings">Settings</a>
+    <a href="/ui/dev">Dev</a>
   </div>
 </div></div>
 <div class="container">
   <div class="section-title"><h1 style="margin:12px 0">Runs</h1><span class="tip" data-tip="All workflow runs. Click to see timeline, artifacts, gates, and costs.">?</span></div>
+  <div style="margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+    <label for="batch_count" class="muted">Queue batch:</label>
+    <select id="batch_count" class="input" style="width:auto">
+      <option value="1">1 task</option>
+      <option value="5">5 tasks</option>
+      <option value="20">20 tasks</option>
+    </select>
+    <button class="btn primary" onclick="queueBatch()">Queue Batch</button>
+    <a class="btn" href="/ui/runs/new">Advanced…</a>
+  </div>
   <div class="card"><div class="bd">
     <table>
-      <thead><tr><th>ID</th><th>Status</th><th>Created</th></tr></thead>
+      <thead><tr><th>Title</th><th>Status</th><th>Created</th><th>ID</th></tr></thead>
       <tbody>
       <% runs.forEach(r => { %>
         <tr>
-          <td><a href="/ui/runs/<%= r.id %>"><code><%= r.id %></code></a></td>
+          <td><a href="/ui/runs/<%= r.id %>"><%= (r.title||'').slice(0, 80) || 'ad‑hoc run' %></a></td>
           <td>
             <% const s = String(r.status||'').toLowerCase(); %>
             <span class="badge <%= s==='succeeded'?'ok':(s==='failed'?'err':(s==='queued'?'warn':'')) %>"><%= r.status %></span>
           </td>
           <td class="muted"><%= r.created_at %></td>
+          <td><code><a href="/ui/runs/<%= r.id %>"><%= r.id %></a></code></td>
         </tr>
       <% }) %>
       </tbody>
     </table>
   </div></div>
 </div>
+<script>
+function buildBatchTasks(count){
+  const presets = [
+    { label: 'short', bullets: ['Overview','Quickstart','Scripts'], max: 120 },
+    { label: 'medium', bullets: ['Architecture','Queue','Workers','DB'], max: 240 },
+    { label: 'detailed', bullets: ['Setup','Run','Observability','Troubleshooting','CI'], max: 400 },
+    { label: 'ops', bullets: ['Local Dev','Gates','DLQ','Inbox/Outbox'], max: 320 },
+    { label: 'design', bullets: ['Components','Data Flow','Constraints','Tradeoffs'], max: 280 }
+  ];
+  const tasks = [];
+  const ts = Date.now();
+  for (let i=0;i<count;i++){
+    const p = presets[i % presets.length];
+    tasks.push({
+      label: `${p.label}-${i+1}`,
+      topic: `NOFX README (${p.label} ${i+1})`,
+      bullets: p.bullets,
+      maxTokens: p.max + Math.floor((i % 5) * 40),
+      filename: `README_batch_${ts}_${String(i+1).padStart(2,'0')}.md`
+    });
+  }
+  return tasks;
+}
+
+async function queueBatch(){
+  const sel = document.getElementById('batch_count');
+  const count = Number(sel && sel.value ? sel.value : 1);
+  const tasks = buildBatchTasks(count);
+  let ok = 0;
+  for (const t of tasks) {
+    const plan = {
+      goal: `Batch: ${t.topic}`,
+      steps: [ { name: `write readme (${t.label})`, tool: 'codegen', inputs: { topic: t.topic, bullets: t.bullets, filename: t.filename, maxOutputTokens: t.maxTokens } } ]
+    };
+    const body = { plan };
+    try {
+      const rsp = await fetch('/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (rsp.ok) ok += 1;
+    } catch {}
+  }
+  if (ok === 0) { alert('Failed to queue tasks'); return; }
+  // Refresh to show new runs; user can open Dev page to watch queues
+  location.reload();
+}
+</script>
 </body></html>
