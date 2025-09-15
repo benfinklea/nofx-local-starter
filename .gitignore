@@ -80,6 +80,18 @@ supabase/.temp
 logs/
 *.log
 
+# Local runtime/state (Simple Mode)
+local_data/
+
+# CI artifacts and reports (generated)
+gate-artifacts/
+test-results/
+lint.json
+
+# Local helper state
+.api_pid
+.login_headers.txt
+
 # OS Files
 .DS_Store
 Thumbs.db
