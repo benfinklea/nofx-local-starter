@@ -1,0 +1,17 @@
+{
+  "id": "b16db506-3a7d-4a79-bf8c-5f18ef1fd43d",
+  "status": "queued",
+  "plan": {
+    "goal": "<iframe src=\"javascript:alert(1)\"></iframe>",
+    "steps": [
+      {
+        "name": "xss_test",
+        "tool": "test",
+        "inputs": {
+          "data": "<iframe src=\"javascript:alert(1)\"></iframe>"
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:32:34.266Z"
+}

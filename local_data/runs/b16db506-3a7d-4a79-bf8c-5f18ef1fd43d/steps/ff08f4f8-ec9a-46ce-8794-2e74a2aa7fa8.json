@@ -1,0 +1,13 @@
+{
+  "id": "ff08f4f8-ec9a-46ce-8794-2e74a2aa7fa8",
+  "run_id": "b16db506-3a7d-4a79-bf8c-5f18ef1fd43d",
+  "name": "xss_test",
+  "tool": "test",
+  "inputs": {
+    "data": "<iframe src=\"javascript:alert(1)\"></iframe>",
+    "_policy": {}
+  },
+  "status": "queued",
+  "created_at": "2025-09-15T22:32:34.269Z",
+  "idempotency_key": "b16db506-3a7d-4a79-bf8c-5f18ef1fd43d:xss_test:9cc423c5134c"
+}

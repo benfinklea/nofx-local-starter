@@ -1,0 +1,23 @@
+{
+  "id": "015d3fe9-de81-4d5b-8af8-53a5c11ecf35",
+  "status": "queued",
+  "plan": {
+    "goal": "Write a short README explaining this project and how to run it locally.",
+    "steps": [
+      {
+        "name": "write readme",
+        "tool": "codegen",
+        "inputs": {
+          "topic": "Write a short README explaining this project and",
+          "bullets": [
+            "Control plane",
+            "Verification",
+            "Workers"
+          ],
+          "filename": "README.md"
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T21:46:14.865Z"
+}

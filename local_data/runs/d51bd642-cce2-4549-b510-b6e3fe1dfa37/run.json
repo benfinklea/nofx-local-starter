@@ -1,0 +1,25 @@
+{
+  "id": "d51bd642-cce2-4549-b510-b6e3fe1dfa37",
+  "status": "succeeded",
+  "plan": {
+    "goal": "Batch: NOFX README (short 1)",
+    "steps": [
+      {
+        "name": "write readme (short-1)",
+        "tool": "codegen",
+        "inputs": {
+          "topic": "NOFX README (short 1)",
+          "bullets": [
+            "Overview",
+            "Quickstart",
+            "Scripts"
+          ],
+          "filename": "README_batch_1757975553041_01.md",
+          "maxOutputTokens": 120
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:32:33.045Z",
+  "ended_at": "2025-09-15T22:32:40.806Z"
+}

@@ -1,0 +1,200 @@
+[
+  {
+    "id": "f501dd11-7e38-440a-89da-4eb0d5ae3c84",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "Data integrity test",
+        "steps": [
+          {
+            "name": "step1",
+            "tool": "codegen",
+            "inputs": {
+              "value": 123
+            }
+          },
+          {
+            "name": "step2",
+            "tool": "codegen",
+            "inputs": {
+              "value": 456
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T22:32:34.288Z"
+  },
+  {
+    "id": "3b06e2f8-2e4b-45d8-ad2e-377b2aa69224",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1748bc92-5501-4125-8b9d-ceaf33e0e66e",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step1",
+      "tool": "codegen",
+      "idempotency_key": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee:step1:0cbec3a211c9"
+    },
+    "created_at": "2025-09-15T22:32:34.289Z"
+  },
+  {
+    "id": "610956c7-c210-4eca-8408-7eff9e9e3716",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1748bc92-5501-4125-8b9d-ceaf33e0e66e",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 5977,
+      "delayMs": 488
+    },
+    "created_at": "2025-09-15T22:32:34.289Z"
+  },
+  {
+    "id": "a2f57b5b-da84-4cad-8182-f890ea13fde9",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1b00ee9b-6d9b-4c51-895b-248483e389e1",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step2",
+      "tool": "codegen",
+      "idempotency_key": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee:step2:23f443706f45"
+    },
+    "created_at": "2025-09-15T22:32:34.289Z"
+  },
+  {
+    "id": "01195922-ab7b-4735-b7d9-5f49fd041a74",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1b00ee9b-6d9b-4c51-895b-248483e389e1",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 5978,
+      "delayMs": 489
+    },
+    "created_at": "2025-09-15T22:32:34.290Z"
+  },
+  {
+    "id": "45c83f3c-656c-4980-818b-752976190156",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1748bc92-5501-4125-8b9d-ceaf33e0e66e",
+    "type": "step.started",
+    "payload": {
+      "name": "step1",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T22:35:33.358Z"
+  },
+  {
+    "id": "96bfa077-2df4-4ac4-be89-2e1a4bfc3225",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1748bc92-5501-4125-8b9d-ceaf33e0e66e",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 31,
+        "outputTokens": 284,
+        "totalTokens": 315,
+        "latencyMs": 5421
+      },
+      "costUSD": 0.0005757500000000001
+    },
+    "created_at": "2025-09-15T22:35:33.369Z"
+  },
+  {
+    "id": "c75a66fd-4ad3-4c0f-b3d8-77e6dbc5b68b",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1748bc92-5501-4125-8b9d-ceaf33e0e66e",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 31,
+        "outputTokens": 284,
+        "totalTokens": 315,
+        "latencyMs": 5421
+      }
+    },
+    "created_at": "2025-09-15T22:35:33.369Z"
+  },
+  {
+    "id": "25cbb638-b22f-4646-b655-0f1d6690cc39",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1748bc92-5501-4125-8b9d-ceaf33e0e66e",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/8c04d3a9-e3f7-4d07-bfbf-5547352de9ee/steps/1748bc92-5501-4125-8b9d-ceaf33e0e66e/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.0005757500000000001
+    },
+    "created_at": "2025-09-15T22:35:33.371Z"
+  },
+  {
+    "id": "7e65e1ae-6ee8-486b-a974-df9783a68a72",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1b00ee9b-6d9b-4c51-895b-248483e389e1",
+    "type": "step.started",
+    "payload": {
+      "name": "step2",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T22:35:33.373Z"
+  },
+  {
+    "id": "384f9274-71c1-4e6f-9ab1-028364ffae02",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1b00ee9b-6d9b-4c51-895b-248483e389e1",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 31,
+        "outputTokens": 284,
+        "totalTokens": 315,
+        "latencyMs": 5421
+      },
+      "costUSD": 0.0005757500000000001
+    },
+    "created_at": "2025-09-15T22:35:33.378Z"
+  },
+  {
+    "id": "2f9d58b2-0f28-4c52-bb42-d1e7e5f3510b",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1b00ee9b-6d9b-4c51-895b-248483e389e1",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 31,
+        "outputTokens": 284,
+        "totalTokens": 315,
+        "latencyMs": 5421
+      }
+    },
+    "created_at": "2025-09-15T22:35:33.379Z"
+  },
+  {
+    "id": "246d941e-f077-4183-9e05-01911c89e12b",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "step_id": "1b00ee9b-6d9b-4c51-895b-248483e389e1",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/8c04d3a9-e3f7-4d07-bfbf-5547352de9ee/steps/1b00ee9b-6d9b-4c51-895b-248483e389e1/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.0005757500000000001
+    },
+    "created_at": "2025-09-15T22:35:33.381Z"
+  },
+  {
+    "id": "6c8309a4-c18b-4e90-ac9b-5b14a68eab6d",
+    "run_id": "8c04d3a9-e3f7-4d07-bfbf-5547352de9ee",
+    "type": "run.succeeded",
+    "payload": {},
+    "created_at": "2025-09-15T22:35:33.382Z"
+  }
+]

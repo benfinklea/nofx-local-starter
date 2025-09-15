@@ -126,6 +126,9 @@ a:hover{text-decoration:none}
 /* Helper */
 .muted{color:var(--muted)}
 .section-title{display:flex;align-items:center;gap:8px}
+.metric{display:flex;flex-direction:column;gap:4px;min-width:140px}
+.metric .k{color:var(--muted);font-size:.85em}
+.metric .v{font-weight:600}
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);width:min(720px,90vw);max-height:80vh;overflow:auto}
 .modal .hd{padding:12px 14px;border-bottom:1px solid var(--border);font-weight:600}

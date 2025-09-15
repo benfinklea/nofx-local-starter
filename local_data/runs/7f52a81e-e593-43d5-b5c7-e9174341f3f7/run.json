@@ -1,0 +1,14 @@
+{
+  "id": "7f52a81e-e593-43d5-b5c7-e9174341f3f7",
+  "status": "queued",
+  "plan": {
+    "goal": "'; DROP TABLE runs; --",
+    "steps": [
+      {
+        "name": "'; DROP TABLE runs; --",
+        "tool": "test"
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:32:34.209Z"
+}

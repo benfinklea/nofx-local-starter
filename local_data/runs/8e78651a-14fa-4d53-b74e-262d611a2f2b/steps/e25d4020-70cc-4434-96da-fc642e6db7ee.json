@@ -1,0 +1,27 @@
+{
+  "id": "e25d4020-70cc-4434-96da-fc642e6db7ee",
+  "run_id": "8e78651a-14fa-4d53-b74e-262d611a2f2b",
+  "name": "step_0",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Step 0",
+    "data": "Cuppedia capitulus thalassinus alias amplexus anser taceo vilitas statua. Conspergo alius beatus amo desino temeritas culpo adipiscor talio. Aurum tactus terga.\nCuppedia summopere ater adipiscor turba. Delego cariosus autus abeo xiphias vespillo. Suasoria tero paulatim ars illo.\nId arto sodalitas corporis ut. Pectus venustas laudantium catena officiis baiulus video conspergo. Theatrum curto caute celo arca delibero subito tristis virgo.\nCausa aro pariatur cras asper desidero ocer tredecim. Armarium asperiores torrens bardus tibi. Adipiscor adhuc tabernus benigne approbo constans subvenio teneo solus.\nSono utilis nobis vulticulus vomer taedium victoria amicitia. Tonsor tabella tandem thesis. Curia denuo curriculum cuius conduco ullam aer adulatio comitatus facere.\nVinco charisma circumvenio thymum enim adaugeo demum attonbitus volup. Quibusdam modi numquam delinquo solvo astrum tener acervus. Dedico vigilo charisma velut stillicidium.\nTruculenter paulatim adipiscor defero conicio. Thymbra avaritia ustulo. Bis atque demens utpote decerno summa adimpleo aliquid soluta.\nCohaero deporto necessitatibus. Ambitus vesica stipes suggero valde totidem clamo utique. Advoco vitiosus adflicto.\nPel deduco aegrotatio culpa uxor aegrus. Valeo tunc adulatio civitas. Tam cunae pax talio statim adeptio vespillo iure trucido crinis.\nCasso error voluptate blanditiis suadeo valetudo. Umbra hic ascisco sint. Angulus attero laboriosam creta stultus acervus ullam cervus calamitas.",
+    "_policy": {}
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:34:49.586Z",
+  "idempotency_key": "8e78651a-14fa-4d53-b74e-262d611a2f2b:step_0:a39d24211ab1",
+  "started_at": "2025-09-15T22:35:33.487Z",
+  "ended_at": "2025-09-15T22:35:33.498Z",
+  "outputs": {
+    "artifact": "runs/8e78651a-14fa-4d53-b74e-262d611a2f2b/steps/e25d4020-70cc-4434-96da-fc642e6db7ee/README.md",
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "usage": {
+      "inputTokens": 32,
+      "outputTokens": 282,
+      "totalTokens": 314,
+      "latencyMs": 5919
+    }
+  }
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "ec522402-0457-4ee6-bd75-e26acbc19845",
+    "run_id": "36a721b1-c811-447f-a048-1185751e6a0b",
+    "step_id": "10fb30cd-8b83-4b3c-901b-67d40c6556bd",
+    "type": "step.started",
+    "payload": {},
+    "created_at": "2025-09-15T03:17:01.301Z"
+  }
+]

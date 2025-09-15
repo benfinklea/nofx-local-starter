@@ -1,0 +1,18 @@
+{
+  "id": "4c938d38-a65f-499f-bc39-580e7662c488",
+  "status": "succeeded",
+  "plan": {
+    "goal": "Concurrent test 1",
+    "steps": [
+      {
+        "name": "step_1",
+        "tool": "codegen",
+        "inputs": {
+          "topic": "Test 1"
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:32:25.245Z",
+  "ended_at": "2025-09-15T22:32:31.328Z"
+}

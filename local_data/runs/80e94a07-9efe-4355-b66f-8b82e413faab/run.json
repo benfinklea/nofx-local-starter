@@ -1,0 +1,18 @@
+{
+  "id": "80e94a07-9efe-4355-b66f-8b82e413faab",
+  "status": "succeeded",
+  "plan": {
+    "goal": "Concurrent test 2",
+    "steps": [
+      {
+        "name": "step_2",
+        "tool": "codegen",
+        "inputs": {
+          "topic": "Test 2"
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T23:05:22.250Z",
+  "ended_at": "2025-09-15T23:05:27.914Z"
+}
