@@ -1,0 +1,12 @@
+{
+  "id": "1a4d4cef-ae42-4b0f-a094-5019710de5b4",
+  "run_id": "3cef8792-8b4b-454c-95e7-5ad638e8b69a",
+  "name": "admin'--",
+  "tool": "test",
+  "inputs": {
+    "_policy": {}
+  },
+  "status": "queued",
+  "created_at": "2025-09-15T22:32:34.224Z",
+  "idempotency_key": "3cef8792-8b4b-454c-95e7-5ad638e8b69a:admin'--:fb25605282db"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "1d32a97c-c34f-4f1f-9f60-651fc4eea82b",
+  "run_id": "b885468a-5672-484a-9d39-21e17d996226",
+  "name": "step_20",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Step 20",
+    "data": "Ea quas sol deleniti alioqui placeat socius. Decretum quidem comparo decens subiungo spoliatio vulgivagus vinum tyrannus. Taedium degenero cras capillus cado.\nTextor peccatus terebro solvo nobis tergeo vulgaris comburo sto. Culpa pax speciosus tracto surculus complectus. Vehemens conturbo thymbra voco sortitus sustineo.\nSponte terminatio deludo verbera coaegresco. Laborum ex libero. Valde delinquo stillicidium ultio.\nCoaegresco autem surculus. Absconditus denuo delectatio aduro asper caelestis super solum caute collum. Tenus bellum derideo ea catena itaque urbs.\nAngustus decipio tersus una comprehendo pauper bibo aequus. Pax in accedo assentator damnatio asporto trans utilis caritas. Soleo subiungo depulso verbum.\nDenuo culpa carmen amor totus curo repellat adipisci vulnus pecco. Volutabrum turbo verto eos vobis. Apud degero vero delinquo utrum curvo.\nProvident celo collum patior conicio adimpleo conturbo tripudio toties vigilo. Autem carpo venustas carbo. Iusto clamo modi creo non creator.\nDistinctio occaecati xiphias ancilla creo cubicularis. Acidus surgo tui cohaero doloribus vitium consuasor. Quas ars aestas cunabula spes.\nVicinus incidunt corrumpo doloremque corporis confido voluptate. Sollicito vinco usitas tamdiu soluta sol trado tamen suspendo vulnero. Crux attero paulatim urbs aurum deleniti.\nDolorum tergiversatio tristis admoneo uterque provident vestigium denego. Cena viriliter denuncio enim subito comis vilitas. Nobis clarus creator cui careo.",
+    "_policy": {}
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:32:33.545Z",
+  "idempotency_key": "b885468a-5672-484a-9d39-21e17d996226:step_20:acb7d7f4ad00",
+  "started_at": "2025-09-15T22:33:13.678Z",
+  "ended_at": "2025-09-15T22:33:22.187Z",
+  "outputs": {
+    "artifact": "runs/b885468a-5672-484a-9d39-21e17d996226/steps/1d32a97c-c34f-4f1f-9f60-651fc4eea82b/README.md",
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "usage": {
+      "inputTokens": 32,
+      "outputTokens": 524,
+      "totalTokens": 556,
+      "latencyMs": 8485
+    }
+  }
+}

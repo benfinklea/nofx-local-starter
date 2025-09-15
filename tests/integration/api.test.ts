@@ -1,6 +1,5 @@
-import request from 'supertest';
-import express from 'express';
-import { faker } from '@faker-js/faker';
+const request = require('supertest');
+const express = require('express');
 
 // We'll need to import the app properly when it's set up
 const createApp = () => {

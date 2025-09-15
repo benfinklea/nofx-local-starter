@@ -3,18 +3,26 @@ import dotenv from "dotenv";
 import path from 'node:path';
 import { z } from "zod";
 import { PlanSchema } from "../shared/types";
-import { query } from "../lib/db";
+import { store } from "../lib/store";
 import { log } from "../lib/logger";
-import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
+import { enqueue, STEP_READY_TOPIC, hasSubscribers, getOldestAgeMs } from "../lib/queue";
+import crypto from 'node:crypto';
 import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
 import fs from 'node:fs';
 import http from 'node:http';
+import { initAutoBackupFromSettings } from '../lib/autobackup';
+import { requestObservability, setContext } from '../lib/observability';
+import { initTracing } from '../lib/tracing';
 
 dotenv.config();
 export const app = express();
+// Optional tracing (OpenTelemetry) if enabled via env
+initTracing('nofx-api').catch(()=>{});
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+// Observability middleware: request ID + latency logging + correlation
+app.use(requestObservability);
 
 // ADD view engine + static for future UI
 app.set('view engine', 'ejs');
@@ -56,45 +64,82 @@ app.post("/runs", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { plan } = parsed.data;
 
-  const run = await query<{ id: string }>(
-    `insert into nofx.run (plan, status) values ($1, 'queued') returning id`,
-    [plan]
-  );
-  const runId = run.rows[0].id;
+  const run = await store.createRun(plan);
+  type WithId = { id: string };
+  const runId: string = (typeof run === 'object' && run !== null && 'id' in (run as Record<string, unknown>) && typeof (run as WithId).id === 'string')
+    ? (run as WithId).id
+    : String(run);
+  try { setContext({ runId }); } catch {}
   await recordEvent(runId, "run.created", { plan });
 
-  for (const s of plan.steps) {
-    const step = await query<{ id: string }>(
-      `insert into nofx.step (run_id, name, tool, inputs, status) values ($1,$2,$3,$4,'queued') returning id`,
-      [runId, s.name, s.tool, s.inputs || {}]
-    );
-    const stepId = step.rows[0].id;
-    await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool }, stepId);
-    await enqueue(STEP_READY_TOPIC, { runId, stepId });
-  }
-
+  // Respond immediately to avoid request timeouts on large plans
   res.status(201).json({ id: runId, status: "queued" });
+
+  // Process steps asynchronously (fire-and-forget)
+  void (async () => {
+    for (const s of plan.steps) {
+      // Preserve optional per-step security policy by embedding into inputs
+      const policy = {
+        tools_allowed: s.tools_allowed,
+        env_allowed: s.env_allowed,
+        secrets_scope: s.secrets_scope
+      };
+      const inputsWithPolicy = { ...(s.inputs || {}), _policy: policy };
+      // Idempotency key: `${runId}:${stepName}:${hash(inputs)}`
+      const hash = crypto.createHash('sha256').update(JSON.stringify(inputsWithPolicy)).digest('hex').slice(0, 12);
+      const idemKey = `${runId}:${s.name}:${hash}`;
+      const created = await store.createStep(runId, s.name, s.tool, inputsWithPolicy, idemKey);
+      type WithId2 = { id: string };
+      let stepId: string | undefined;
+      if (typeof created === 'object' && created !== null && 'id' in (created as Record<string, unknown>) && typeof (created as WithId2).id === 'string') {
+        stepId = (created as WithId2).id;
+      } else if (typeof created === 'string') {
+        stepId = created;
+      }
+      // If no row created (conflict), fetch existing by key
+      let existing = await store.getStepByIdempotencyKey(runId, idemKey);
+      if (!stepId) stepId = existing?.id;
+      if (!existing && stepId) existing = await store.getStep(stepId);
+      if (!stepId || !existing) continue; // safety: skip if we couldn't resolve step id
+      try { setContext({ stepId }); } catch {}
+      await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool, idempotency_key: idemKey }, stepId);
+      // Enqueue unless step is already finished; rely on worker inbox for exactly-once
+      const status = String((existing as { status?: string }).status || '').toLowerCase();
+      if (!['succeeded','cancelled'].includes(status)) {
+        // Backpressure: delay enqueue when queue age grows beyond threshold
+        const thresholdMs = Math.max(0, Number(process.env.BACKPRESSURE_AGE_MS || 5000));
+        const ageMs = getOldestAgeMs(STEP_READY_TOPIC);
+        let delayMs = 0;
+        if (ageMs != null && ageMs > thresholdMs) {
+          delayMs = Math.min(Math.floor((ageMs - thresholdMs) / 2), 15000);
+          await recordEvent(runId, 'queue.backpressure', { ageMs, delayMs }, stepId);
+        }
+        await enqueue(STEP_READY_TOPIC, { runId, stepId, idempotencyKey: idemKey, __attempt: 1 }, delayMs ? { delay: delayMs } : undefined);
+      }
+      // Simple Mode fallback: run inline to avoid any queue hiccups
+      if ((process.env.QUEUE_DRIVER || 'memory').toLowerCase() === 'memory' && !hasSubscribers(STEP_READY_TOPIC)) {
+        // Lazy import to avoid cycle
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { runStep } = require('../worker/runner');
+        setTimeout(() => { try { runStep(runId, stepId!); } catch {} }, 5);
+      }
+    }
+  })().catch(() => {});
 });
 
 app.get("/runs/:id", async (req, res) => {
   const runId = req.params.id;
-  const run = await query<Record<string, unknown>>(`select * from nofx.run where id = $1`, [runId]);
-  if (!run.rows[0]) return res.status(404).json({ error: "not found" });
-  const steps = await query<Record<string, unknown>>(`select * from nofx.step where run_id = $1 order by created_at`, [runId]).catch(async () => {
-    // created_at might not exist; fallback order by started/ended
-    const s = await query<Record<string, unknown>>(`select * from nofx.step where run_id = $1`, [runId]);
-    return s;
-  });
-  const artifacts = await query<Record<string, unknown>>(
-    `select a.*, s.name as step_name from nofx.artifact a join nofx.step s on s.id = a.step_id where s.run_id = $1`, [runId]
-  );
-  res.json({ run: run.rows[0], steps: steps.rows, artifacts: artifacts.rows });
+  const run = await store.getRun(runId);
+  if (!run) return res.status(404).json({ error: "not found" });
+  const steps = await store.listStepsByRun(runId);
+  const artifacts = await store.listArtifactsByRun(runId);
+  res.json({ run, steps, artifacts });
 });
 
 app.get("/runs/:id/timeline", async (req, res) => {
   const runId = req.params.id;
-  const ev = await query<Record<string, unknown>>(`select * from nofx.event where run_id = $1 order by created_at asc`, [runId]);
-  res.json(ev.rows);
+  const ev = await store.listEvents(runId);
+  res.json(ev);
 });
 
 // ADD at the end of file, after existing routes:
@@ -131,19 +176,25 @@ if (process.env.NODE_ENV !== 'test') {
 // Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
 if (process.env.DEV_RESTART_WATCH === '1') {
   const flagPath = path.join(process.cwd(), '.dev-restart-api');
+  const startedAt = Date.now();
   let last = 0;
+  // Clean up stale flag from previous run
+  try { const st = fs.statSync(flagPath); if (st.mtimeMs <= startedAt) fs.unlinkSync(flagPath); } catch {}
   setInterval(() => {
     try {
       const stat = fs.statSync(flagPath);
       const m = stat.mtimeMs;
-      if (m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
+      if (m > startedAt && m > last) { last = m; log.info('Dev restart flag changed; exiting'); process.exit(0); }
     } catch {
       // ignore missing flag or stat errors in dev restart watcher
     }
   }, 1500);
-  }
+}
 
 // Build a plan from simple prompt using Settings
 import { buildPlanFromPrompt } from './planBuilder';
 
 export default app;
+
+// Background: optional periodic backups driven by Settings
+initAutoBackupFromSettings().catch(()=>{});

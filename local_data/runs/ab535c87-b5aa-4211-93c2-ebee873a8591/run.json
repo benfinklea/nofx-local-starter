@@ -1,0 +1,14 @@
+{
+  "id": "ab535c87-b5aa-4211-93c2-ebee873a8591",
+  "status": "queued",
+  "plan": {
+    "goal": "1; DELETE FROM steps WHERE 1=1",
+    "steps": [
+      {
+        "name": "1; DELETE FROM steps WHERE 1=1",
+        "tool": "test"
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:34:50.292Z"
+}

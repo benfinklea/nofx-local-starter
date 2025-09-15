@@ -1,0 +1,27 @@
+{
+  "id": "7b923769-d843-425c-bd91-7da0ef01b5dc",
+  "run_id": "b885468a-5672-484a-9d39-21e17d996226",
+  "name": "step_25",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Step 25",
+    "data": "Possimus alii tyrannus dapifer at trans. Demonstro et casso. Rerum est trans audio curtus aeternus quae aliquid.\nPlaceat condico quibusdam totam facere basium. Carus absorbeo denuncio suscipio currus verto. Thymbra tenus callide vinco veniam turbo conculco deleniti triduana brevis.\nAedificium sonitus curvo demoror laborum alias acies credo ad. Confido ipsum delectatio temporibus clibanus. Coruscus utique conqueror tribuo animus.\nVulgo occaecati convoco pecco repellat aequus curvo. Soleo caritas ara approbo. Bonus adstringo solio astrum volup quia qui.\nTamquam tenax depulso temporibus vacuus aduro modi vox. Deorsum ustilo confero decimus caput. Aptus socius sufficio tenetur patior aspernatur.\nCattus tertius soleo beatae acquiro. Arto civis vulgus amiculum comparo. Suadeo utique valeo curatio.\nCampana surgo copiose terreo clibanus clementia. Dolores defluo itaque universe. Tergo toties bellum alienus deserunt sunt harum cohors utique credo.\nContigo mollitia degenero delectatio. Ager comptus triduana appono statim perspiciatis atque deripio dolores. Cubitum deinde carbo tener vesper.\nViduo ante ascit illum ex cura culpo. Bestia thalassinus exercitationem complectus vix velut. Cogo ancilla assumenda.\nDecumbo succurro curo aestas termes cauda assumenda sui sursum quos. Confero vehemens teres distinctio aureus. Cupiditate cavus tui spes tondeo admoneo doloribus ultio.",
+    "_policy": {}
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:32:33.571Z",
+  "idempotency_key": "b885468a-5672-484a-9d39-21e17d996226:step_25:1e4014daa05c",
+  "started_at": "2025-09-15T22:33:22.424Z",
+  "ended_at": "2025-09-15T22:33:31.717Z",
+  "outputs": {
+    "artifact": "runs/b885468a-5672-484a-9d39-21e17d996226/steps/7b923769-d843-425c-bd91-7da0ef01b5dc/README.md",
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "usage": {
+      "inputTokens": 32,
+      "outputTokens": 597,
+      "totalTokens": 629,
+      "latencyMs": 9267
+    }
+  }
+}

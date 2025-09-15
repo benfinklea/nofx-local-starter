@@ -1,0 +1,24 @@
+{
+  "id": "cee9181c-009f-4205-88f6-0a0a30c25d35",
+  "status": "failed",
+  "plan": {
+    "goal": "Write a short README explaining this project and how to run it locally.",
+    "steps": [
+      {
+        "name": "write readme",
+        "tool": "codegen",
+        "inputs": {
+          "topic": "Write a short README explaining this project and",
+          "bullets": [
+            "Control plane",
+            "Verification",
+            "Workers"
+          ],
+          "filename": "README.md"
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-14T19:44:59.608Z",
+  "ended_at": "2025-09-14T19:45:01.561Z"
+}

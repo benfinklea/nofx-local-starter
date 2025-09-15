@@ -8,28 +8,50 @@
     <a href="/ui/runs">Runs</a>
     <a href="/ui/models">Models</a>
     <a href="/ui/settings">Settings</a>
+    <a href="/ui/dev">Dev</a>
   </div>
 </div></div>
 <div class="container">
   <div class="grid">
+    <div class="col-12">
+      <div class="card" style="margin-bottom:16px">
+        <div class="bd">
+          <div class="subheader">Prompt</div>
+          <div id="prompt_text" class="muted" style="margin-top:4px"><%= (run.plan && run.plan.goal) ? run.plan.goal : '' %></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px">
+            <div class="metric"><div class="k">Status</div><div class="v"><span id="run_status_top" class="badge"><%= run.status %></span></div></div>
+            <div class="metric"><div class="k">Output</div><div class="v" id="output_link">—</div></div>
+            <div class="metric"><div class="k">LLM</div><div class="v" id="llm_info">—</div></div>
+            <div class="metric"><div class="k">Cost</div><div class="v" id="cost_total">$0.0000</div></div>
+            <div class="metric"><div class="k">Duration</div><div class="v" id="duration_value">—</div></div>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn small" onclick="copyOutputLink()">Copy Output Link</button>
+              <button class="btn primary small" onclick="repeatRun()">Repeat Run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="col-8">
       <div class="card"><div class="hd">Run <code><%= run.id %></code></div><div class="bd">
-        <p>Status:
-          <% const s = String(run.status||'').toLowerCase(); %>
-          <span class="badge <%= s==='succeeded'?'ok':(s==='failed'?'err':(s==='queued'?'warn':'')) %>"><%= run.status %></span>
-          <span class="tip" data-tip="Live timeline refresh every 2 seconds.">?</span>
-        </p>
+        <p class="muted">Live timeline refresh every 2 seconds.</p>
         <pre id="timeline"></pre>
       </div></div>
       <div class="card" style="margin-top:16px"><div class="hd">Artifacts <span class="tip" data-tip="Artifacts are stored with hashes and signed for secure download.">?</span></div><div class="bd">
-        <ul class="list">
+        <ul id="artifacts" class="list">
         <% artifacts.forEach(a => { %>
-          <li><strong><%= a.step_name %></strong> — <a class="btn small" href="/ui/artifacts/signed?path=<%= encodeURIComponent(a.uri) %>">Download</a></li>
+          <li><strong><%= a.step_name %></strong> — <a class="btn small" href="/ui/artifacts/signed?path=<%= encodeURIComponent(a.path) %>">Download</a></li>
         <% }) %>
         </ul>
       </div></div>
       <div class="card" style="margin-top:16px"><div class="hd">LLM Usage</div><div class="bd">
         <pre id="usage">Loading…</pre>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Raw Events</div><div class="bd">
+        <details>
+          <summary>Show JSON</summary>
+          <pre id="timeline_raw"></pre>
+        </details>
       </div></div>
     </div>
     <div class="col-4">
@@ -37,11 +59,18 @@
         <div id="gates">
           <% if (gates && gates.length) { %>
             <table>
-              <tr><th>Type</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Type</th><th>Status</th><th>Reason</th><th>Actions</th></tr>
               <% gates.forEach(g => { %>
                 <tr>
                   <td><%= g.gate_type %></td>
                   <td><span class="badge <%= g.status==='passed'?'ok':(g.status==='failed'?'err':(g.status==='pending'?'warn':'')) %>"><%= g.status %></span></td>
+                  <td>
+                    <% if (g.status === 'pending') { %>
+                      <input id="reason-<%= g.id %>" placeholder="Reason (optional)" class="input small" />
+                    <% } else { %>
+                      <span class="muted"><%= g.approved_by ? ('by ' + g.approved_by) : '' %></span>
+                    <% } %>
+                  </td>
                   <td>
                     <% if (g.status === 'pending') { %>
                       <button class="btn small" onclick="approve('<%= g.id %>')">Approve</button>
@@ -63,10 +92,30 @@
 async function load() {
   const rsp = await fetch('/runs/<%= run.id %>/timeline');
   const data = await rsp.json();
-  document.getElementById('timeline').textContent = JSON.stringify(data,null,2);
+  document.getElementById('timeline').textContent = data.map(e => `${e.created_at}  ${e.type}`).join('\n');
 }
 load();
 setInterval(load, 2000);
+
+async function pollRun(){
+  try {
+    const rsp = await fetch('/runs/<%= run.id %>');
+    if (!rsp.ok) return;
+    const data = await rsp.json();
+    const st = String((data.run && data.run.status) || 'unknown').toLowerCase();
+    const el = document.getElementById('run_status');
+    if (el) {
+      el.textContent = data.run.status;
+      el.className = 'badge ' + (st==='succeeded'?'ok':(st==='failed'?'err':(st==='queued'?'warn':'')));
+    }
+    const arts = data.artifacts || [];
+    const ul = document.getElementById('artifacts');
+    if (ul) {
+      ul.innerHTML = arts.map(a => `<li><strong>${escapeHtml(a.step_name || '')}</strong> — <a class="btn small" href="/ui/artifacts/signed?path=${encodeURIComponent(a.path)}">Download</a></li>`).join('');
+    }
+  } catch {}
+}
+setInterval(pollRun, 2000);
 
 async function loadUsage(){
   const rsp = await fetch('/runs/<%= run.id %>/timeline');
@@ -100,11 +149,12 @@ async function loadGates(){
     container.innerHTML = '<p>No gates yet.</p>';
     return;
   }
-  let html = '<table><tr><th>Type</th><th>Status</th><th>Approved By</th><th>Actions</th></tr>';
+  let html = '<table><tr><th>Type</th><th>Status</th><th>Reason</th><th>Approved By</th><th>Actions</th></tr>';
   for (const g of data) {
     html += `<tr>` +
       `<td>${escapeHtml(g.gate_type)}</td>` +
       `<td>${escapeHtml(g.status)}</td>` +
+      `<td>${g.status === 'pending' ? `<input id=\"reason-${g.id}\" placeholder=\"Reason (optional)\" class=\"input small\" />` : ''}</td>` +
       `<td>${g.approved_by ? escapeHtml(g.approved_by) : ''}</td>` +
       `<td>` + (g.status === 'pending'
         ? `<button onclick=\"approve('${g.id}')\">Approve</button> <button onclick=\"waive('${g.id}')\">Waive</button>`
@@ -121,14 +171,65 @@ loadGates();
 setInterval(loadGates, 2000);
 
 async function approve(id){
-  const rsp = await fetch('/gates/' + id + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'local-user' }) });
+  const reasonEl = document.getElementById('reason-' + id);
+  const body = { approved_by: 'local-user' };
+  if (reasonEl && reasonEl.value) body.reason = reasonEl.value;
+  const rsp = await fetch('/gates/' + id + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
   location.reload();
 }
 async function waive(id){
-  const rsp = await fetch('/gates/' + id + '/waive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'local-user' }) });
+  const reasonEl = document.getElementById('reason-' + id);
+  const body = { approved_by: 'local-user' };
+  if (reasonEl && reasonEl.value) body.reason = reasonEl.value;
+  const rsp = await fetch('/gates/' + id + '/waive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (rsp.status === 401) { window.location.href = '/ui/login'; return; }
   location.reload();
 }
+
+async function repeatRun(){
+  try {
+    const rsp = await fetch('/runs/<%= run.id %>');
+    if (!rsp.ok) { alert('Failed to load run'); return; }
+    const data = await rsp.json();
+    const plan = data.run && data.run.plan ? data.run.plan : null;
+    if (!plan) { alert('No plan found to repeat'); return; }
+    const create = await fetch('/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan }) });
+    if (!create.ok) { alert('Failed to start run'); return; }
+    const res = await create.json();
+    window.location.href = '/ui/runs/' + res.id;
+  } catch { alert('Repeat failed'); }
+}
+
+async function copyOutputLink(){
+  try {
+    const rsp = await fetch('/runs/<%= run.id %>');
+    if (!rsp.ok) return alert('Failed to load run');
+    const data = await rsp.json();
+    const arts = data.artifacts || [];
+    if (!arts.length) return alert('No output yet');
+    const latest = arts[arts.length-1];
+    const url = `${location.origin}/ui/artifacts/signed?path=${encodeURIComponent(latest.path)}`;
+    await navigator.clipboard.writeText(url);
+    const out = document.getElementById('output_link');
+    if (out) { out.innerHTML = `<span class=\"badge ok\">Copied</span>`; setTimeout(()=>{ out.textContent='—'; }, 1200); }
+  } catch { alert('Copy failed'); }
+}
+</script>
+<script>
+// Top metrics enhancers
+async function enhanceTop(){
+  try {
+    const rsp = await fetch('/runs/<%= run.id %>/timeline');
+    const ev = await rsp.json();
+    const usage = ev.filter(e => e.type === 'llm.usage');
+    const total = usage.reduce((s,u)=> s + (typeof u.payload.costUSD === 'number' ? u.payload.costUSD : 0), 0);
+    const costEl = document.getElementById('cost_total'); if (costEl) costEl.textContent = `$${total.toFixed(4)}`;
+    const models = Array.from(new Set(usage.map(u => `${u.payload.provider||''} ${u.payload.model||''}`.trim()).filter(Boolean))).join(', ');
+    const llmEl = document.getElementById('llm_info'); if (llmEl) llmEl.textContent = models || '—';
+  } catch {}
+}
+enhanceTop();
+setInterval(enhanceTop, 4000);
 </script>
 </body></html>

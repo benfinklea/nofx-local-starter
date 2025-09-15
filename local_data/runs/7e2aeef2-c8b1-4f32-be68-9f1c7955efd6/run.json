@@ -1,0 +1,23 @@
+{
+  "id": "7e2aeef2-c8b1-4f32-be68-9f1c7955efd6",
+  "status": "succeeded",
+  "plan": {
+    "goal": "E2E test run",
+    "steps": [
+      {
+        "name": "test_step",
+        "tool": "codegen",
+        "inputs": {
+          "topic": "E2E Test",
+          "bullets": [
+            "Test 1",
+            "Test 2",
+            "Test 3"
+          ]
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T22:34:10.432Z",
+  "ended_at": "2025-09-15T22:35:33.392Z"
+}

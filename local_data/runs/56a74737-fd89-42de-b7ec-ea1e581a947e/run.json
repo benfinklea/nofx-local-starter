@@ -1,0 +1,14 @@
+{
+  "id": "56a74737-fd89-42de-b7ec-ea1e581a947e",
+  "status": "queued",
+  "plan": {
+    "goal": "admin'--",
+    "steps": [
+      {
+        "name": "admin'--",
+        "tool": "test"
+      }
+    ]
+  },
+  "created_at": "2025-09-15T23:06:01.026Z"
+}

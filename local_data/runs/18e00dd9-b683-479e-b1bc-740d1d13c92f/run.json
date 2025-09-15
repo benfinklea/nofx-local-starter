@@ -1,0 +1,17 @@
+{
+  "id": "18e00dd9-b683-479e-b1bc-740d1d13c92f",
+  "status": "queued",
+  "plan": {
+    "goal": "<img src=x onerror=alert(1)>",
+    "steps": [
+      {
+        "name": "xss_test",
+        "tool": "test",
+        "inputs": {
+          "data": "<img src=x onerror=alert(1)>"
+        }
+      }
+    ]
+  },
+  "created_at": "2025-09-15T23:06:05.529Z"
+}

@@ -1,16 +1,19 @@
 import type { Express } from 'express';
 import { getSettings, updateSettings } from '../../lib/settings';
-import { listModels } from '../../lib/models';
+import { invalidateNamespace } from '../../lib/cache';
+import { listModels, type ModelRow } from '../../lib/models';
 import { query } from '../../lib/db';
 import { isAdmin } from '../../lib/auth';
+import { configureAutoBackup } from '../../lib/autobackup';
 
 export default function mount(app: Express){
   app.get('/settings', async (req, res) => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const settings = await getSettings();
-    const rules = await query<any>(`select table_name, allowed_ops, constraints from nofx.db_write_rule where tenant_id='local' order by table_name`)
-      .catch(()=>({ rows: [] as any[] }));
-    let models: any[] = [];
+    type RuleRow = { table_name: string; allowed_ops: string[]; constraints: Record<string, unknown> };
+    const rules = await query<RuleRow>(`select table_name, allowed_ops, constraints from nofx.db_write_rule where tenant_id='local' order by table_name`)
+      .catch(()=>({ rows: [] as RuleRow[] }));
+    let models: ModelRow[] = [];
     try { models = await listModels(); } catch { models = []; }
     res.json({ settings, db_write_rules: rules.rows, models });
   });
@@ -32,6 +35,9 @@ export default function mount(app: Express){
         ).catch(()=>{});
       }
     }
+    try { await configureAutoBackup(next.ops?.backupIntervalMin); } catch {}
+    // Invalidate LLM caches on settings change (model routing/pricing might change)
+    try { await invalidateNamespace('llm'); } catch {}
     res.json({ ok: true, settings: next });
   });
 }

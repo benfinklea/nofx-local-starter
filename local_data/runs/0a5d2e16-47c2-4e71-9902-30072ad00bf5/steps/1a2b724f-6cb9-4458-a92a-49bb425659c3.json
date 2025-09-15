@@ -1,0 +1,19 @@
+{
+  "id": "1a2b724f-6cb9-4458-a92a-49bb425659c3",
+  "run_id": "0a5d2e16-47c2-4e71-9902-30072ad00bf5",
+  "name": "write readme",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Write a short README explaining this project and",
+    "bullets": [
+      "Control plane",
+      "Verification",
+      "Workers"
+    ],
+    "filename": "README.md",
+    "_policy": {}
+  },
+  "status": "queued",
+  "created_at": "2025-09-15T02:57:13.487Z",
+  "idempotency_key": "0a5d2e16-47c2-4e71-9902-30072ad00bf5:write readme:ea52fb92c75b"
+}

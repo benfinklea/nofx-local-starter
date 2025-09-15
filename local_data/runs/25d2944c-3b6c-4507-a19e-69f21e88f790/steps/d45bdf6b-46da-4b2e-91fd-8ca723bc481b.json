@@ -1,0 +1,26 @@
+{
+  "id": "d45bdf6b-46da-4b2e-91fd-8ca723bc481b",
+  "run_id": "25d2944c-3b6c-4507-a19e-69f21e88f790",
+  "name": "step1",
+  "tool": "codegen",
+  "inputs": {
+    "topic": "Step 1",
+    "_policy": {}
+  },
+  "status": "succeeded",
+  "created_at": "2025-09-15T22:32:28.308Z",
+  "idempotency_key": "25d2944c-3b6c-4507-a19e-69f21e88f790:step1:c273bd3680de",
+  "started_at": "2025-09-15T22:32:32.881Z",
+  "ended_at": "2025-09-15T22:32:39.880Z",
+  "outputs": {
+    "artifact": "runs/25d2944c-3b6c-4507-a19e-69f21e88f790/steps/d45bdf6b-46da-4b2e-91fd-8ca723bc481b/README.md",
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "usage": {
+      "inputTokens": 32,
+      "outputTokens": 400,
+      "totalTokens": 432,
+      "latencyMs": 6983
+    }
+  }
+}

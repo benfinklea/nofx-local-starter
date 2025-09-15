@@ -1,0 +1,9 @@
+{
+  "id": "835e20e6-2125-486c-aa93-25fa3c570eaa",
+  "status": "queued",
+  "plan": {
+    "goal": "idempotency",
+    "steps": []
+  },
+  "created_at": "2025-09-15T22:35:25.536Z"
+}

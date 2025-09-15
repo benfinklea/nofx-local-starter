@@ -15,8 +15,9 @@ export default function mount(app: Express){
     try {
       const m = await upsertModel(req.body || {});
       res.status(201).json(m);
-    } catch (e:any) {
-      res.status(400).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(400).json({ error: msg });
     }
   });
   app.post('/models/preview/openai', async (req, res) => {
@@ -29,8 +30,9 @@ export default function mount(app: Express){
       const recommendedOnly = filter.length === 0 ? !!(req.body && (req.body.recommendedOnly ?? true)) : false;
       const candidates = await listOpenAIModels({ filter, exclude, recommendedOnly });
       res.json({ candidates, count: candidates.length });
-    } catch (e:any) {
-      res.status(400).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(400).json({ error: msg });
     }
   });
   app.post('/models/import/:vendor', async (req, res) => {
@@ -71,8 +73,9 @@ export default function mount(app: Express){
       if (v === 'anthropic') return res.json(await seedAnthropicModels());
       if (v === 'gemini') return res.json(await seedGeminiModels());
       return res.status(400).json({ error: 'unknown vendor' });
-    } catch (e:any) {
-      return res.status(400).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(400).json({ error: msg });
     }
   });
 
@@ -90,25 +93,26 @@ export default function mount(app: Express){
         input_per_1m: fromModel?.input_per_1m,
         output_per_1m: fromModel?.output_per_1m,
         active: true
-      } as any);
+      });
       const settings = await getSettings();
-      const mo = settings.llm.modelOrder || {} as any;
-      function repl(arr?: string[]){
-        return Array.isArray(arr) ? arr.map(x => x === from ? to : x) : [];
-      }
+      const mo = (settings.llm?.modelOrder ?? {}) as Record<string, string[]>;
+      const repl = (arr?: string[]) => Array.isArray(arr) ? arr.map(x => x === from ? to : x) : [];
       const next = {
         llm: {
+          // preserve required `order` to satisfy type and semantics
+          order: settings.llm.order,
           modelOrder: {
             docs: repl(mo.docs),
             reasoning: repl(mo.reasoning),
             codegen: repl(mo.codegen)
           }
         }
-      } as any;
+      } as const;
       await updateSettings(next);
       res.json({ ok: true, updatedModel: to });
-    } catch (e:any) {
-      res.status(400).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(400).json({ error: msg });
     }
   });
   app.delete('/models/:id', async (req, res) => {

@@ -1,0 +1,147 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - Dev Settings</title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/themes/dark.css"/>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.16.0/cdn/shoelace.js"></script>
+</head><body>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+    <a href="/ui/dev" class="active">Dev</a>
+  </div>
+</div></div>
+<div class="container">
+  <div class="section-title"><h1 style="margin:12px 0">Dev Settings</h1><span class="tip" data-tip="Local tools for debugging and performance. Provisioned: Prometheus datasource, NOFX dashboard, and two alert rules (error rate, queue depth).">?</span></div>
+
+  <sl-card><div class="bd">
+    <div slot="header">Observability Stack <span class="tip" data-tip="Starts Docker Compose services and auto-loads Prometheus datasource, dashboards, and alerts via provisioning.">?</span></div>
+    <p>Start/stop local Prometheus, Grafana, and OpenTelemetry Collector (Docker compose).</p>
+    <div class="row-inline">
+      <button class="btn primary" onclick="obsUp()" title="Start Prometheus, Grafana, and OTel Collector">Start Observability <span class="tip" data-tip="Launches containers and provisions datasources/dashboards/alerts.">?</span></button>
+      <button class="btn" onclick="obsDown()" title="Stop and remove containers/volumes">Stop Observability <span class="tip" data-tip="Stops containers (docker compose down -v). Local data is ephemeral.">?</span></button>
+      <span id="obsStatus" class="muted" style="margin-left:8px">Status: … <span class="tip" data-tip="Reports Prometheus:9090, Grafana:3001, Collector:4318 reachability">?</span></span>
+    </div>
+    <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+      <a href="http://localhost:9090" target="_blank" rel="noreferrer" title="Prometheus UI">Prometheus (http://localhost:9090)</a>
+      • <a href="http://localhost:3001" target="_blank" rel="noreferrer" title="Grafana Home">Grafana (http://localhost:3001)</a>
+      • <a href="http://localhost:3001/d/nofx-observability/nofx-observability?orgId=1" target="_blank" rel="noreferrer" class="small-link" title="Open prebuilt dashboard">Open NOFX Dashboard</a>
+      • <a href="https://grafana.com/docs/grafana/latest/alerting/" target="_blank" rel="noreferrer" title="Docs for creating/editing alerts">Grafana Alerts Docs</a>
+    </div>
+    <div style="margin-top:8px">
+      <code>OTEL_ENABLED=1</code> enables tracing export to the Collector (HTTP 4318). <span class="tip" data-tip="Optionally set OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318">?</span>
+    </div>
+  </div></sl-card>
+
+  <sl-card style="margin-top:16px"><div class="bd">
+    <div slot="header">Database <span class="tip" data-tip="Open Supabase Studio for browsing data and running SQL locally.">?</span></div>
+    <p>Supabase Local (Studio UI): <a href="http://localhost:54323" target="_blank" rel="noreferrer" title="Open Supabase Studio">http://localhost:54323</a></p>
+    <p class="muted">DB port: 54322 • API port: 54321 • Studio port: 54323 (see supabase/config.toml)</p>
+  </div></sl-card>
+
+  <sl-card style="margin-top:16px"><div class="bd">
+    <div slot="header">Tracing <span class="tip" data-tip="Toggle OpenTelemetry tracing for the API process. The Worker requires restart to pick up env changes.">?</span></div>
+    <div class="row-inline">
+      <button class="btn" onclick="traceEnable()" title="Enable tracing in API (starts OTel SDK)">Enable Tracing</button>
+      <button class="btn" onclick="traceDisable()" title="Disable tracing in API (stops OTel SDK)">Disable Tracing</button>
+      <span id="traceStatus" class="muted" style="margin-left:8px">Tracing: … <span class="tip" data-tip="API toggles at runtime. For Worker, set OTEL_ENABLED=1 then Restart Worker.">?</span></span>
+    </div>
+    <div class="muted" style="margin-top:8px">
+      Tip: set <code>OTEL_ENABLED=1</code> and optionally <code>OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318</code>, then use Restart buttons below.
+    </div>
+  </div></sl-card>
+
+  <sl-card style="margin-top:16px"><div class="bd">
+    <div slot="header">Test Alerts <span class="tip" data-tip="Synthetic alert tests for local setup. Writes to metrics directly for a short duration.">?</span></div>
+    <div class="row-inline" style="margin-bottom:6px">
+      <button class="btn" onclick="testQueueDepth()" title="Set waiting depth on step.ready to 60 for ~60s">Spike Queue Depth (60s)</button>
+      <span class="muted">Targets queue_depth and queue_oldest_age_ms</span>
+    </div>
+    <div class="row-inline">
+      <button class="btn" onclick="testErrorRate()" title="Drive failed/total counters to simulate >5% error rate for ~60s">Spike Error Rate (60s)</button>
+      <span class="muted">Targets steps_total{status}</span>
+    </div>
+    <div id="testStatus" class="muted" style="margin-top:8px"></div>
+  </div></sl-card>
+
+  <sl-card style="margin-top:16px"><div class="bd">
+    <div slot="header">Quick Links <span class="tip" data-tip="Useful endpoints for basic checks.">?</span></div>
+    <ul>
+      <li><a href="/health" target="_blank" title="Returns { ok: true }">API Health</a></li>
+      <li><a href="/metrics" target="_blank" title="Prometheus metrics export">/metrics endpoint</a></li>
+    </ul>
+  </div></sl-card>
+
+</div>
+
+<script>
+async function refreshStatus(){
+  try {
+    const r = await fetch('/dev/observability/status');
+    if (!r.ok) throw new Error('status '+r.status);
+    const s = await r.json();
+    const up = (b) => b ? 'up' : 'down';
+    document.getElementById('obsStatus').textContent = `Status: Prometheus ${up(s.prometheus)} • Grafana ${up(s.grafana)} • Collector ${up(s.otel_collector)}`;
+  } catch (e) {
+    document.getElementById('obsStatus').textContent = 'Status: unknown';
+  }
+}
+async function obsUp(){
+  const el = document.getElementById('obsStatus');
+  el.textContent = 'Starting…';
+  try {
+    const r = await fetch('/dev/observability/up', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'failed');
+    el.textContent = 'Started ✓';
+  } catch (e){ el.textContent = 'Start failed'; }
+  setTimeout(refreshStatus, 1000);
+}
+async function obsDown(){
+  if (!confirm('Stop observability and remove containers/volumes?')) return;
+  const el = document.getElementById('obsStatus');
+  el.textContent = 'Stopping…';
+  try {
+    const r = await fetch('/dev/observability/down', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'failed');
+    el.textContent = 'Stopped ✓';
+  } catch (e){ el.textContent = 'Stop failed'; }
+  setTimeout(refreshStatus, 1000);
+}
+refreshStatus();
+
+async function refreshTrace(){
+  try {
+    const r = await fetch('/dev/tracing/status');
+    if (!r.ok) throw new Error('trace status '+r.status);
+    const s = await r.json();
+    document.getElementById('traceStatus').textContent = 'Tracing: ' + (s.enabled ? ('on ('+(s.service||'')+')') : 'off');
+  } catch { document.getElementById('traceStatus').textContent = 'Tracing: unknown'; }
+}
+async function traceEnable(){
+  const el = document.getElementById('traceStatus'); el.textContent = 'Tracing: starting…';
+  const r = await fetch('/dev/tracing/enable', { method: 'POST' });
+  el.textContent = r.ok ? 'Tracing: on' : 'Tracing: failed';
+}
+async function traceDisable(){
+  const el = document.getElementById('traceStatus'); el.textContent = 'Tracing: stopping…';
+  const r = await fetch('/dev/tracing/disable', { method: 'POST' });
+  el.textContent = r.ok ? 'Tracing: off' : 'Tracing: failed';
+}
+async function testQueueDepth(){
+  const s = document.getElementById('testStatus'); s.textContent = 'Spiking queue depth…';
+  const r = await fetch('/dev/alerts/test/queue-depth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ durationMs: 60000, target: 60 }) });
+  s.textContent = r.ok ? 'Queue depth spike started (60s)' : 'Failed to start spike';
+}
+async function testErrorRate(){
+  const s = document.getElementById('testStatus'); s.textContent = 'Spiking error rate…';
+  const r = await fetch('/dev/alerts/test/error-rate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ durationMs: 60000, failPct: 10 }) });
+  s.textContent = r.ok ? 'Error rate spike started (60s)' : 'Failed to start spike';
+}
+refreshTrace();
+</script>
+
+</body></html>

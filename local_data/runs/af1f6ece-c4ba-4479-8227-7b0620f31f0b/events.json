@@ -1,0 +1,111 @@
+[
+  {
+    "id": "05fccfab-cdb8-484c-bb89-514ba34bd5c7",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "type": "run.created",
+    "payload": {
+      "plan": {
+        "goal": "Concurrent test 4",
+        "steps": [
+          {
+            "name": "step_4",
+            "tool": "codegen",
+            "inputs": {
+              "topic": "Test 4"
+            }
+          }
+        ]
+      }
+    },
+    "created_at": "2025-09-15T23:05:22.273Z"
+  },
+  {
+    "id": "11f908ae-7af0-45b4-bf1d-98d00b27e793",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "step_id": "05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733",
+    "type": "step.enqueued",
+    "payload": {
+      "name": "step_4",
+      "tool": "codegen",
+      "idempotency_key": "af1f6ece-c4ba-4479-8227-7b0620f31f0b:step_4:ffb389ab39be"
+    },
+    "created_at": "2025-09-15T23:05:22.276Z"
+  },
+  {
+    "id": "aed44dea-cc77-4f28-b826-de40f5280188",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "step_id": "05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733",
+    "type": "queue.backpressure",
+    "payload": {
+      "ageMs": 11371,
+      "delayMs": 3185
+    },
+    "created_at": "2025-09-15T23:05:22.276Z"
+  },
+  {
+    "id": "9392e080-800f-4120-beb1-408408da4938",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "step_id": "05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733",
+    "type": "step.started",
+    "payload": {
+      "name": "step_4",
+      "tool": "codegen"
+    },
+    "created_at": "2025-09-15T23:05:22.289Z"
+  },
+  {
+    "id": "26d72a18-6b2b-45f9-b464-060c43865dc6",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "step_id": "05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 327,
+        "totalTokens": 359,
+        "latencyMs": 5658
+      },
+      "costUSD": 0.0006619999999999999
+    },
+    "created_at": "2025-09-15T23:05:27.970Z"
+  },
+  {
+    "id": "244cf582-609f-41d4-bbfb-f0496167c121",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "step_id": "05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733",
+    "type": "llm.usage",
+    "payload": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 327,
+        "totalTokens": 359,
+        "latencyMs": 5658
+      }
+    },
+    "created_at": "2025-09-15T23:05:27.970Z"
+  },
+  {
+    "id": "de2766eb-adde-4eeb-a862-e61788d500b8",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "step_id": "05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733",
+    "type": "step.finished",
+    "payload": {
+      "artifact": "runs/af1f6ece-c4ba-4479-8227-7b0620f31f0b/steps/05f68aaa-4fb5-41b1-9ad2-3d3e1a06e733/README.md",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "costUSD": 0.0006619999999999999
+    },
+    "created_at": "2025-09-15T23:05:27.974Z"
+  },
+  {
+    "id": "015a7453-d0a5-42b5-a1c4-6e1de57e9d4f",
+    "run_id": "af1f6ece-c4ba-4479-8227-7b0620f31f0b",
+    "type": "run.succeeded",
+    "payload": {},
+    "created_at": "2025-09-15T23:05:27.974Z"
+  }
+]
