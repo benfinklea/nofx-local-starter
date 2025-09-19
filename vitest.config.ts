@@ -3,6 +3,7 @@ export default defineConfig({
   test: {
     pool: 'forks',
     threads: false,
+    // Only run unit tests (*.unit.test.ts) - integration tests should be separate
     include: ['src/**/*.unit.test.ts'],
     passWithNoTests: true,
     coverage: {

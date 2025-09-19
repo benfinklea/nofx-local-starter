@@ -1,0 +1,37 @@
+name: e2e
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browsers
+        run: |
+          npm ci
+          npm --prefix apps/frontend ci
+          npx playwright install --with-deps
+      - name: Build FE + run servers + E2E
+        env:
+          NODE_ENV: test
+          QUEUE_DRIVER: memory
+          DATA_DRIVER: fs
+          PW_BASE_URL: http://localhost:3000
+        run: |
+          npm run fe:build
+          DEV_RESTART_WATCH=0 npm run dev:api &
+          API_PID=$!
+          DEV_RESTART_WATCH=0 npm run dev:worker &
+          WORKER_PID=$!
+          for i in {1..60}; do curl -sf http://localhost:3000/health && break || sleep 1; done
+          npx playwright test --reporter=list tests/e2e
+          kill $API_PID $WORKER_PID
+

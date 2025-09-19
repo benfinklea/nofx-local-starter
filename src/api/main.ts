@@ -15,6 +15,7 @@ import { initAutoBackupFromSettings } from '../lib/autobackup';
 import startOutboxRelay from '../worker/relay';
 import { requestObservability, setContext } from '../lib/observability';
 import { initTracing } from '../lib/tracing';
+import { getProject, updateProject } from '../lib/projects';
 
 dotenv.config();
 export const app = express();
@@ -30,9 +31,43 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'ui', 'views'));
 app.use('/ui/static', express.static(path.join(__dirname, '..', 'ui', 'static')));
 
+// Optional: serve built SPA if present (apps/frontend/dist)
+try {
+  const feDist = path.join(process.cwd(), 'apps', 'frontend', 'dist');
+  if (fs.existsSync(feDist)) {
+    // Serve static assets from the built frontend with correct MIME types
+    app.use('/ui/app', express.static(feDist, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css')) {
+          res.setHeader('Content-Type', 'text/css');
+        } else if (filePath.endsWith('.js')) {
+          res.setHeader('Content-Type', 'application/javascript');
+        } else if (filePath.endsWith('.json')) {
+          res.setHeader('Content-Type', 'application/json');
+        }
+      }
+    }));
+
+    // Catch-all for SPA routing - only for non-asset requests
+    app.get(/^\/ui\/app\/(?!.*\.(css|js|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json|map)).*$/, (_req, res) => {
+      res.sendFile(path.join(feDist, 'index.html'));
+    });
+  }
+} catch {}
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-const CreateRunSchema = z.object({ plan: PlanSchema });
+// Ensure default project has local_path pointing to this repo for convenience in dev
+void (async () => {
+  try {
+    const p = await getProject('default');
+    if (p && (!p.local_path || String(p.local_path).trim() === '')) {
+      await updateProject('default', { local_path: process.cwd(), workspace_mode: 'local_path' });
+    }
+  } catch {}
+})();
+
+const CreateRunSchema = z.object({ plan: PlanSchema, projectId: z.string().optional() });
 
 // Preview a plan built from standard (plain-language) input
 app.post('/runs/preview', async (req, res) => {
@@ -61,20 +96,20 @@ app.post("/runs", async (req, res) => {
       return res.status(400).json({ error: message });
     }
   }
-  const parsed = CreateRunSchema.safeParse(req.body);
+  const parsed = CreateRunSchema.safeParse({ ...req.body, projectId: req.body?.projectId || (req.headers['x-project-id'] as string|undefined) });
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { plan } = parsed.data;
+  const { plan, projectId = 'default' } = parsed.data;
 
-  const run = await store.createRun(plan);
+  const run = await store.createRun(plan, projectId);
   type WithId = { id: string };
   const runId: string = (typeof run === 'object' && run !== null && 'id' in (run as Record<string, unknown>) && typeof (run as WithId).id === 'string')
     ? (run as WithId).id
     : String(run);
-  try { setContext({ runId }); } catch {}
+  try { setContext({ runId, projectId }); } catch {}
   await recordEvent(runId, "run.created", { plan });
 
   // Respond immediately to avoid request timeouts on large plans
-  res.status(201).json({ id: runId, status: "queued" });
+  res.status(201).json({ id: runId, status: "queued", projectId });
 
   // Process steps asynchronously (fire-and-forget)
   void (async () => {
@@ -141,6 +176,50 @@ app.get("/runs/:id/timeline", async (req, res) => {
   const runId = req.params.id;
   const ev = await store.listEvents(runId);
   res.json(ev);
+});
+
+// SSE stream of timeline events (naive polling -> push)
+app.get('/runs/:id/stream', async (req, res) => {
+  const runId = req.params.id;
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+  let closed = false;
+  req.on('close', () => { closed = true; });
+  let lastIdx = 0;
+  // Initial burst
+  try {
+    const initial = await store.listEvents(runId);
+    lastIdx = initial.length;
+    res.write(`event: init\n`);
+    res.write(`data: ${JSON.stringify(initial)}\n\n`);
+  } catch {}
+  const iv = setInterval(async () => {
+    if (closed) { clearInterval(iv); return; }
+    try {
+      const all = await store.listEvents(runId);
+      if (all.length > lastIdx) {
+        const delta = all.slice(lastIdx);
+        lastIdx = all.length;
+        res.write(`event: append\n`);
+        res.write(`data: ${JSON.stringify(delta)}\n\n`);
+      }
+    } catch {}
+  }, 1000);
+});
+
+// JSON: list recent runs (additive; used by FE dev app)
+app.get('/runs', async (req, res) => {
+  const lim = Math.max(1, Math.min(200, Number(req.query.limit || 50)));
+  const projectId = String(req.query.projectId || '');
+  try {
+    const rows = await store.listRuns(lim, projectId || undefined);
+    res.json({ runs: rows });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'failed to list runs';
+    res.status(500).json({ error: msg });
+  }
 });
 
 // ADD at the end of file, after existing routes:

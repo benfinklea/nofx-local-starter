@@ -45,17 +45,22 @@ commit_and_push(){
 }
 
 open_dashboard(){
-  open "http://localhost:3000/ui/runs"
+  # Prefer Vite dev (MUI)
+  open "http://localhost:5173/dev/login?next=/ui/app/" || open "http://localhost:5173/ui/app/" || open "http://localhost:5173" || open "http://localhost:3000/ui/app" || open "http://localhost:3000/ui/runs"
 }
 
 start_app(){
   # Kill existing processes on port 3000
   lsof -ti :3000 | xargs kill -9 2>/dev/null || true
+  # Kill vite dev server if running
+  lsof -ti :5173 | xargs kill -9 2>/dev/null || true
   sleep 1
 
   # Start the app
+  # Start backend dev and frontend dev in background
   npm run dev &
-  echo "Starting NOFX app..."
+  (cd apps/frontend && npm run dev) &
+  echo "Starting NOFX app (API+Worker+UI)..."
   sleep 5
   say_msg "NOFX app started"
 }

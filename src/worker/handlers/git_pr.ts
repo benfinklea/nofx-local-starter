@@ -34,6 +34,16 @@ function sh(cmd: string, args: string[], cwd: string, env?: NodeJS.ProcessEnv){
 function repoRoot(){ return process.cwd(); }
 function ensureDir(filePath:string){ fs.mkdirSync(path.dirname(filePath), { recursive: true }); }
 
+// Safely resolve a repo-relative file path, preventing traversal or absolute paths
+export function safeRepoPath(repoRoot: string, rel: string): string {
+  if (!rel) throw new Error('empty path');
+  if (path.isAbsolute(rel)) throw new Error('absolute paths not allowed');
+  const base = path.resolve(repoRoot);
+  const resolved = path.resolve(base, rel);
+  if (!resolved.startsWith(base + path.sep) && resolved !== base) throw new Error('path traversal not allowed');
+  return resolved;
+}
+
 async function getArtifactBuffer(pth: string): Promise<Buffer> {
   // Support both FS (Simple Mode) and Supabase storage
   if (store.driver === 'fs') {
@@ -93,7 +103,7 @@ const handler: StepHandler = {
 
     // prepare files
     for (const c of inputs.commits) {
-      const outPath = path.join(repo, c.path);
+      const outPath = safeRepoPath(repo, c.path);
       ensureDir(outPath);
       if (c.fromArtifact) {
         const buf = await getArtifactBuffer(c.fromArtifact);

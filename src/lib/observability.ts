@@ -9,6 +9,7 @@ export type ObsContext = {
   stepId?: string;
   provider?: string;
   retryCount?: number;
+  projectId?: string;
 };
 
 const als = new AsyncLocalStorage<ObsContext>();
