@@ -6,7 +6,8 @@ export function loadHandlers(): StepHandler[] {
   const dir = __dirname;
   const handlers: StepHandler[] = [];
   const all = fs.readdirSync(dir);
-  const files = (process.env.NODE_ENV === 'test')
+  const loadAll = process.env.LOAD_ALL_HANDLERS === '1';
+  const files = (process.env.NODE_ENV === 'test' && !loadAll)
     ? all.filter(f => /^(test[_.].*|.*test.*)\.(ts|js)$/.test(f))
     : all;
   for (const file of files) {

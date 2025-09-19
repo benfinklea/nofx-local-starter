@@ -10,7 +10,7 @@ type EventRow = { id: string; run_id: string; step_id?: string; type: string; pa
 type GateRow = { id: string; run_id: string; step_id: string; gate_type: string; status: string; created_at: string; approved_by?: string; approved_at?: string };
 type ArtifactRow = { id: string; step_id: string; type: string; path: string; metadata?: any; created_at: string };
 
-const DATA_DRIVER = (process.env.DATA_DRIVER || (process.env.QUEUE_DRIVER === 'memory' ? 'fs' : 'db')).toLowerCase();
+function dataDriver() { return (process.env.DATA_DRIVER || (process.env.QUEUE_DRIVER === 'memory' ? 'fs' : 'db')).toLowerCase(); }
 const ROOT = path.join(process.cwd(), 'local_data');
 const FS_INBOX_KEYS = new Set<string>();
 
@@ -199,32 +199,33 @@ async function fsOutboxMarkSent(id: string): Promise<void> {
 
 // ---------- PUBLIC API ----------
 export const store = {
-  driver: DATA_DRIVER,
+  get driver() { return dataDriver(); },
   // runs
-  createRun: async (plan:any) => DATA_DRIVER === 'db'
-    ? (await pgQuery<{ id:string }>(`insert into nofx.run (plan, status) values ($1, 'queued') returning id`, [plan])).rows[0] as any
+  createRun: async (plan:any, projectId: string = 'default') => dataDriver() === 'db'
+    ? (await pgQuery<{ id:string }>(`insert into nofx.run (plan, status, project_id) values ($1, 'queued', $2) returning id`, [plan, projectId])).rows[0] as any
     : fsCreateRun(plan),
-  getRun: async (id:string) => DATA_DRIVER === 'db'
+  getRun: async (id:string) => dataDriver() === 'db'
     ? (await pgQuery<RunRow>(`select * from nofx.run where id = $1`, [id])).rows[0]
     : fsGetRun(id),
   updateRun: async (id:string, patch: Partial<RunRow>) => {
-    if (DATA_DRIVER !== 'db') return fsUpdateRun(id, patch);
+    if (dataDriver() !== 'db') return fsUpdateRun(id, patch);
     // Try ended_at first; if column missing, fall back to completed_at
     try {
       await pgQuery(`update nofx.run set status=coalesce($2,status), ended_at=coalesce($3,ended_at) where id=$1`, [id, (patch as any).status, (patch as any).ended_at]);
     } catch (e) {
-      try {
-        await pgQuery(`update nofx.run set status=coalesce($2,status), completed_at=coalesce($3,completed_at) where id=$1`, [id, (patch as any).status, (patch as any).ended_at || (patch as any).completed_at]);
-      } catch {
-        throw e;
-      }
+      // Fallback to completed_at if ended_at column doesn't exist
+      await pgQuery(`update nofx.run set status=coalesce($2,status), completed_at=coalesce($3,completed_at) where id=$1`, [id, (patch as any).status, (patch as any).ended_at || (patch as any).completed_at]);
     }
   },
-  listRuns: async (limit=100) => DATA_DRIVER === 'db'
-    ? (await pgQuery<any>(`select id,status,created_at, coalesce(plan->>'goal','') as title from nofx.run order by created_at desc limit ${limit}`)).rows
-    : fsListRuns(limit),
+  listRuns: async (limit=100, projectId?: string) => {
+    if (dataDriver() !== 'db') return fsListRuns(limit);
+    if (projectId) {
+      return (await pgQuery<any>(`select id,status,created_at, coalesce(plan->>'goal','') as title from nofx.run where project_id = $1 order by created_at desc limit ${limit}`, [projectId])).rows;
+    }
+    return (await pgQuery<any>(`select id,status,created_at, coalesce(plan->>'goal','') as title from nofx.run order by created_at desc limit ${limit}`)).rows;
+  },
   // steps
-  createStep: async (runId:string, name:string, tool:string, inputs?:any, idempotencyKey?: string) => DATA_DRIVER === 'db'
+  createStep: async (runId:string, name:string, tool:string, inputs?:any, idempotencyKey?: string) => dataDriver() === 'db'
     ? (await pgQuery<{ id:string }>(
         `insert into nofx.step (run_id, name, tool, inputs, status, idempotency_key)
          values ($1,$2,$3,$4,'queued',$5)
@@ -232,69 +233,66 @@ export const store = {
          returning id`, [runId, name, tool, inputs || {}, idempotencyKey || null]
       )).rows[0] as any
     : fsCreateStep(runId, name, tool, inputs, idempotencyKey),
-  getStep: async (id:string) => DATA_DRIVER === 'db'
+  getStep: async (id:string) => dataDriver() === 'db'
     ? (await pgQuery<StepRow>(`select * from nofx.step where id = $1`, [id])).rows[0]
     : fsGetStep(id),
-  getStepByIdempotencyKey: async (runId:string, key:string) => DATA_DRIVER === 'db'
+  getStepByIdempotencyKey: async (runId:string, key:string) => dataDriver() === 'db'
     ? (await pgQuery<StepRow>(`select * from nofx.step where run_id=$1 and idempotency_key=$2`, [runId, key])).rows[0]
     : fsFindStepByIdempotencyKey(runId, key),
   updateStep: async (id:string, patch: Partial<StepRow>) => {
-    if (DATA_DRIVER !== 'db') return fsUpdateStep(id, patch);
+    if (dataDriver() !== 'db') return fsUpdateStep(id, patch);
     try {
       await pgQuery(`update nofx.step set status=coalesce($2,status), started_at=coalesce($3,started_at), ended_at=coalesce($4,ended_at), outputs=coalesce($5,outputs) where id=$1`, [id, (patch as any).status, (patch as any).started_at, (patch as any).ended_at, (patch as any).outputs]);
     } catch (e) {
-      try {
-        await pgQuery(`update nofx.step set status=coalesce($2,status), started_at=coalesce($3,started_at), completed_at=coalesce($4,completed_at), outputs=coalesce($5,outputs) where id=$1`, [id, (patch as any).status, (patch as any).started_at, (patch as any).ended_at || (patch as any).completed_at, (patch as any).outputs]);
-      } catch {
-        throw e;
-      }
+      // Fallback to completed_at if ended_at column doesn't exist
+      await pgQuery(`update nofx.step set status=coalesce($2,status), started_at=coalesce($3,started_at), completed_at=coalesce($4,completed_at), outputs=coalesce($5,outputs) where id=$1`, [id, (patch as any).status, (patch as any).started_at, (patch as any).ended_at || (patch as any).completed_at, (patch as any).outputs]);
     }
   },
-  listStepsByRun: async (runId:string) => DATA_DRIVER === 'db'
+  listStepsByRun: async (runId:string) => dataDriver() === 'db'
     ? (await pgQuery<StepRow>(`select * from nofx.step where run_id = $1 order by created_at`, [runId])).rows
     : fsListStepsByRun(runId),
-  countRemainingSteps: async (runId:string) => DATA_DRIVER === 'db'
+  countRemainingSteps: async (runId:string) => dataDriver() === 'db'
     ? Number((await pgQuery<{ count: string }>(`select count(*)::int as count from nofx.step where run_id=$1 and status not in ('succeeded','cancelled')`, [runId])).rows[0].count)
     : fsCountRemainingSteps(runId),
   // events
-  recordEvent: async (runId:string, type:string, payload:any={}, stepId?:string) => DATA_DRIVER === 'db'
+  recordEvent: async (runId:string, type:string, payload:any={}, stepId?:string) => dataDriver() === 'db'
     ? pgQuery(`insert into nofx.event (run_id, type, payload) values ($1, $2, $3)`, [ runId, type, payload ])
     : fsRecordEvent(runId, type, payload, stepId),
-  listEvents: async (runId:string) => DATA_DRIVER === 'db'
+  listEvents: async (runId:string) => dataDriver() === 'db'
     ? (await pgQuery<EventRow>(`select * from nofx.event where run_id = $1 order by created_at asc`, [runId])).rows
     : fsListEvents(runId),
   // gates
-  createOrGetGate: async (runId:string, stepId:string, gateType:string) => DATA_DRIVER === 'db'
+  createOrGetGate: async (runId:string, stepId:string, gateType:string) => dataDriver() === 'db'
     ? (await pgQuery<any>(`insert into nofx.gate (run_id, step_id, gate_type, status) values ($1,$2,$3,'pending') on conflict do nothing returning *`, [runId, stepId, gateType]))
     : fsCreateOrGetGate(runId, stepId, gateType),
-  getLatestGate: async (runId:string, stepId:string) => DATA_DRIVER === 'db'
+  getLatestGate: async (runId:string, stepId:string) => dataDriver() === 'db'
     ? (await pgQuery<any>(`select * from nofx.gate where run_id=$1 and step_id=$2 order by created_at desc limit 1`, [runId, stepId])).rows[0]
     : fsGetLatestGate(runId, stepId),
-  updateGate: async (gateId:string, patch: Partial<GateRow> & { run_id: string }) => DATA_DRIVER === 'db'
+  updateGate: async (gateId:string, patch: Partial<GateRow> & { run_id: string }) => dataDriver() === 'db'
     ? pgQuery(`update nofx.gate set status=$2, approved_by=coalesce($3, approved_by), approved_at=case when $3 is not null then now() else approved_at end where id=$1`, [gateId, (patch as any).status, (patch as any).approved_by || null])
     : fsUpdateGate(gateId, patch),
-  listGatesByRun: async (runId:string) => DATA_DRIVER === 'db'
+  listGatesByRun: async (runId:string) => dataDriver() === 'db'
     ? (await pgQuery<GateRow>(`select * from nofx.gate where run_id=$1 order by created_at asc`, [runId])).rows
     : fsListGatesByRun(runId),
   // artifacts
-  addArtifact: async (stepId:string, type:string, pth:string, metadata?:any) => DATA_DRIVER === 'db'
+  addArtifact: async (stepId:string, type:string, pth:string, metadata?:any) => dataDriver() === 'db'
     ? pgQuery(`insert into nofx.artifact (step_id, type, path, metadata) values ($1,$2,$3,$4)`, [stepId, type, pth, metadata || {}])
     : fsAddArtifact(stepId, type, pth, metadata),
-  listArtifactsByRun: async (runId:string) => DATA_DRIVER === 'db'
+  listArtifactsByRun: async (runId:string) => dataDriver() === 'db'
     ? (await pgQuery<any>(`select a.*, s.name as step_name from nofx.artifact a join nofx.step s on s.id = a.step_id where s.run_id = $1`, [runId])).rows
     : fsListArtifactsByRun(runId),
   // inbox
-  inboxMarkIfNew: async (key:string) => DATA_DRIVER === 'db'
+  inboxMarkIfNew: async (key:string) => dataDriver() === 'db'
     ? Boolean((await pgQuery<any>(`insert into nofx.inbox (key) values ($1) on conflict do nothing returning id`, [key])).rows[0])
     : fsInboxMarkIfNew(key),
   // outbox
-  outboxAdd: async (topic:string, payload:any) => DATA_DRIVER === 'db'
+  outboxAdd: async (topic:string, payload:any) => dataDriver() === 'db'
     ? pgQuery(`insert into nofx.outbox (topic, payload) values ($1,$2)`, [topic, payload])
     : fsOutboxAdd(topic, payload),
-  outboxListUnsent: async (limit=50) => DATA_DRIVER === 'db'
+  outboxListUnsent: async (limit=50) => dataDriver() === 'db'
     ? (await pgQuery<any>(`select id, topic, payload from nofx.outbox where sent=false order by created_at asc limit ${limit}`)).rows
     : fsOutboxListUnsent(limit),
-  outboxMarkSent: async (id:string) => DATA_DRIVER === 'db'
+  outboxMarkSent: async (id:string) => dataDriver() === 'db'
     ? pgQuery(`update nofx.outbox set sent=true, sent_at=now() where id=$1`, [id])
     : fsOutboxMarkSent(id),
 };

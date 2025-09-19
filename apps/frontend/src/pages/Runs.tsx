@@ -1,0 +1,137 @@
+import * as React from 'react';
+import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Typography from '@mui/material/Typography';
+import Link from '@mui/material/Link';
+import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Chip from '@mui/material/Chip';
+import { Link as RouterLink } from 'react-router-dom';
+import { listRuns, type Run } from '../lib/api';
+import SystemHealth from '../components/SystemHealth';
+
+function StatusChip({ status }: { status: string }) {
+  const color = status === 'succeeded' ? 'success' : status === 'failed' ? 'error' : status === 'running' ? 'info' : 'default';
+  return <Chip label={status} color={color as any} size="small" />;
+}
+
+export default function Runs(){
+  const [rows, setRows] = React.useState<Run[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function loadRuns() {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('[Runs] Loading runs...');
+      const startTime = Date.now();
+      const data = await listRuns(50);
+      const endTime = Date.now();
+      console.log('[Runs] Runs loaded successfully:', { count: data.length, loadTime: endTime - startTime + 'ms' });
+      setRows(data);
+    } catch (err) {
+      console.error('[Runs] Error loading runs:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load runs';
+      const detailedError = `[${new Date().toISOString()}] ${errorMessage}`;
+      console.error('[Runs] Detailed error info:', { error: err, timestamp: new Date().toISOString() });
+      setError(detailedError);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  React.useEffect(() => { loadRuns(); }, []);
+
+  if (loading) {
+    return (
+      <Container sx={{ mt: 2 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container sx={{ mt: 2 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box>
+          <Typography variant="h5" gutterBottom>Runs</Typography>
+          <SystemHealth compact />
+        </Box>
+        <Button
+          variant="contained"
+          component={RouterLink}
+          to="/runs/new"
+        >
+          New Run
+        </Button>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Typography variant="subtitle2" gutterBottom>
+            Error Loading Runs
+          </Typography>
+          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', mb: 1 }}>
+            {error}
+          </Typography>
+          <Box>
+            <Button size="small" onClick={loadRuns} sx={{ mr: 1 }}>
+              Retry
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => console.log('[Debug] Current state:', { error, loading, rowsCount: rows.length })}>
+              Debug Info
+            </Button>
+          </Box>
+        </Alert>
+      )}
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>ID</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                  <Typography component="div" color="text.secondary">
+                    No runs found. <Link component={RouterLink} to="/runs/new">Create your first run</Link>
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map(r => (
+                <TableRow key={r.id} hover>
+                  <TableCell>
+                    <Link component={RouterLink} to={`/runs/${r.id}`}>
+                      {r.plan?.goal || 'ad-hoc run'}
+                    </Link>
+                  </TableCell>
+                  <TableCell><Box component="span"><StatusChip status={r.status} /></Box></TableCell>
+                  <TableCell>{r.created_at ? new Date(r.created_at).toLocaleString() : ''}</TableCell>
+                  <TableCell><Box component="span" sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{r.id}</Box></TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Container>
+  );
+}

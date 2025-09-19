@@ -43,8 +43,14 @@ export default function mount(app: Express){
   app.get('/ui/artifacts/signed', async (req, res) => {
     const pth = String(req.query.path || '');
     if (store.driver === 'fs') {
-      const full = require('node:path').join(process.cwd(), 'local_data', pth.replace(/^\/+/, ''));
-      return res.sendFile(full, (err: unknown) => { if (err) res.status(404).send('not found'); });
+      // Prevent path traversal: resolve and ensure within base directory
+      const path = require('node:path');
+      const base = path.resolve(process.cwd(), 'local_data');
+      const candidate = path.resolve(base, pth.replace(/^\/+/, ''));
+      if (!candidate.startsWith(base + path.sep) && candidate !== base) {
+        return res.status(400).send('invalid path');
+      }
+      return res.sendFile(candidate, (err: unknown) => { if (err) res.status(404).send('not found'); });
     }
     const { data, error } = await supabase.storage.from(ARTIFACT_BUCKET).createSignedUrl(pth, 3600);
     if (error || !data) return res.status(404).send('not found');

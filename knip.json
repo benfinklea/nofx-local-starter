@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/knip@3/schema.json",
+  "entry": [
+    "src/index.ts",
+    "src/main.ts",
+    "src/api/main.ts",
+    "src/worker/main.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.js"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "scripts/**/*.ts",
+    "scripts/**/*.js"
+  ],
+  "ignore": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "tests/**",
+    "dist/**",
+    "coverage/**",
+    "gate-artifacts/**"
+  ],
+  "ignoreDependencies": [
+    "@types/*",
+    "eslint-*",
+    "@typescript-eslint/*",
+    "playwright",
+    "@playwright/*",
+    "vitest",
+    "@vitest/*"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": "src/index.ts"
+    }
+  }
+}

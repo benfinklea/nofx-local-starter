@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachBot - AI-Powered Business OS for Coaches</title>
+    <meta name="description" content="The complete AI business operating system for coaches. Save 10+ hours per week on administrative tasks. Voice-powered client management, session automation, and smart business insights.">
+
+    <!-- Open Graph for social sharing -->
+    <meta property="og:title" content="CoachBot - AI for Coaches">
+    <meta property="og:description" content="Save 10+ hours per week with AI-powered coaching business automation">
+    <meta property="og:type" content="website">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #2d3748;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .cta-header {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .cta-header:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 120px 0 80px;
+            text-align: center;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+
+        .hero .subtitle {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .hero .description {
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+            opacity: 0.8;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-primary {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.3);
+        }
+
+        /* Voice Demo */
+        .voice-demo {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            margin: 3rem auto;
+            max-width: 500px;
+            backdrop-filter: blur(10px);
+        }
+
+        .voice-demo h3 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .voice-command {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem;
+            border-radius: 10px;
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+
+        /* Pain Points Section */
+        .pain-points {
+            padding: 80px 0;
+            background: white;
+        }
+
+        .pain-points h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #2d3748;
+        }
+
+        .pain-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .pain-item {
+            background: #f7fafc;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .pain-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .pain-item .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .pain-item h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #e53e3e;
+        }
+
+        /* Solution Section */
+        .solution {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .solution h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .feature-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* ROI Section */
+        .roi {
+            padding: 80px 0;
+            background: white;
+            text-align: center;
+        }
+
+        .roi h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #2d3748;
+        }
+
+        .roi-calculation {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 3rem;
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            margin-bottom: 3rem;
+        }
+
+        .roi-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .roi-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            padding: 80px 0;
+            background: #f7fafc;
+        }
+
+        .pricing h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #2d3748;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: white;
+            padding: 2.5rem 2rem;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .pricing-card.popular {
+            border: 3px solid #667eea;
+            transform: scale(1.05);
+        }
+
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+
+        .price {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .price-period {
+            color: #718096;
+            margin-bottom: 2rem;
+        }
+
+        .features-list {
+            list-style: none;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .features-list li {
+            padding: 0.5rem 0;
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .features-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .cta-pricing {
+            background: #667eea;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .cta-pricing:hover {
+            background: #5a67d8;
+        }
+
+        /* Early Access */
+        .early-access {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .early-access h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .early-access p {
+            font-size: 1.2rem;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+        }
+
+        .email-signup {
+            max-width: 400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .email-input {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+        }
+
+        .email-submit {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .email-submit:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Footer */
+        footer {
+            background: #2d3748;
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .pain-grid, .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .email-signup {
+                flex-direction: column;
+            }
+
+            .pricing-card.popular {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">🤖 CoachBot</div>
+            <a href="#early-access" class="cta-header">Get Early Access</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Your AI Business Partner<br>for Coaching</h1>
+            <p class="subtitle">Save 10+ hours per week on administrative tasks</p>
+            <p class="description">
+                The complete AI-powered business operating system designed specifically for coaches.
+                Voice-activated client management, automated session prep, and intelligent business insights.
+            </p>
+
+            <div class="voice-demo">
+                <h3>🎤 Just Say:</h3>
+                <div class="voice-command">
+                    "Hey CoachBot, new client Sarah, executive coach, wants leadership development"
+                </div>
+                <p>✨ Client profile created, onboarding sequence started, first session scheduled!</p>
+            </div>
+
+            <a href="#early-access" class="cta-primary">Join the Beta Waitlist</a>
+        </div>
+    </section>
+
+    <section class="pain-points">
+        <div class="container">
+            <h2>Stop Losing Hours to Admin Work</h2>
+            <div class="pain-grid">
+                <div class="pain-item">
+                    <div class="icon">⏰</div>
+                    <h3>15+ Hours Weekly on Admin</h3>
+                    <p>Client intake, scheduling, follow-ups, billing, session notes - it never ends</p>
+                </div>
+                <div class="pain-item">
+                    <div class="icon">📋</div>
+                    <h3>Manual Client Management</h3>
+                    <p>Spreadsheets, sticky notes, forgotten follow-ups - your system is holding you back</p>
+                </div>
+                <div class="pain-item">
+                    <div class="icon">💸</div>
+                    <h3>Revenue Plateau</h3>
+                    <p>Can't scale past 1:1 sessions because you're drowning in operational tasks</p>
+                </div>
+                <div class="pain-item">
+                    <div class="icon">😫</div>
+                    <h3>Burnout from Busy Work</h3>
+                    <p>You became a coach to help people, not to be a data entry clerk</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="solution">
+        <div class="container">
+            <h2>Meet Your AI Business Partner</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon">🎤</div>
+                    <h3>Voice-First Interface</h3>
+                    <p>"Add new client John, needs confidence coaching" - done in seconds, not minutes</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🤖</div>
+                    <h3>Smart Client Management</h3>
+                    <p>Automated intake, intelligent scheduling, personalized program recommendations</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📊</div>
+                    <h3>Session Automation</h3>
+                    <p>AI-powered prep based on client history, automated notes, smart follow-ups</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">💰</div>
+                    <h3>Business Intelligence</h3>
+                    <p>Revenue forecasting, client success metrics, growth recommendations</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📚</div>
+                    <h3>Content Creation</h3>
+                    <p>AI-assisted coaching programs, personalized resources, assessment tools</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">⚡</div>
+                    <h3>Instant Setup</h3>
+                    <p>No complex configuration. Start saving time in your first session</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="roi">
+        <div class="container">
+            <h2>The Math is Simple</h2>
+            <div class="roi-calculation">
+                <div class="roi-item">
+                    <span>Time saved per week:</span>
+                    <span>12 hours</span>
+                </div>
+                <div class="roi-item">
+                    <span>Your hourly rate:</span>
+                    <span>$150/hour</span>
+                </div>
+                <div class="roi-item">
+                    <span>Monthly value created:</span>
+                    <span>$7,200</span>
+                </div>
+                <div class="roi-item">
+                    <span>CoachBot cost:</span>
+                    <span>$299</span>
+                </div>
+                <div class="roi-item">
+                    <span><strong>Your monthly ROI:</strong></span>
+                    <span><strong>2,309%</strong></span>
+                </div>
+            </div>
+            <p><strong>Plus:</strong> Happier clients, less stress, more freedom to focus on what you love - coaching!</p>
+        </div>
+    </section>
+
+    <section class="pricing">
+        <div class="container">
+            <h2>Choose Your Plan</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Starter</h3>
+                    <div class="price">$99</div>
+                    <div class="price-period">per month</div>
+                    <ul class="features-list">
+                        <li>Up to 20 active clients</li>
+                        <li>Voice-activated client management</li>
+                        <li>Automated scheduling & reminders</li>
+                        <li>Basic session notes</li>
+                        <li>Email support</li>
+                    </ul>
+                    <button class="cta-pricing">Start Free Trial</button>
+                </div>
+
+                <div class="pricing-card popular">
+                    <h3>Professional</h3>
+                    <div class="price">$299</div>
+                    <div class="price-period">per month</div>
+                    <ul class="features-list">
+                        <li>Up to 100 active clients</li>
+                        <li>Advanced AI session prep</li>
+                        <li>Content & program creation</li>
+                        <li>Business intelligence dashboard</li>
+                        <li>Custom automation workflows</li>
+                        <li>Priority support</li>
+                    </ul>
+                    <button class="cta-pricing">Most Popular</button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">$599</div>
+                    <div class="price-period">per month</div>
+                    <ul class="features-list">
+                        <li>Unlimited clients</li>
+                        <li>Team collaboration tools</li>
+                        <li>White-label options</li>
+                        <li>API access</li>
+                        <li>Custom integrations</li>
+                        <li>Dedicated account manager</li>
+                    </ul>
+                    <button class="cta-pricing">Contact Sales</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="early-access" id="early-access">
+        <div class="container">
+            <h2>Be Among the First</h2>
+            <p>CoachBot launches in December 2025. Join our beta waitlist for exclusive early access and special pricing.</p>
+            <div class="email-signup">
+                <input type="email" class="email-input" placeholder="Enter your email" id="email">
+                <button class="email-submit" onclick="signupBeta()">Get Early Access</button>
+            </div>
+            <div id="signup-message" style="margin-top: 2rem; display: none;"></div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 CoachBot. Built with 💜 for coaches who want to focus on coaching.</p>
+        </div>
+    </footer>
+
+    <script>
+        function signupBeta() {
+            const email = document.getElementById('email').value;
+            const message = document.getElementById('signup-message');
+
+            if (!email || !email.includes('@')) {
+                message.style.display = 'block';
+                message.style.color = '#e53e3e';
+                message.textContent = 'Please enter a valid email address';
+                return;
+            }
+
+            // In production, this would connect to a real signup service
+            message.style.display = 'block';
+            message.style.color = '#48bb78';
+            message.textContent = '🎉 Thanks! We\'ll notify you when CoachBot is ready for beta testing.';
+            document.getElementById('email').value = '';
+        }
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

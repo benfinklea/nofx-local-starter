@@ -72,4 +72,21 @@ describe('Workstream 01 — Reliability', () => {
     const n = await rehydrateDlq(STEP_DLQ_TOPIC, 10);
     expect(n).toBeGreaterThan(0);
   });
+
+  it('concurrent duplicate deliveries still start only once', async () => {
+    process.env.WORKER_CONCURRENCY = '8';
+    const run = await store.createRun({ goal: 'concurrency', steps: [] });
+    const runId = (run as any).id || String(run);
+    const step = await store.createStep(runId, 'echo-many', 'test:echo', { a: 1 });
+    const stepId = (step as any).id || String(step);
+
+    // Fire many enqueues for the same step
+    const bursts = Array.from({ length: 20 }, () => enqueue(STEP_READY_TOPIC, { runId, stepId, __attempt: 1 }));
+    await Promise.all(bursts);
+    await new Promise(r => setTimeout(r, 300));
+
+    const ev = await store.listEvents(runId);
+    const started = ev.filter((e: any) => e.step_id === stepId && e.type === 'step.started');
+    expect(started.length).toBe(1);
+  });
 });

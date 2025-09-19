@@ -1,0 +1,58 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "gate:typecheck": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/typecheck.txt"],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"],
+      "cache": true
+    },
+    "gate:lint": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/eslint.json"],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", ".eslintrc.cjs"],
+      "cache": true
+    },
+    "gate:unit": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/vitest.txt", "gate-artifacts/coverage-summary.json", "coverage/**"],
+      "inputs": ["src/**/*.ts", "src/**/*.unit.test.ts", "vitest.config.ts"],
+      "cache": true
+    },
+    "gate:sast": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/sast.json"],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
+      "cache": true
+    },
+    "gate:secrets": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/secret-scan.json"],
+      "inputs": ["src/**", "apps/**", "packages/**"],
+      "cache": true
+    },
+    "gate:audit": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/npm-audit.json", "gate-artifacts/npm-audit.txt"],
+      "inputs": ["package.json", "package-lock.json"],
+      "cache": true
+    },
+    "gate:unused": {
+      "dependsOn": [],
+      "outputs": ["gate-artifacts/unused-code.json"],
+      "inputs": ["src/**", "package.json", "tsconfig.json"],
+      "cache": true
+    },
+    "dev": {
+      "dependsOn": ["gate:typecheck", "gate:lint"],
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["gate:typecheck", "gate:lint", "gate:unit"],
+      "outputs": ["dist/**"],
+      "inputs": ["src/**"],
+      "cache": true
+    }
+  }
+}

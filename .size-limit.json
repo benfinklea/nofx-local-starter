@@ -1,0 +1,26 @@
+[
+  {
+    "name": "NOFX Core Bundle",
+    "path": "dist/main.js",
+    "limit": "50 KB",
+    "webpack": false
+  },
+  {
+    "name": "API Server Bundle",
+    "path": "dist/api.js",
+    "limit": "100 KB",
+    "webpack": false
+  },
+  {
+    "name": "Worker Bundle",
+    "path": "dist/worker.js",
+    "limit": "75 KB",
+    "webpack": false
+  },
+  {
+    "name": "Frontend Bundle",
+    "path": "apps/frontend/dist/assets/*.js",
+    "limit": "200 KB",
+    "webpack": false
+  }
+]

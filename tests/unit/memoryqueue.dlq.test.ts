@@ -2,7 +2,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe.skip('MemoryQueueAdapter retries + DLQ', () => {
+describe('MemoryQueueAdapter retries + DLQ', () => {
   const cwd = process.cwd();
   let tmp:string;
   beforeAll(() => {
@@ -11,10 +11,9 @@ describe.skip('MemoryQueueAdapter retries + DLQ', () => {
     process.env.DATA_DRIVER = 'fs';
     process.env.QUEUE_DRIVER = 'memory';
     jest.resetModules();
-    jest.useFakeTimers();
+    jest.useRealTimers();
   });
   afterAll(() => {
-    jest.useRealTimers();
     process.chdir(cwd);
     try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
   });
@@ -24,12 +23,20 @@ describe.skip('MemoryQueueAdapter retries + DLQ', () => {
     const q = new MemoryQueueAdapter();
     // subscribe with handler that always throws
     q.subscribe('step.ready', async () => { throw new Error('boom'); });
-    // Start at attempt 4 so next backoff is undefined -> DLQ immediately after failure
+    // Start at attempt 4 so next backoff is undefined -> should go to DLQ immediately
     await q.enqueue('step.ready', { runId: 'r1', stepId: 's1', __attempt: 4 });
-    const flush = async () => new Promise(r => setImmediate(r));
-    // backoff schedule [0, 2000, 5000, 10000]; run timers enough to pass all
-    jest.advanceTimersByTime(0); await flush();
+    // Wait up to 1s for drain to push to DLQ
+    const waitUntil = async (fn: () => Promise<boolean>, ms=1000) => {
+      const start = Date.now();
+      while (Date.now() - start < ms) {
+        if (await fn()) return true;
+        await new Promise(r => setTimeout(r, 10));
+      }
+      return false;
+    };
+    const ok = await waitUntil(async () => (await q.listDlq('step.dlq')).length > 0, 1000);
     const items = await q.listDlq('step.dlq');
+    expect(ok).toBe(true);
     expect(items.length).toBeGreaterThanOrEqual(1);
   });
 });
