@@ -1,4 +1,9 @@
 import OpenAI from 'openai';
+import {
+  validateResponsesRequest,
+  validateResponsesResult,
+} from '../../shared/openai/responsesSchemas';
+import type { ResponsesRequest } from '../../shared/openai/responsesSchemas';
 export async function openaiChat(
   prompt: string,
   model = process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -10,12 +15,20 @@ export async function openaiChat(
 
   // Use Responses API for new models that don't support max_tokens on chat.completions
   // Build minimal payload for broadest compatibility across models
-  const payload: any = { model, input: prompt, max_output_tokens: Math.max(1, Number(opts?.maxOutputTokens ?? 800)) };
+  const requestBase: Partial<ResponsesRequest> & { model: string } = {
+    model,
+    input: prompt,
+    max_output_tokens: Math.max(1, Number(opts?.maxOutputTokens ?? 800)),
+  };
+
   // Only include temperature when explicitly allowed via env
-  if (process.env.OPENAI_ALLOW_TEMPERATURE === '1') payload.temperature = 0.2;
-  let rsp: any;
+  if (process.env.OPENAI_ALLOW_TEMPERATURE === '1') requestBase.temperature = 0.2;
+
+  const payload = validateResponsesRequest(requestBase);
+
+  let rspRaw: any;
   try {
-    rsp = await client.responses.create(payload);
+    rspRaw = await client.responses.create(payload as any);
   } catch (e: any) {
     const msg = String(e?.message || '');
     const unsupported = /Unsupported parameter|not supported with this model/i.test(msg);
@@ -39,11 +52,18 @@ export async function openaiChat(
   }
 
   // Extract text and usage in a version-tolerant way
-  const text = (rsp as any).output_text
-    || ((rsp as any).choices?.[0]?.message?.content?.trim?.() ?? '')
+  const parsed = validateResponsesResult(rspRaw);
+  const assistantMessage = parsed.output?.find((item) => item.type === 'message');
+  const textPart = assistantMessage?.content?.find((part) => part.type === 'output_text') as
+    | { type: 'output_text'; text: string }
+    | undefined;
+
+  const text = textPart?.text
+    || (rspRaw as any).output_text
+    || ((rspRaw as any).choices?.[0]?.message?.content?.trim?.() ?? '')
     || '';
 
-  const u: any = (rsp as any).usage || {};
+  const u: any = parsed.usage || (rspRaw as any).usage || {};
   const usage = u
     ? {
         inputTokens: u.input_tokens ?? u.prompt_tokens,
