@@ -25,14 +25,14 @@ module.exports = {
   testTimeout: 30000,
   maxWorkers: '50%',
   verbose: true,
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.(t|j)s$': ['ts-jest', {
       tsconfig: {
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
         skipLibCheck: true,
         strict: false
       }
-    }
+    }]
   }
 };
