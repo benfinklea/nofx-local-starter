@@ -4,6 +4,7 @@ import {
   validateResponsesResult,
 } from '../../shared/openai/responsesSchemas';
 import type { ResponsesRequest } from '../../shared/openai/responsesSchemas';
+// Provides a resilient shim over the OpenAI Responses API with a chat.completions fallback
 export async function openaiChat(
   prompt: string,
   model = process.env.OPENAI_MODEL || 'gpt-4o-mini',

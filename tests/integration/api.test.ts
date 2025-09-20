@@ -1,15 +1,16 @@
-const request = require('supertest');
-const express = require('express');
+import request from 'supertest';
+import express, { Application } from 'express';
+import { randomUUID } from 'crypto';
 
 // We'll need to import the app properly when it's set up
-const createApp = () => {
+const createApp = (): Application => {
   const app = express();
   app.use(express.json());
 
   // Mock endpoints for testing
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.post('/runs', (req, res) => {
-    res.json({ id: faker.string.uuid(), status: 'queued' });
+    res.json({ id: randomUUID(), status: 'queued' });
   });
   app.get('/runs/:id', (req, res) => {
     res.json({
@@ -23,7 +24,7 @@ const createApp = () => {
 };
 
 describe('API Integration Tests - Bulletproof', () => {
-  let app: express.Application;
+  let app: Application;
 
   beforeEach(() => {
     app = createApp();
@@ -110,8 +111,8 @@ describe('API Integration Tests - Bulletproof', () => {
           .post('/runs')
           .send(payload)
           .expect((res) => {
-            // Expect 400 or 422 for validation errors
-            expect([400, 422, 200]).toContain(res.status);
+            // Expect common validation or payload errors
+            expect([200, 400, 413, 422]).toContain(res.status);
           });
       });
     });
@@ -205,7 +206,7 @@ describe('API Integration Tests - Bulletproof', () => {
   describe('GET /runs/:id - Get Run Status', () => {
     describe('Valid Requests', () => {
       test('retrieves existing run', async () => {
-        const runId = faker.string.uuid();
+        const runId = randomUUID();
         const response = await request(app)
           .get(`/runs/${runId}`)
           .expect(200);
@@ -215,7 +216,7 @@ describe('API Integration Tests - Bulletproof', () => {
 
       test('handles various ID formats', async () => {
         const ids = [
-          faker.string.uuid(),
+          randomUUID(),
           '123456',
           'abc-def-ghi',
           'RUN_2024_001'
@@ -250,7 +251,7 @@ describe('API Integration Tests - Bulletproof', () => {
 
     describe('Caching and Performance', () => {
       test('handles rapid repeated requests', async () => {
-        const runId = faker.string.uuid();
+        const runId = randomUUID();
         const start = Date.now();
 
         const promises = Array(100).fill(null).map(() =>

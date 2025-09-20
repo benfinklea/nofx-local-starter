@@ -1,0 +1,146 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - Responses Run</title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+</head><body>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/builder">Builder</a>
+    <a href="/ui/responses" class="active">Responses</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+<div class="container" style="margin-top:16px">
+  <div class="section-title"><h1>Responses Run</h1><span class="tip" data-tip="Replay archived events captured from the Responses API.">?</span></div>
+  <div class="grid" style="margin-top:12px">
+    <div class="col-8">
+      <div class="card"><div class="hd">Assistant Output</div><div class="bd">
+        <pre id="assistantOutput" class="scroll"></pre>
+        <div id="refusals" class="muted" style="margin-top:8px"></div>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Timeline</div><div class="bd">
+        <table id="eventTable"><thead><tr><th>#</th><th>Event</th><th>Timestamp</th></tr></thead><tbody></tbody></table>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Raw Events</div><div class="bd">
+        <details>
+          <summary>Show JSON</summary>
+          <pre id="eventsRaw" class="scroll"></pre>
+        </details>
+      </div></div>
+    </div>
+    <div class="col-4">
+      <div class="card"><div class="hd">Run Metadata</div><div class="bd">
+        <div class="metric"><div class="k">Run ID</div><div class="v" id="runId"></div></div>
+        <div class="metric"><div class="k">Status</div><div class="v"><span id="runStatus" class="badge">—</span></div></div>
+        <div class="metric"><div class="k">Model</div><div class="v" id="runModel">—</div></div>
+        <div class="metric"><div class="k">Created</div><div class="v" id="runCreated">—</div></div>
+        <div class="metric"><div class="k">Updated</div><div class="v" id="runUpdated">—</div></div>
+        <div class="metric"><div class="k">Metadata</div><div class="v"><pre id="runMetadata" class="scroll" style="max-height:140px"></pre></div></div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn primary small" onclick="retryRun()">Retry Run</button>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+<script>
+  const preloaded = <%- JSON.stringify(preloaded || {}) %>;
+  const runId = preloaded.run ? preloaded.run.runId : '<%= (preloaded && preloaded.run && preloaded.run.runId) || '' %>';
+
+  function escape(text){
+    return String(text ?? '').replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'} as any)[ch] || ch;
+    });
+  }
+
+  function renderMetadata(run){
+    document.getElementById('runId').innerHTML = `<code>${escape(run.runId || '')}</code>`;
+    const status = String(run.status || 'queued').toLowerCase();
+    const badge = document.getElementById('runStatus');
+    badge.textContent = run.status || 'queued';
+    badge.className = 'badge ' + (status === 'completed' ? 'ok' : (status === 'failed' ? 'err' : (status === 'in_progress' || status === 'queued' ? 'warn' : '')));
+    document.getElementById('runModel').textContent = run.model || '—';
+    document.getElementById('runCreated').textContent = run.createdAt ? new Date(run.createdAt).toLocaleString() : '—';
+    document.getElementById('runUpdated').textContent = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '—';
+    document.getElementById('runMetadata').textContent = run.metadata ? JSON.stringify(run.metadata, null, 2) : '{}';
+  }
+
+  function renderOutput(messages, reasoning, refusals){
+    const output = Array.isArray(messages) && messages.length
+      ? messages.map((m) => m.text || '').join('\n\n')
+      : 'No assistant output yet.';
+    document.getElementById('assistantOutput').textContent = output;
+    const reasonEl = document.getElementById('refusals');
+    const reasons = [];
+    if (Array.isArray(reasoning) && reasoning.length) {
+      reasons.push('Reasoning: ' + reasoning.join(' '));
+    }
+    if (Array.isArray(refusals) && refusals.length) {
+      reasons.push('Refusal: ' + refusals.join(' '));
+    }
+    reasonEl.textContent = reasons.join(' \u2022 ');
+  }
+
+  function renderEvents(events){
+    const tbody = document.querySelector('#eventTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(events) || events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="muted">No events recorded.</td></tr>';
+      document.getElementById('eventsRaw').textContent = '[]';
+      return;
+    }
+    tbody.innerHTML = events.map((event) => {
+      const time = event.occurredAt ? new Date(event.occurredAt).toLocaleTimeString() : '';
+      return `<tr>
+        <td>${event.sequence}</td>
+        <td>${escape(event.type)}</td>
+        <td class="muted">${time}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('eventsRaw').textContent = JSON.stringify(events, null, 2);
+  }
+
+  async function refresh(){
+    try {
+      const res = await fetch(`/responses/runs/${runId}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      renderMetadata(data.run || {});
+      renderOutput(data.bufferedMessages || [], data.reasoning || [], data.refusals || []);
+      renderEvents(data.events || []);
+    } catch {}
+  }
+
+  async function retryRun(){
+    if (!confirm('Retry this run using the archived request?')) return;
+    const res = await fetch(`/responses/runs/${runId}/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ metadata: { retried_via_ui: 'true' } })
+    });
+    if (!res.ok) {
+      alert('Failed to retry run');
+      return;
+    }
+    const data = await res.json();
+    window.location.href = `/ui/responses/${data.runId}`;
+  }
+
+  (function init(){
+    if (preloaded.run) {
+      renderMetadata(preloaded.run);
+    }
+    if (Array.isArray(preloaded.bufferedMessages) || Array.isArray(preloaded.reasoning) || Array.isArray(preloaded.refusals)) {
+      renderOutput(preloaded.bufferedMessages || [], preloaded.reasoning || [], preloaded.refusals || []);
+    }
+    if (Array.isArray(preloaded.events)) {
+      renderEvents(preloaded.events);
+    }
+    refresh();
+    setInterval(refresh, 4000);
+  })();
+</script>
+</body></html>

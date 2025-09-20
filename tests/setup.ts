@@ -4,8 +4,33 @@ import { Pool } from 'pg';
 // Load test environment
 dotenv.config({ path: '.env.test' });
 
-// Ensure queue tests use Redis adapter (mocks);
+// Default to in-memory queue to avoid external Redis during tests
 process.env.QUEUE_DRIVER = process.env.QUEUE_DRIVER || 'redis';
+process.env.DISABLE_INLINE_RUNNER = '1';
+// Use filesystem-backed store during tests to avoid external DB dependency
+process.env.DATA_DRIVER = process.env.DATA_DRIVER || 'fs';
+process.env.DISABLE_REDIS_STRESS = '1';
+
+// Prevent real Redis connections during tests unless explicitly overridden
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => {
+    const client: any = {
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn(),
+      quit: jest.fn().mockResolvedValue(undefined),
+      ping: jest.fn().mockResolvedValue('PONG'),
+      duplicate: jest.fn().mockImplementation(() => client),
+      subscribe: jest.fn().mockResolvedValue(undefined),
+      publish: jest.fn().mockResolvedValue(0),
+      lpush: jest.fn().mockResolvedValue(1),
+      lrange: jest.fn().mockResolvedValue([]),
+      del: jest.fn().mockResolvedValue(0)
+    };
+    return client;
+  });
+});
+
 
 // Global test utilities
 global.testUtils = {
@@ -57,6 +82,20 @@ afterEach(async () => {
   if (process.env.INTEGRATION_TEST) {
     await global.testUtils.cleanDatabase();
   }
+});
+
+afterAll(async () => {
+  try {
+    const registry: Set<any> | undefined = (globalThis as any).__NOFX_TEST_POOLS__;
+    if (registry && registry.size) {
+      for (const pool of registry) {
+        if (pool && typeof pool.end === 'function') {
+          await Promise.resolve(pool.end()).catch(() => {});
+        }
+      }
+      registry.clear();
+    }
+  } catch {}
 });
 
 // Global error handler for unhandled rejections

@@ -9,11 +9,11 @@ const baseRequest: Partial<ResponsesRequest> & { input: ResponsesRequest['input'
 };
 
 describe('ResponsesRunService', () => {
-  const startRunMock = jest.fn(async () => ({
+  const startRunMock = jest.fn(async (input: any) => ({
     request: {
       model: 'gpt-4.1-mini',
       input: 'plan my day',
-      metadata: { tenant: 'alpha' },
+      metadata: input.request.metadata,
       tools: [],
       max_tool_calls: 3,
       tool_choice: { type: 'function', function: { name: 'store_notes' } },
@@ -40,7 +40,7 @@ describe('ResponsesRunService', () => {
     const result = await service.execute({
       tenantId: 'tenant-a',
       request: baseRequest,
-      metadata: { tenant: 'alpha' },
+      metadata: { workflow: 'daily' },
       tools: { include: ['store_notes'] },
       maxToolCalls: 3,
       toolChoice: { type: 'function', function: { name: 'store_notes' } },
@@ -49,6 +49,8 @@ describe('ResponsesRunService', () => {
     expect(result.bufferedMessages[0].text).toBe('hello');
     expect(coordinator.startRun).toHaveBeenCalledTimes(1);
     expect(coordinator.startRun.mock.calls[0][0].maxToolCalls).toBe(3);
+    expect(coordinator.startRun.mock.calls[0][0].metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily' });
+    expect(coordinator.startRun.mock.calls[0][0].request.metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily' });
     expect(result.refusals[0]).toBe('nope');
   });
 

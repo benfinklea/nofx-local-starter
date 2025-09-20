@@ -1,60 +1,80 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+# Ensure we are in the repository root
 cd "$(dirname "$0")"
-if ! command -v supabase >/dev/null 2>&1; then
-  echo "Supabase CLI is required. Install via: brew install supabase/tap/supabase"; exit 1;
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing dependency: $1" >&2
+    exit 1
+  fi
+}
+
+require_cmd supabase
+require_cmd node
+require_cmd npm
+
+printf '🔍 Checking Supabase local stack…'
+if supabase status >/dev/null 2>&1; then
+  printf ' already running\n'
+else
+  printf ' starting\n'
+  supabase start
 fi
-if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js is required. Please install Node 20+ from nodejs.org"; exit 1;
+
+printf '📦 Installing dependencies (if needed)…\n'
+npm install >/dev/null 2>&1 || npm install
+if [ -f apps/frontend/package.json ]; then
+  (cd apps/frontend && (npm install >/dev/null 2>&1 || npm install))
 fi
-echo "Stopping previous NOFX app instances (if any)…"
-# Try to stop known dev processes cleanly
-pkill -f "ts-node-dev.*src/simple.ts" 2>/dev/null || true
+
+export QUEUE_DRIVER="${QUEUE_DRIVER:-memory}"
+
+printf '🧹 Cleaning up old dev processes\n'
 pkill -f "ts-node-dev.*src/api/main.ts" 2>/dev/null || true
 pkill -f "ts-node-dev.*src/worker/main.ts" 2>/dev/null || true
-pkill -f "node .*src/simple.ts" 2>/dev/null || true
-pkill -f "node .*src/api/main.ts" 2>/dev/null || true
-pkill -f "node .*src/worker/main.ts" 2>/dev/null || true
+pkill -f "node .*apps/frontend" 2>/dev/null || true
 
-# Free common app ports (API:3000)
-for port in 3000; do
-  if command -v lsof >/dev/null 2>&1; then
-    PIDS=$(lsof -ti tcp:$port -sTCP:LISTEN || true)
-    if [ -n "${PIDS:-}" ]; then
-      echo "Killing processes on :$port ($PIDS)"
-      kill $PIDS 2>/dev/null || true
-      sleep 1
-      kill -9 $PIDS 2>/dev/null || true
-    fi
-  fi
-done
+start_proc() {
+  local cmd="$1"
+  local label="$2"
+  echo "  • ${label}"
+  bash -lc "$cmd" &
+  echo $!
+}
 
-echo "Starting Supabase (local Postgres, Auth, Storage)..."
-supabase start || true
-echo "Installing dependencies (first run may take a minute)..."
-npm install --silent || true
-(cd apps/frontend && npm install --silent) || true
-
-echo "Starting NOFX API + Worker (dev) and Frontend (MUI) ..."
-export QUEUE_DRIVER=memory
-
-# Kill Vite dev server if running (5173)
-if command -v lsof >/dev/null 2>&1; then
-  VITE=$(lsof -ti tcp:5173 -sTCP:LISTEN || true)
-  if [ -n "${VITE:-}" ]; then
-    echo "Killing processes on :5173 ($VITE)"
-    kill $VITE 2>/dev/null || true
-    sleep 1
-    kill -9 $VITE 2>/dev/null || true
-  fi
+echo "🚀 Launching NOFX services…"
+API_PID=$(start_proc "npm run dev:api" "API (http://localhost:3000)")
+WORKER_PID=$(start_proc "npm run dev:worker" "Worker queue")
+FRONT_PID=""
+if [ -f apps/frontend/package.json ]; then
+  FRONT_PID=$(start_proc "cd apps/frontend && npm run dev" "Vite frontend (http://localhost:5173)")
 fi
 
-# Start backend (API + Worker) and Frontend in background panes
-npm run dev &
-(cd apps/frontend && npm run dev) &
+sleep 3
 
-sleep 2
-echo "Opening NOFX MUI app (auto-login)..."
-open "http://localhost:5173/dev/login?next=/ui/app/" || open "http://localhost:5173/ui/app/" || open "http://localhost:5173" || true
-echo "All services starting. This window will show logs."
+if [ -n "${FRONT_PID}" ]; then
+  open "http://localhost:5173/dev/login?next=/ui/app/" \
+    || open "http://localhost:5173/ui/app/" \
+    || open "http://localhost:5173" \
+    || true
+fi
+
+open "http://localhost:3000/ui/runs" || true
+
+echo "✅ NOFX local environment is starting. Logs will stream below."
+
+tshutdown() {
+  echo "\n♻️  Stopping dev processes…"
+  kill ${API_PID} 2>/dev/null || true
+  kill ${WORKER_PID} 2>/dev/null || true
+  if [ -n "${FRONT_PID}" ]; then
+    kill ${FRONT_PID} 2>/dev/null || true
+  fi
+  wait 2>/dev/null || true
+}
+
+trap tshutdown EXIT
+
 wait

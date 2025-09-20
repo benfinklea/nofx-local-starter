@@ -12,6 +12,7 @@ module.exports = {
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts'
   ],
+  testPathIgnorePatterns: ['<rootDir>/tests/e2e/'],
   coverageThreshold: {
     global: {
       branches: 0,

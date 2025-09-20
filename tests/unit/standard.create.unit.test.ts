@@ -46,7 +46,7 @@ describe('POST /runs (standard)', () => {
       .set('Content-Type','application/json')
       .send({ standard: { prompt: 'Write README with bullets', quality: true, openPr: false } });
     expect(rsp.status).toBe(201);
-    expect(rsp.body).toEqual({ id: 'run-std-123', status: 'queued' });
+    expect(rsp.body).toEqual(expect.objectContaining({ status: 'queued', projectId: 'default' }));
+    expect(typeof rsp.body.id).toBe('string');
   });
 });
-

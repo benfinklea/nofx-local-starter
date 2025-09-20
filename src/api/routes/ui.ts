@@ -4,6 +4,10 @@ import { supabase, ARTIFACT_BUCKET } from '../../lib/supabase';
 import { getSettings, type Settings } from '../../lib/settings';
 import { listModels, type ModelRow } from '../../lib/models';
 import { isAdmin } from '../../lib/auth';
+import { BuilderTemplateManager } from '../../services/builder/builderManager';
+import { getResponsesRuntime, getResponsesOperationsSummary } from '../../services/responses/runtime';
+
+const builderManager = new BuilderTemplateManager();
 
 export default function mount(app: Express){
   app.get('/ui/runs', async (_req, res) => {
@@ -39,6 +43,78 @@ export default function mount(app: Express){
   app.get('/ui/models', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
     res.render('models');
+  });
+  app.get('/ui/builder', async (req, res) => {
+    if (!isAdmin(req)) return res.redirect('/ui/login');
+    let templates = [] as unknown[];
+    let responsesRuns = [] as unknown[];
+    try { templates = await builderManager.listTemplates(); } catch {}
+    try {
+      const runtime = getResponsesRuntime();
+      responsesRuns = runtime.archive.listRuns().map((run) => ({
+        runId: run.runId,
+        status: run.status,
+        model: run.request?.model,
+        createdAt: run.createdAt.toISOString(),
+      }));
+    } catch {}
+    res.render('builder', { preloaded: { templates, responsesRuns } });
+  });
+  app.get('/ui/responses', async (req, res) => {
+    if (!isAdmin(req)) return res.redirect('/ui/login');
+    const runtime = getResponsesRuntime();
+    let runs = [] as unknown[];
+    let summary: unknown = null;
+    try {
+      runs = runtime.archive.listRuns().map((run) => ({
+        runId: run.runId,
+        status: run.status,
+        model: run.request?.model,
+        createdAt: run.createdAt.toISOString(),
+        updatedAt: run.updatedAt.toISOString(),
+        metadata: run.metadata ?? {},
+      }));
+      summary = getResponsesOperationsSummary();
+    } catch {}
+    res.render('responses_runs', { preloaded: { runs, summary } });
+  });
+  app.get('/ui/responses/:id', async (req, res) => {
+    if (!isAdmin(req)) return res.redirect('/ui/login');
+    const { id } = req.params;
+    const runtime = getResponsesRuntime();
+    const timeline = runtime.archive.getTimeline(id);
+    if (!timeline) {
+      return res.render('responses_run', {
+        preloaded: {
+          run: { runId: id, status: 'unknown', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          events: [],
+          bufferedMessages: [],
+          reasoning: [],
+          refusals: [],
+        },
+      });
+    }
+    res.render('responses_run', {
+      preloaded: {
+        run: {
+          runId: timeline.run.runId,
+          status: timeline.run.status,
+          model: timeline.run.request?.model,
+          metadata: timeline.run.metadata ?? {},
+          createdAt: timeline.run.createdAt.toISOString(),
+          updatedAt: timeline.run.updatedAt.toISOString(),
+        },
+        events: timeline.events.map((event) => ({
+          sequence: event.sequence,
+          type: event.type,
+          occurredAt: event.occurredAt.toISOString(),
+          payload: event.payload,
+        })),
+        bufferedMessages: runtime.coordinator.getBufferedMessages(id),
+        reasoning: runtime.coordinator.getBufferedReasoning(id),
+        refusals: runtime.coordinator.getBufferedRefusals(id),
+      },
+    });
   });
   app.get('/ui/artifacts/signed', async (req, res) => {
     const pth = String(req.query.path || '');

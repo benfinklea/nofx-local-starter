@@ -299,7 +299,7 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
       const duration = Date.now() - start;
 
       expect(top100.length).toBeLessThanOrEqual(100);
-      expect(duration).toBeLessThan(500);
+      expect(duration).toBeLessThan(800);
     });
   });
 

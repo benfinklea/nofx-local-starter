@@ -6,6 +6,17 @@ const INTERVAL_MS = Number(process.env.OUTBOX_RELAY_INTERVAL_MS || 1000);
 const BATCH = Number(process.env.OUTBOX_RELAY_BATCH || 25);
 
 export function startOutboxRelay() {
+  if (process.env.NODE_ENV === 'test') {
+    return;
+  }
+
+  const scheduleTick = () => {
+    const handle = setTimeout(tick, INTERVAL_MS);
+    if (typeof handle.unref === 'function') {
+      handle.unref();
+    }
+  };
+
   async function tick() {
     try {
       const rows = await store.outboxListUnsent(BATCH);
@@ -23,10 +34,11 @@ export function startOutboxRelay() {
     } catch (e) {
       log.error({ e }, 'outbox.tick.error');
     } finally {
-      setTimeout(tick, INTERVAL_MS);
+      scheduleTick();
     }
   }
-  setTimeout(tick, INTERVAL_MS);
+
+  scheduleTick();
 }
 
 export default startOutboxRelay;

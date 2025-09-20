@@ -86,6 +86,7 @@ export const responsesRequestSchema = z
     conversation: z.union([z.string().min(1), z.object({ id: z.string().min(1) })]).optional(),
     previous_response_id: z.string().min(1).optional(),
     metadata: metadataSchema.optional(),
+    safety_identifier: z.string().optional(),
     service_tier: z.enum(['auto', 'default', 'flex', 'priority']).optional(),
     parallel_tool_calls: z.boolean().optional(),
     tools: z.array(toolSchema).max(16).optional(),
