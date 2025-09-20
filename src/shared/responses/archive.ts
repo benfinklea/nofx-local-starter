@@ -48,12 +48,15 @@ export interface TimelineSnapshot {
 }
 
 export interface ResponsesArchive {
-  startRun(input: StartRunInput): RunRecord;
-  recordEvent(runId: string, input: RecordEventInput): EventRecord;
-  updateStatus(input: UpdateStatusInput): RunRecord;
-  getRun(runId: string): RunRecord | undefined;
-  getTimeline(runId: string): TimelineSnapshot | undefined;
-  snapshotAt(runId: string, sequence: number): TimelineSnapshot | undefined;
+  startRun(input: StartRunInput): RunRecord | Promise<RunRecord>;
+  recordEvent(runId: string, input: RecordEventInput): EventRecord | Promise<EventRecord>;
+  updateStatus(input: UpdateStatusInput): RunRecord | Promise<RunRecord>;
+  getRun(runId: string): RunRecord | undefined | Promise<RunRecord | undefined>;
+  getTimeline(runId: string): TimelineSnapshot | undefined | Promise<TimelineSnapshot | undefined>;
+  snapshotAt(runId: string, sequence: number): TimelineSnapshot | undefined | Promise<TimelineSnapshot | undefined>;
+  listRuns(): RunRecord[] | Promise<RunRecord[]>;
+  deleteRun?(runId: string): void | Promise<void>;
+  pruneOlderThan?(cutoff: Date): void | Promise<void>;
 }
 
 export class InMemoryResponsesArchive implements ResponsesArchive {
@@ -126,6 +129,10 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
     return this.runs.get(runId);
   }
 
+  listRuns(): RunRecord[] {
+    return Array.from(this.runs.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
   getTimeline(runId: string): TimelineSnapshot | undefined {
     const run = this.runs.get(runId);
     if (!run) return undefined;
@@ -143,5 +150,18 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
       run: snapshot.run,
       events: snapshot.events.filter((event) => event.sequence <= sequence),
     };
+  }
+
+  deleteRun(runId: string): void {
+    this.runs.delete(runId);
+    this.events.delete(runId);
+  }
+
+  pruneOlderThan(cutoff: Date): void {
+    for (const [runId, record] of this.runs.entries()) {
+      if (record.updatedAt < cutoff) {
+        this.deleteRun(runId);
+      }
+    }
   }
 }

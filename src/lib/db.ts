@@ -8,6 +8,12 @@ export const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
 
+if (process.env.NODE_ENV === 'test') {
+  const registry = (globalThis as any).__NOFX_TEST_POOLS__ || new Set<Pool>();
+  registry.add(pool);
+  (globalThis as any).__NOFX_TEST_POOLS__ = registry;
+}
+
 export async function query<T = any>(text: string, params?: any[]): Promise<{ rows: T[] }> {
   const start = Date.now();
   try {

@@ -9,6 +9,7 @@ import { enqueue, STEP_READY_TOPIC, hasSubscribers, getOldestAgeMs } from "../li
 import crypto from 'node:crypto';
 import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
+import builderRoutes from './routes/builder';
 import fs from 'node:fs';
 import http from 'node:http';
 import { initAutoBackupFromSettings } from '../lib/autobackup';
@@ -56,6 +57,11 @@ try {
 } catch {}
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// Register builder routes eagerly so that operator tooling is immediately available
+try {
+  builderRoutes(app);
+} catch {}
 
 // Ensure default project has local_path pointing to this repo for convenience in dev
 void (async () => {
@@ -153,7 +159,9 @@ app.post("/runs", async (req, res) => {
         await enqueue(STEP_READY_TOPIC, { runId, stepId, idempotencyKey: idemKey, __attempt: 1 }, delayMs ? { delay: delayMs } : undefined);
       }
       // Simple Mode fallback: run inline to avoid any queue hiccups
-      if ((process.env.QUEUE_DRIVER || 'memory').toLowerCase() === 'memory' && !hasSubscribers(STEP_READY_TOPIC)) {
+      const inlineRunnerDisabled = process.env.DISABLE_INLINE_RUNNER === '1';
+      const usingMemoryQueue = (process.env.QUEUE_DRIVER || 'memory').toLowerCase() === 'memory';
+      if (usingMemoryQueue && !inlineRunnerDisabled && !hasSubscribers(STEP_READY_TOPIC)) {
         // Lazy import to avoid cycle
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { runStep } = require('../worker/runner');
@@ -254,13 +262,13 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
-if (process.env.DEV_RESTART_WATCH === '1') {
+if (process.env.NODE_ENV !== 'test' && process.env.DEV_RESTART_WATCH === '1') {
   const flagPath = path.join(process.cwd(), '.dev-restart-api');
   const startedAt = Date.now();
   let last = 0;
   // Clean up stale flag from previous run
   try { const st = fs.statSync(flagPath); if (st.mtimeMs <= startedAt) fs.unlinkSync(flagPath); } catch {}
-  setInterval(() => {
+  const interval = setInterval(() => {
     try {
       const stat = fs.statSync(flagPath);
       const m = stat.mtimeMs;
@@ -269,6 +277,7 @@ if (process.env.DEV_RESTART_WATCH === '1') {
       // ignore missing flag or stat errors in dev restart watcher
     }
   }, 1500);
+  interval.unref();
 }
 
 // Build a plan from simple prompt using Settings

@@ -3,6 +3,7 @@
  */
 
 // Setup mocks before imports
+process.env.QUEUE_DRIVER = 'redis';
 const mockPoolQuery = jest.fn();
 const mockRedisConnection = {
   connect: jest.fn(),

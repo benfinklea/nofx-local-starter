@@ -10,9 +10,63 @@ const execAsync = promisify(exec);
 
 describe('Chaos Engineering - Failure Scenarios', () => {
   const API_URL = process.env.API_URL || 'http://localhost:3000';
+  let apiAvailable = false;
+  let dockerAvailable = false;
+  const skipReasons = new Set<string>();
+
+  const markSkip = (reason: string) => {
+    if (!skipReasons.has(reason)) {
+      skipReasons.add(reason);
+      console.warn(`[chaos tests] ${reason}`);
+    }
+  };
+
+  const skipIf = (condition: boolean, reason: string) => {
+    if (condition) {
+      markSkip(reason);
+      return true;
+    }
+
+    return false;
+  };
+
+  beforeAll(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 500);
+
+    try {
+      const response = await fetch(`${API_URL}/health`, { signal: controller.signal });
+      apiAvailable = response.ok;
+
+      if (!apiAvailable) {
+        markSkip(`API at ${API_URL} is not responding with 200; skipping API-dependent chaos tests.`);
+      }
+    } catch (error) {
+      apiAvailable = false;
+      markSkip(`API at ${API_URL} is unavailable (${(error as Error).message ?? 'unknown error'}); skipping API-dependent chaos tests.`);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    try {
+      await execAsync('docker info', { timeout: 1000 });
+      dockerAvailable = true;
+    } catch (error) {
+      dockerAvailable = false;
+      markSkip(`Docker is unavailable (${(error as Error).message ?? 'unknown error'}); skipping Docker-dependent chaos tests.`);
+    }
+  });
 
   describe('Service Failures', () => {
     test('handles database connection loss', async () => {
+      if (skipIf(!dockerAvailable, 'Docker-dependent chaos tests skipped because Docker is unavailable.')) {
+        return;
+      }
+
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Simulate database going down
       try {
         await execAsync('docker pause supabase_db_nofx-local-starter');
@@ -45,6 +99,14 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles Redis connection loss', async () => {
+      if (skipIf(!dockerAvailable, 'Docker-dependent chaos tests skipped because Docker is unavailable.')) {
+        return;
+      }
+
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       try {
         // Kill Redis
         await execAsync('docker pause redis');
@@ -76,6 +138,14 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles storage service failure', async () => {
+      if (skipIf(!dockerAvailable, 'Docker-dependent chaos tests skipped because Docker is unavailable.')) {
+        return;
+      }
+
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       try {
         // Pause storage service
         await execAsync('docker pause supabase_storage_nofx-local-starter');
@@ -117,6 +187,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
 
   describe('Network Chaos', () => {
     test('handles network latency', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Add network latency (requires tc command on Linux/Mac)
       try {
         // This would add 500ms latency to localhost
@@ -142,6 +216,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles packet loss', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Simulate packet loss
       try {
         // This would add 10% packet loss
@@ -170,6 +248,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
 
   describe('Resource Chaos', () => {
     test('handles memory pressure', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Create memory pressure by allocating large arrays
       const memoryHogs: any[] = [];
 
@@ -201,6 +283,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles CPU saturation', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Create CPU load
       const workers: any[] = [];
 
@@ -225,6 +311,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles disk space exhaustion', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // This is dangerous in real environments
       // Only simulate by checking behavior with large payloads
 
@@ -252,6 +342,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
 
   describe('Time-based Chaos', () => {
     test('handles clock skew', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Save original Date
       const OriginalDate = Date;
 
@@ -286,6 +380,10 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles timezone changes', async () => {
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       const originalTZ = process.env.TZ;
 
       try {
@@ -309,6 +407,14 @@ describe('Chaos Engineering - Failure Scenarios', () => {
 
   describe('Cascading Failures', () => {
     test('handles cascading service failures', async () => {
+      if (skipIf(!dockerAvailable, 'Docker-dependent chaos tests skipped because Docker is unavailable.')) {
+        return;
+      }
+
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       const failures = [];
 
       try {
@@ -349,6 +455,14 @@ describe('Chaos Engineering - Failure Scenarios', () => {
     });
 
     test('handles thundering herd after recovery', async () => {
+      if (skipIf(!dockerAvailable, 'Docker-dependent chaos tests skipped because Docker is unavailable.')) {
+        return;
+      }
+
+      if (skipIf(!apiAvailable, 'Chaos tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       try {
         // Pause a service
         await execAsync('docker pause redis');

@@ -21,3 +21,7 @@ Adopt Conventional Commits (`feat:`, `fix:`, `chore:`) and branch naming (`feat/
 
 ## Security & Configuration Tips
 Load secrets from local `.env` files via `dotenv`; never commit credentials. Use the "Start DB + NOFX" scripts to spin up Supabase and Redis before exercising the API. When writing queries, rely on parameterized calls and log sensitive operations through `src/lib/logger.ts`, which already propagates request correlation IDs.
+
+## MCP / Context7 Usage
+Always use context7 when I need code generation, setup or configuration steps, or library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
+

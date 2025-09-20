@@ -10,35 +10,122 @@ import { performance } from 'perf_hooks';
 describe('Stress Tests - System Breaking Points', () => {
   const API_URL = process.env.API_URL || 'http://localhost:3000';
   let metrics: any = {};
+  let apiAvailable = false;
+  let dbAvailable = false;
+  let redisAvailable = false;
+  const skipReasons = new Set<string>();
 
-  beforeAll(() => {
+  const markSkip = (reason: string) => {
+    if (!skipReasons.has(reason)) {
+      skipReasons.add(reason);
+      console.warn(`[stress tests] ${reason}`);
+    }
+  };
+
+  const skipIf = (condition: boolean, reason: string) => {
+    if (condition) {
+      markSkip(reason);
+      return true;
+    }
+
+    return false;
+  };
+
+  beforeAll(async () => {
     metrics = {
       startTime: performance.now(),
       requests: 0,
       errors: 0,
       latencies: []
     };
+
+    // Detect API availability with a short timeout to avoid hanging the suite
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 500);
+
+    try {
+      const response = await fetch(`${API_URL}/health`, { signal: controller.signal });
+      apiAvailable = response.ok;
+
+      if (!apiAvailable) {
+        markSkip(`API at ${API_URL} is not responding with 200; skipping HTTP stress tests.`);
+      }
+    } catch (error) {
+      apiAvailable = false;
+      markSkip(`API at ${API_URL} is unavailable (${(error as Error).message ?? 'unknown error'}); skipping HTTP stress tests.`);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    // Detect database availability if a connection string is configured
+    if (!process.env.DATABASE_URL) {
+      markSkip('DATABASE_URL is not configured; skipping database stress tests.');
+    } else {
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+
+      try {
+        await pool.query('SELECT 1');
+        dbAvailable = true;
+      } catch (error) {
+        dbAvailable = false;
+        markSkip(`Database is unavailable (${(error as Error).message ?? 'unknown error'}); skipping database stress tests.`);
+      } finally {
+        await pool.end().catch(() => {});
+      }
+    }
+
+    // Detect Redis availability
+    if (process.env.DISABLE_REDIS_STRESS === '1') {
+      redisAvailable = false;
+      markSkip('Redis stress tests disabled via configuration.');
+    } else {
+      try {
+        const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+          maxRetriesPerRequest: 1,
+          lazyConnect: true
+        });
+
+        await redis.connect();
+        await redis.ping();
+        redisAvailable = true;
+        redis.disconnect();
+      } catch (error) {
+        redisAvailable = false;
+        markSkip(`Redis is unavailable (${(error as Error).message ?? 'unknown error'}); skipping Redis stress tests.`);
+      }
+    }
   });
 
   afterAll(() => {
     const duration = performance.now() - metrics.startTime;
-    const avgLatency = metrics.latencies.reduce((a: number, b: number) => a + b, 0) / metrics.latencies.length;
-    const p95Latency = metrics.latencies.sort((a: number, b: number) => a - b)[Math.floor(metrics.latencies.length * 0.95)];
+    const requestCount = metrics.requests || 0;
+    const errorRate = requestCount > 0 ? metrics.errors / requestCount : 0;
+    const totalLatency = metrics.latencies.reduce((sum: number, value: number) => sum + value, 0);
+    const averageLatency = metrics.latencies.length > 0 ? totalLatency / metrics.latencies.length : 0;
+    const sortedLatencies = [...metrics.latencies].sort((a: number, b: number) => a - b);
+    const p95Index = sortedLatencies.length > 0 ? Math.min(sortedLatencies.length - 1, Math.floor(sortedLatencies.length * 0.95)) : 0;
+    const p95Latency = sortedLatencies.length > 0 ? sortedLatencies[p95Index] : 0;
+    const durationSeconds = duration / 1000;
+    const requestsPerSecond = durationSeconds > 0 ? requestCount / durationSeconds : 0;
 
     console.log(`
       === STRESS TEST RESULTS ===
-      Total Duration: ${duration}ms
-      Total Requests: ${metrics.requests}
+      Total Duration: ${duration.toFixed(2)}ms
+      Total Requests: ${requestCount}
       Failed Requests: ${metrics.errors}
-      Error Rate: ${(metrics.errors / metrics.requests * 100).toFixed(2)}%
-      Average Latency: ${avgLatency.toFixed(2)}ms
-      P95 Latency: ${p95Latency}ms
-      Requests/Second: ${(metrics.requests / (duration / 1000)).toFixed(2)}
+      Error Rate: ${(errorRate * 100).toFixed(2)}%
+      Average Latency: ${averageLatency.toFixed(2)}ms
+      P95 Latency: ${p95Latency.toFixed(2)}ms
+      Requests/Second: ${requestsPerSecond.toFixed(2)}
     `);
   });
 
   describe('Database Stress', () => {
     test('handles connection pool exhaustion', async () => {
+      if (skipIf(!dbAvailable, 'Database stress tests skipped because the database is unavailable.')) {
+        return;
+      }
+
       const pools: Pool[] = [];
 
       try {
@@ -61,6 +148,10 @@ describe('Stress Tests - System Breaking Points', () => {
     });
 
     test('handles large result sets', async () => {
+      if (skipIf(!dbAvailable, 'Database stress tests skipped because the database is unavailable.')) {
+        return;
+      }
+
       const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
       try {
@@ -85,6 +176,10 @@ describe('Stress Tests - System Breaking Points', () => {
     });
 
     test('handles rapid transaction commits', async () => {
+      if (skipIf(!dbAvailable, 'Database stress tests skipped because the database is unavailable.')) {
+        return;
+      }
+
       const pool = new Pool({ connectionString: process.env.DATABASE_URL });
       const promises = [];
 
@@ -109,6 +204,10 @@ describe('Stress Tests - System Breaking Points', () => {
 
   describe('Redis/Queue Stress', () => {
     test('handles queue overflow', async () => {
+      if (skipIf(!redisAvailable, 'Redis stress tests skipped because Redis is unavailable.')) {
+        return;
+      }
+
       const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
         maxRetriesPerRequest: null
       });
@@ -135,6 +234,10 @@ describe('Stress Tests - System Breaking Points', () => {
     });
 
     test('handles rapid pub/sub', async () => {
+      if (skipIf(!redisAvailable, 'Redis stress tests skipped because Redis is unavailable.')) {
+        return;
+      }
+
       const publisher = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
         maxRetriesPerRequest: null
       });
@@ -163,6 +266,10 @@ describe('Stress Tests - System Breaking Points', () => {
 
   describe('API Stress', () => {
     test('handles thundering herd', async () => {
+      if (skipIf(!apiAvailable, 'API stress tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // 1000 simultaneous requests
       const promises = Array(1000).fill(null).map(async () => {
         const start = performance.now();
@@ -186,6 +293,10 @@ describe('Stress Tests - System Breaking Points', () => {
     });
 
     test('handles sustained high load', async () => {
+      if (skipIf(!apiAvailable, 'API stress tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       const duration = 10000; // 10 seconds
       const startTime = Date.now();
       let requestCount = 0;
@@ -210,6 +321,10 @@ describe('Stress Tests - System Breaking Points', () => {
     });
 
     test('handles memory pressure', async () => {
+      if (skipIf(!apiAvailable, 'API stress tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Create runs with increasingly large payloads
       const sizes = [1, 10, 100, 1000, 10000]; // KB
 
@@ -247,6 +362,10 @@ describe('Stress Tests - System Breaking Points', () => {
 
   describe('Resource Exhaustion', () => {
     test('handles file descriptor exhaustion', async () => {
+      if (skipIf(!apiAvailable, 'Resource exhaustion tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       const promises = [];
 
       // Try to open many connections
@@ -266,6 +385,10 @@ describe('Stress Tests - System Breaking Points', () => {
     });
 
     test('handles CPU intensive operations', async () => {
+      if (skipIf(!apiAvailable, 'Resource exhaustion tests skipped because the API is unavailable.')) {
+        return;
+      }
+
       // Submit many CPU-intensive tasks
       const promises = Array(50).fill(null).map(() =>
         fetch(`${API_URL}/runs`, {

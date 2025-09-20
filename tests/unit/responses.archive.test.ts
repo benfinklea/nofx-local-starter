@@ -2,7 +2,11 @@ import { InMemoryResponsesArchive } from '../../src/shared/responses/archive';
 import { canonicalTextRun } from '../../src/shared/openai/responsesSchemas';
 
 describe('InMemoryResponsesArchive', () => {
-  const archive = new InMemoryResponsesArchive();
+  let archive: InMemoryResponsesArchive;
+
+  beforeEach(() => {
+    archive = new InMemoryResponsesArchive();
+  });
 
   it('stores a run and prevents duplicates', () => {
     const run = archive.startRun({ runId: 'run-1', request: canonicalTextRun });
@@ -51,5 +55,17 @@ describe('InMemoryResponsesArchive', () => {
     const timeline = archive.snapshotAt('run-4', 2)!;
     expect(timeline.events).toHaveLength(2);
     expect(timeline.events[1].type).toBe('response.output_text.delta');
+  });
+
+  it('lists runs in reverse chronological order', () => {
+    const a = archive.startRun({ runId: 'run-a', request: canonicalTextRun });
+    const b = archive.startRun({ runId: 'run-b', request: canonicalTextRun });
+    expect(a.createdAt <= b.createdAt).toBe(true);
+    a.createdAt = new Date(a.createdAt.getTime() - 1000);
+    a.updatedAt = a.createdAt;
+
+    const runs = archive.listRuns();
+    expect(runs[0].runId).toBe('run-b');
+    expect(runs.some((run) => run.runId === 'run-a')).toBe(true);
   });
 });

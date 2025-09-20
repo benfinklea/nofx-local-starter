@@ -70,6 +70,7 @@ body{
 .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
 .card .hd{padding:14px 16px;border-bottom:1px solid var(--border);font-weight:600}
 .card .bd{padding:16px; display:block}
+.card-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 
 /* Tables */
 table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
@@ -129,6 +130,7 @@ a:hover{text-decoration:none}
 .metric{display:flex;flex-direction:column;gap:4px;min-width:140px}
 .metric .k{color:var(--muted);font-size:.85em}
 .metric .v{font-weight:600}
+.scroll{overflow:auto}
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);width:min(720px,90vw);max-height:80vh;overflow:auto}
 .modal .hd{padding:12px 14px;border-bottom:1px solid var(--border);font-weight:600}

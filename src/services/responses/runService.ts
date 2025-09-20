@@ -34,6 +34,11 @@ export class ResponsesRunService {
     const runId = config.runId ?? `run_${crypto.randomUUID()}`;
     this.assertToolConstraints(config);
 
+    const runMetadata: Record<string, string> = {
+      tenant_id: config.tenantId,
+      ...(config.metadata ?? {}),
+    };
+
     const start = await this.coordinator.startRun({
       runId,
       tenantId: config.tenantId,
@@ -41,10 +46,10 @@ export class ResponsesRunService {
         ...config.request,
         metadata: {
           ...(config.request.metadata ?? {}),
-          ...(config.metadata ?? {}),
+          ...runMetadata,
         },
       },
-      metadata: config.metadata,
+      metadata: runMetadata,
       tools: config.tools,
       history: config.history,
       policy: config.conversationPolicy,

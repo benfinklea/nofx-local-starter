@@ -1,0 +1,101 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><title>NOFX - Responses Runs</title>
+<link rel="stylesheet" href="/ui/static/style.css"/>
+</head><body>
+<div class="header"><div class="inner">
+  <div class="brand"><a href="/ui/runs">NOFX</a></div>
+  <div class="nav">
+    <a href="/ui/runs">Runs</a>
+    <a href="/ui/builder">Builder</a>
+    <a href="/ui/responses" class="active">Responses</a>
+    <a href="/ui/models">Models</a>
+    <a href="/ui/settings">Settings</a>
+  </div>
+</div></div>
+<div class="container">
+  <div class="section-title" style="margin:16px 0 12px 0"><h1>Responses Runs</h1><span class="tip" data-tip="Runs executed via the Responses API orchestration layer. Click a row to inspect the archived timeline.">?</span></div>
+  <div class="grid" style="margin-bottom:16px">
+    <div class="col-12">
+      <div class="card"><div class="bd" style="display:flex;gap:18px;flex-wrap:wrap">
+        <div class="metric"><div class="k">Total Runs</div><div class="v" id="summary_total">0</div></div>
+        <div class="metric"><div class="k">Failures (24h)</div><div class="v" id="summary_failures">0</div></div>
+        <div class="metric"><div class="k">Last Run</div><div class="v" id="summary_last">—</div></div>
+        <div class="metric"><div class="k">Avg Tokens</div><div class="v" id="summary_avg_tokens">0</div></div>
+        <div class="metric"><div class="k">Rate Limit Remaining</div><div class="v" id="summary_rate">—</div></div>
+      </div></div>
+    </div>
+  </div>
+  <div class="card"><div class="bd">
+    <table id="responsesTable">
+      <thead><tr><th>ID</th><th>Status</th><th>Model</th><th>Created</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div></div>
+</div>
+<script>
+  const preloaded = <%- JSON.stringify(preloaded || {}) %>;
+
+  function renderRows(runs){
+    const tbody = document.querySelector('#responsesTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(runs) || runs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No responses runs yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = runs.map((run) => {
+      const status = String(run.status || 'queued').toLowerCase();
+      const badgeClass = status === 'completed' || status === 'succeeded' ? 'ok' : (status === 'failed' ? 'err' : (status === 'in_progress' || status === 'queued' ? 'warn' : ''));
+      const created = run.createdAt ? new Date(run.createdAt).toLocaleString() : '';
+      return `<tr>
+        <td><code><a href="/ui/responses/${run.runId}">${run.runId}</a></code></td>
+        <td><span class="badge ${badgeClass}">${run.status}</span></td>
+        <td>${run.model || '—'}</td>
+        <td class="muted">${created}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function refresh(){
+    try {
+      const res = await fetch('/responses/runs', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      renderRows(data.runs || []);
+    } catch {}
+  }
+
+  function applySummary(data){
+    if (!data) return;
+    document.getElementById('summary_total').textContent = data.totalRuns ?? 0;
+    document.getElementById('summary_failures').textContent = data.failuresLast24h ?? 0;
+    document.getElementById('summary_last').textContent = data.lastRunAt ? new Date(data.lastRunAt).toLocaleString() : '—';
+    document.getElementById('summary_avg_tokens').textContent = data.averageTokensPerRun ? data.averageTokensPerRun.toFixed(1) : '0';
+    const remaining = data.lastRateLimits?.remainingRequests ?? data.lastRateLimits?.remainingTokens;
+    document.getElementById('summary_rate').textContent = typeof remaining === 'number' ? String(remaining) : '—';
+  }
+
+  async function refreshSummary(){
+    try {
+      const res = await fetch('/responses/ops/summary', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      applySummary(data);
+    } catch {}
+  }
+
+  (function init(){
+    if (Array.isArray(preloaded.runs)) {
+      renderRows(preloaded.runs);
+    } else {
+      renderRows([]);
+    }
+    if (preloaded.summary) {
+      applySummary(preloaded.summary);
+    }
+    refresh();
+    refreshSummary();
+    setInterval(refresh, 5000);
+    setInterval(refreshSummary, 7000);
+  })();
+</script>
+</body></html>

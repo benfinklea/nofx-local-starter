@@ -8,6 +8,9 @@ export async function configureAutoBackup(min?: number){
   if (timer) { clearInterval(timer); timer = null; }
   if (minutes > 0) {
     timer = setInterval(() => { createBackup('auto-periodic').catch(() => {}); }, minutes * 60_000);
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
   }
 }
 

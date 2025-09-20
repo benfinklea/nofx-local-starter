@@ -116,11 +116,17 @@ export default function mount(app: Express){
   });
   app.post('/dev/tracing/enable', async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    try { await enableTracing('nofx-api'); return res.json({ ok: true }); } catch (e:any) { return res.status(500).json({ error: e?.message || 'failed' }); }
+    try { await enableTracing('nofx-api'); return res.json({ ok: true }); } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'failed';
+      return res.status(500).json({ error: message });
+    }
   });
   app.post('/dev/tracing/disable', async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    try { await disableTracing(); return res.json({ ok: true }); } catch (e:any) { return res.status(500).json({ error: e?.message || 'failed' }); }
+    try { await disableTracing(); return res.json({ ok: true }); } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'failed';
+      return res.status(500).json({ error: message });
+    }
   });
 
   // Alert tests (synthetic). Dev only; writes metrics directly for short duration.
