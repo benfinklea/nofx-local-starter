@@ -11,6 +11,7 @@ import {
   addResponsesModeratorNote,
   exportResponsesRun,
   getRunIncidents,
+  rollbackResponsesRun,
 } from '../../services/responses/runtime';
 import type { RunRecord, ModeratorNote } from '../../shared/responses/archive';
 
@@ -148,6 +149,10 @@ export default function mount(app: Express) {
         bufferedMessages: result.bufferedMessages,
         reasoning: result.reasoningSummaries,
         refusals: result.refusals,
+        outputAudio: result.outputAudio,
+        outputImages: result.outputImages,
+        inputTranscripts: result.inputTranscripts,
+        delegations: result.delegations,
         historyPlan: result.historyPlan,
         traceId: result.traceId,
         safety: result.safety,
@@ -189,6 +194,32 @@ export default function mount(app: Express) {
     }
   });
 
+  app.post('/responses/runs/:id/rollback', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const { id } = req.params;
+    try {
+      const schema = z.object({
+        sequence: z.number().int().positive().optional(),
+        toolCallId: z.string().min(1).optional(),
+        operator: z.string().min(1).optional(),
+        reason: z.string().min(1).optional(),
+      }).refine((value) => Boolean(value.sequence) || Boolean(value.toolCallId), {
+        message: 'sequence or toolCallId is required',
+      });
+      const parsed = schema.parse(req.body ?? {});
+      const snapshot = await rollbackResponsesRun(id, parsed);
+      res.json(snapshot);
+    } catch (err: unknown) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ error: err.flatten() });
+      }
+      if (err instanceof Error && err.message.includes('not found')) {
+        return res.status(404).json({ error: err.message });
+      }
+      res.status(500).json({ error: err instanceof Error ? err.message : 'rollback failed' });
+    }
+  });
+
   app.post('/responses/runs/:id/export', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
@@ -227,6 +258,10 @@ export default function mount(app: Express) {
         bufferedMessages: runtime.coordinator.getBufferedMessages(id),
         reasoning: runtime.coordinator.getBufferedReasoning(id),
         refusals: runtime.coordinator.getBufferedRefusals(id),
+        outputAudio: runtime.coordinator.getBufferedOutputAudio(id),
+        outputImages: runtime.coordinator.getBufferedImages(id),
+        inputTranscripts: runtime.coordinator.getBufferedInputTranscripts(id),
+        delegations: runtime.coordinator.getDelegations(id),
         rateLimits: runtime.tracker.getLastSnapshot(timeline.run.metadata?.tenant_id ?? timeline.run.metadata?.tenantId),
         incidents,
       });

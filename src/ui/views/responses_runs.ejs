@@ -24,6 +24,7 @@
         <div class="metric"><div class="k">Rate Limit Remaining</div><div class="v" id="summary_rate">—</div></div>
         <div class="metric"><div class="k">Total Refusals</div><div class="v" id="summary_refusals">0</div></div>
         <div class="metric"><div class="k">Open Incidents</div><div class="v" id="summary_incidents">0</div></div>
+        <div class="metric"><div class="k">Total Estimated Cost</div><div class="v" id="summary_cost">$0.00</div></div>
       </div></div>
     </div>
   </div>
@@ -40,7 +41,7 @@
     </div>
   </div>
   <div class="card" style="margin-bottom:16px"><div class="hd">Tenant Usage</div><div class="bd">
-    <table id="tenantTable"><thead><tr><th>Tenant</th><th>Runs</th><th>Total Tokens</th><th>Avg Tokens</th><th>Refusals</th><th>Last Run</th></tr></thead><tbody></tbody></table>
+    <table id="tenantTable"><thead><tr><th>Tenant</th><th>Runs</th><th>Total Tokens</th><th>Avg Tokens</th><th>Refusals</th><th>Last Run</th><th>Estimated Cost</th><th>Regions</th></tr></thead><tbody></tbody></table>
   </div></div>
   <div class="card"><div class="bd">
     <table id="responsesTable">
@@ -91,6 +92,7 @@
     document.getElementById('summary_rate').textContent = typeof remaining === 'number' ? String(remaining) : '—';
     document.getElementById('summary_refusals').textContent = data.totalRefusals ?? 0;
     document.getElementById('summary_incidents').textContent = data.openIncidents ?? 0;
+    document.getElementById('summary_cost').textContent = formatCurrency(data.totalEstimatedCost ?? 0);
     renderRateLimits(data.rateLimitTenants || []);
     renderIncidents(data.incidentDetails || []);
     renderTenantRollup(data.tenantRollup || []);
@@ -161,6 +163,8 @@
         <td>${item.averageTokensPerRun.toFixed(1)}</td>
         <td>${item.refusalCount}</td>
         <td class="muted">${item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : '—'}</td>
+        <td>${formatCurrency(item.estimatedCost)}</td>
+        <td>${escape((item.regions || []).join(', ') || '—')}</td>
       </tr>`;
     }).join('');
   }
@@ -168,6 +172,11 @@
   function formatPct(value){
     if (typeof value !== 'number' || Number.isNaN(value)) return '—';
     return `${Math.round(value * 100)}%`;
+  }
+
+  function formatCurrency(value){
+    const amount = typeof value === 'number' && !Number.isNaN(value) ? value : 0;
+    return `$${amount.toFixed(2)}`;
   }
 
   (function init(){

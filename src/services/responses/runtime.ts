@@ -12,7 +12,8 @@ import type { ResponsesResult } from '../../shared/openai/responsesSchemas';
 import { OpenAIResponsesClient } from './openaiClient';
 import { IncidentLog, type IncidentRecord, type IncidentStatus, type IncidentDisposition } from './incidentLog';
 import type { RateLimitTenantSummary, RateLimitSnapshot } from './rateLimitTracker';
-import type { ModeratorNote, ModeratorDisposition } from '../../shared/responses/archive';
+import type { ModeratorNote, ModeratorDisposition, RollbackOptions, RunRecord, EventRecord } from '../../shared/responses/archive';
+import { DelegationTracker } from './delegationTracker';
 
 type RuntimeBundle = {
   archive: FileSystemResponsesArchive;
@@ -21,6 +22,7 @@ type RuntimeBundle = {
   tracker: RateLimitTracker;
   toolRegistry: ToolRegistry;
   incidents: IncidentLog;
+  delegations: DelegationTracker;
 };
 
 export interface ResponsesOperationsSummary {
@@ -30,6 +32,7 @@ export interface ResponsesOperationsSummary {
   lastRunAt?: string;
   totalTokens: number;
   averageTokensPerRun: number;
+  totalEstimatedCost: number;
   recentRuns: Array<{
     runId: string;
     status: string;
@@ -66,6 +69,8 @@ type TenantRollup = {
   averageTokensPerRun: number;
   refusalCount: number;
   lastRunAt?: string;
+  estimatedCost: number;
+  regions: string[];
 };
 
 type SerializedIncident = {
@@ -155,6 +160,7 @@ function createRuntime(): RuntimeBundle {
     contextWindowTokens: Number(process.env.RESPONSES_CONTEXT_WINDOW_TOKENS || 128000),
   });
   const incidentLog = new IncidentLog(archiveDir);
+  const delegationTracker = new DelegationTracker({ archive });
 
   const ttlEnv = Number(process.env.RESPONSES_ARCHIVE_TTL_DAYS || 0);
   if (ttlEnv > 0 && typeof archive.pruneOlderThan === 'function') {
@@ -170,10 +176,32 @@ function createRuntime(): RuntimeBundle {
     toolRegistry,
     historyPlanner,
     incidentLog,
+    delegationTracker,
   });
   const service = new ResponsesRunService(coordinator);
 
-  return { archive, coordinator, service, tracker, toolRegistry, incidents: incidentLog };
+  return { archive, coordinator, service, tracker, toolRegistry, incidents: incidentLog, delegations: delegationTracker };
+}
+
+function serializeRunRecordMinimal(run: RunRecord) {
+  return {
+    runId: run.runId,
+    status: run.status,
+    createdAt: run.createdAt.toISOString(),
+    updatedAt: run.updatedAt.toISOString(),
+    model: run.request?.model,
+    metadata: run.metadata ?? {},
+    traceId: run.traceId,
+  };
+}
+
+function serializeEventRecordMinimal(event: EventRecord) {
+  return {
+    sequence: event.sequence,
+    type: event.type,
+    payload: event.payload,
+    occurredAt: event.occurredAt.toISOString(),
+  };
 }
 
 export function getResponsesRuntime(): RuntimeBundle {
@@ -198,7 +226,9 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
   let lastRunAt: Date | undefined;
   let totalRefusals = 0;
 
-  const tenantRollupMap = new Map<string, { runs: number; tokens: number; refusals: number; lastRunAt?: Date }>();
+  const tenantRollupMap = new Map<string, { runs: number; tokens: number; refusals: number; lastRunAt?: Date; cost: number; regions: Set<string> }>();
+  const costPerThousand = Number(process.env.RESPONSES_COST_PER_1K_TOKENS || 0.002);
+  let totalEstimatedCost = 0;
 
   for (const run of runs) {
     const status = run.status ?? 'unknown';
@@ -211,8 +241,16 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     }
     const tokens = run.result?.usage?.total_tokens ?? 0;
     totalTokens += tokens;
+    const runCost = (tokens / 1000) * costPerThousand;
+    totalEstimatedCost += runCost;
     const tenantId = run.metadata?.tenant_id ?? run.metadata?.tenantId ?? 'default';
-    const current = tenantRollupMap.get(tenantId) ?? { runs: 0, tokens: 0, refusals: 0 };
+    const current = tenantRollupMap.get(tenantId) ?? {
+      runs: 0,
+      tokens: 0,
+      refusals: 0,
+      cost: 0,
+      regions: new Set<string>(),
+    };
     current.runs += 1;
     current.tokens += tokens;
     if (!current.lastRunAt || run.updatedAt > current.lastRunAt) {
@@ -220,6 +258,9 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     }
     const refusals = run.safety?.refusalCount ?? 0;
     current.refusals += refusals;
+    current.cost += runCost;
+    const region = run.metadata?.region;
+    if (region) current.regions.add(region);
     tenantRollupMap.set(tenantId, current);
     totalRefusals += refusals;
   }
@@ -242,6 +283,8 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     averageTokensPerRun: data.runs ? data.tokens / data.runs : 0,
     refusalCount: data.refusals,
     lastRunAt: data.lastRunAt ? data.lastRunAt.toISOString() : undefined,
+    estimatedCost: Number(data.cost.toFixed(6)),
+    regions: Array.from(data.regions.values()),
   }));
 
   const openIncidents = runtime.incidents.listIncidents({ status: 'open' }).map(serializeIncident);
@@ -255,6 +298,7 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     lastRunAt: lastRunAt ? lastRunAt.toISOString() : undefined,
     totalTokens,
     averageTokensPerRun: runs.length ? totalTokens / runs.length : 0,
+    totalEstimatedCost: Number(totalEstimatedCost.toFixed(6)),
     recentRuns,
     totalRefusals,
     lastRateLimits: lastRateSnapshot ? serializeSnapshot(lastRateSnapshot) : undefined,
@@ -354,6 +398,22 @@ export async function exportResponsesRun(runId: string): Promise<string> {
 export function getRunIncidents(runId: string): SerializedIncident[] {
   const runtime = getResponsesRuntime();
   return runtime.incidents.getIncidentsForRun(runId).map(serializeIncident);
+}
+
+export async function rollbackResponsesRun(runId: string, options: RollbackOptions) {
+  const runtime = getResponsesRuntime();
+  if (typeof runtime.archive.rollback !== 'function') {
+    throw new Error('archive does not support rollback operations');
+  }
+  const snapshot = runtime.archive.rollback(runId, options);
+  const maybePromise = runtime.coordinator.resyncFromArchive(runId);
+  if (maybePromise instanceof Promise) {
+    await maybePromise;
+  }
+  return {
+    run: serializeRunRecordMinimal(snapshot.run),
+    events: snapshot.events.map(serializeEventRecordMinimal),
+  };
 }
 
 function serializeSnapshot(snapshot: RateLimitSnapshot): SerializedRateLimitSnapshot {

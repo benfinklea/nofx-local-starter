@@ -1,10 +1,12 @@
 import crypto from 'node:crypto';
 import type { ResponsesRequest } from '../../shared/openai/responsesSchemas';
-import { ResponsesRunCoordinator } from './runCoordinator';
+import { ResponsesRunCoordinator, type SpeechOptions } from './runCoordinator';
+import type { DelegationRecord } from '../../shared/responses/archive';
 import type { ToolRequestConfig } from './toolRegistry';
 import type { HistoryPlanInput, HistoryPlanner } from './historyPlanner';
 import type { ConversationPolicy } from './conversationStateManager';
 import type { SafetySnapshot, RunRecord } from '../../shared/responses/archive';
+import { sanitizeMetadata } from './sanitize';
 
 export interface ResponsesRunConfig {
   tenantId: string;
@@ -17,6 +19,7 @@ export interface ResponsesRunConfig {
   maxToolCalls?: number;
   toolChoice?: ResponsesRequest['tool_choice'];
   background?: boolean;
+  speech?: SpeechOptions;
 }
 
 export interface ResponsesRunResult {
@@ -25,9 +28,34 @@ export interface ResponsesRunResult {
   bufferedMessages: { id: string; text: string }[];
   reasoningSummaries: string[];
   refusals: string[];
+  outputAudio: StreamingAudioSegment[];
+  outputImages: StreamingImageArtifact[];
+  inputTranscripts: InputAudioTranscript[];
+  delegations: DelegationRecord[];
   historyPlan?: ReturnType<HistoryPlanner['plan']>;
   traceId?: string;
   safety?: SerializedSafetySnapshot;
+}
+
+export interface StreamingAudioSegment {
+  itemId: string;
+  audioBase64?: string;
+  format?: string;
+  transcript?: string;
+}
+
+export interface StreamingImageArtifact {
+  itemId: string;
+  b64JSON?: string;
+  imageUrl?: string;
+  background?: string | null;
+  size?: string;
+  createdAt?: string;
+}
+
+export interface InputAudioTranscript {
+  itemId: string;
+  transcript: string;
 }
 
 type SerializedSafetySnapshot = {
@@ -56,25 +84,34 @@ export class ResponsesRunService {
       normalizedRequest.safety_identifier = hashedSafetyIdentifier;
     }
 
-    const runMetadata: Record<string, string> = {
-      tenant_id: config.tenantId,
+    const rawMetadata: Record<string, string> = {
+      ...(typeof normalizedRequest.metadata === 'object' ? (normalizedRequest.metadata as Record<string, string>) : {}),
       ...(config.metadata ?? {}),
+      tenant_id: config.tenantId,
+      tenantId: config.tenantId,
     };
     if (hashedSafetyIdentifier) {
-      runMetadata.safety_identifier_hash = hashedSafetyIdentifier;
+      rawMetadata.safety_identifier_hash = hashedSafetyIdentifier;
     }
+    const region = resolveTenantRegion(config.tenantId);
+    if (region) {
+      rawMetadata.region = region;
+    }
+    const { metadata: sanitizedMetadata, redactedKeys } = sanitizeMetadata(rawMetadata);
+    if (redactedKeys.length) {
+      sanitizedMetadata.redacted_fields = redactedKeys.join(',');
+    }
+
+    normalizedRequest.metadata = sanitizedMetadata;
 
     const start = await this.coordinator.startRun({
       runId,
       tenantId: config.tenantId,
       request: {
         ...normalizedRequest,
-        metadata: {
-          ...(normalizedRequest.metadata ?? {}),
-          ...runMetadata,
-        },
+        metadata: sanitizedMetadata,
       },
-      metadata: runMetadata,
+      metadata: sanitizedMetadata,
       tools: config.tools,
       history: config.history,
       policy: config.conversationPolicy,
@@ -82,6 +119,7 @@ export class ResponsesRunService {
       toolChoice: config.toolChoice,
       background: config.background,
       safety: hashedSafetyIdentifier ? { hashedIdentifier: hashedSafetyIdentifier } : undefined,
+      speech: config.speech,
     });
 
     if (hashedSafetyIdentifier) {
@@ -103,6 +141,10 @@ export class ResponsesRunService {
       bufferedMessages: this.coordinator.getBufferedMessages(runId),
       reasoningSummaries: this.coordinator.getBufferedReasoning(runId),
       refusals: this.coordinator.getBufferedRefusals(runId),
+      outputAudio: this.coordinator.getBufferedOutputAudio(runId),
+      outputImages: this.coordinator.getBufferedImages(runId),
+      inputTranscripts: this.coordinator.getBufferedInputTranscripts(runId),
+      delegations: this.coordinator.getDelegations(runId),
       historyPlan: start.historyPlan,
       traceId: runRecord?.traceId,
       safety: runRecord?.safety ? serializeSafety(runRecord.safety) : undefined,
@@ -155,3 +197,31 @@ function serializeSafety(safety: SafetySnapshot): SerializedSafetySnapshot {
     })),
   };
 }
+
+function resolveTenantRegion(tenantId: string | undefined): string | undefined {
+  if (!tenantId) return undefined;
+  if (!tenantRegionCache || tenantRegionEnvSnapshot !== (process.env.RESPONSES_TENANT_REGIONS || '')) {
+    tenantRegionCache = buildTenantRegionMap(process.env.RESPONSES_TENANT_REGIONS);
+    tenantRegionEnvSnapshot = process.env.RESPONSES_TENANT_REGIONS || '';
+  }
+  return tenantRegionCache.get(tenantId);
+}
+
+function buildTenantRegionMap(raw: string | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!raw) return map;
+  raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .forEach((pair) => {
+      const [tenant, region] = pair.split(':').map((value) => value.trim());
+      if (tenant && region) {
+        map.set(tenant, region);
+      }
+    });
+  return map;
+}
+
+let tenantRegionEnvSnapshot = process.env.RESPONSES_TENANT_REGIONS || '';
+let tenantRegionCache: Map<string, string> = buildTenantRegionMap(process.env.RESPONSES_TENANT_REGIONS);

@@ -3,6 +3,20 @@ import type { ResponsesRequest, ResponsesResult } from '../openai/responsesSchem
 
 type RunStatus = 'queued' | 'in_progress' | 'completed' | 'failed' | 'cancelled' | 'incomplete';
 
+export type DelegationStatus = 'requested' | 'completed' | 'failed';
+
+export interface DelegationRecord {
+  callId: string;
+  toolName: string;
+  requestedAt: Date;
+  status: DelegationStatus;
+  arguments?: unknown;
+  completedAt?: Date;
+  linkedRunId?: string;
+  output?: unknown;
+  error?: unknown;
+}
+
 export type ModeratorDisposition = 'approved' | 'escalated' | 'blocked' | 'info';
 
 export interface ModeratorNote {
@@ -26,6 +40,7 @@ type StartRunInput = {
   metadata?: Record<string, string>;
   traceId?: string;
   safety?: Partial<SafetySnapshot>;
+  delegations?: DelegationRecord[];
 };
 
 type RecordEventInput = {
@@ -59,6 +74,7 @@ export interface RunRecord {
   result?: ResponsesResult;
   traceId?: string;
   safety?: SafetySnapshot;
+  delegations?: DelegationRecord[];
 }
 
 export interface EventRecord {
@@ -74,6 +90,13 @@ export interface TimelineSnapshot {
   events: EventRecord[];
 }
 
+export interface RollbackOptions {
+  sequence?: number;
+  toolCallId?: string;
+  operator?: string;
+  reason?: string;
+}
+
 export interface ResponsesArchive {
   startRun(input: StartRunInput): RunRecord | Promise<RunRecord>;
   recordEvent(runId: string, input: RecordEventInput): EventRecord | Promise<EventRecord>;
@@ -87,6 +110,9 @@ export interface ResponsesArchive {
   updateSafety?(runId: string, input: SafetyUpdateInput): SafetySnapshot | Promise<SafetySnapshot>;
   addModeratorNote?(runId: string, input: ModeratorNoteInput): ModeratorNote | Promise<ModeratorNote>;
   exportRun?(runId: string): string | Promise<string>;
+  recordDelegation?(runId: string, record: DelegationRecord): DelegationRecord | Promise<DelegationRecord>;
+  updateDelegation?(runId: string, callId: string, updates: Partial<DelegationRecord>): DelegationRecord | Promise<DelegationRecord>;
+  rollback?(runId: string, options: RollbackOptions): TimelineSnapshot | Promise<TimelineSnapshot>;
 }
 
 export class InMemoryResponsesArchive implements ResponsesArchive {
@@ -115,6 +141,7 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
         lastRefusalAt: input.safety?.lastRefusalAt,
         moderatorNotes: input.safety?.moderatorNotes ? [...input.safety.moderatorNotes] : [],
       },
+      delegations: input.delegations ? input.delegations.map(cloneDelegation) : [],
     };
     this.runs.set(run.runId, run);
     this.events.set(run.runId, []);
@@ -238,4 +265,146 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
     this.runs.set(runId, run);
     return note;
   }
+
+  recordDelegation(runId: string, record: DelegationRecord): DelegationRecord {
+    const run = this.runs.get(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const delegations = [...(run.delegations ?? [])];
+    const normalized = cloneDelegation(record);
+    const existing = delegations.findIndex((entry) => entry.callId === normalized.callId);
+    if (existing >= 0) {
+      delegations.splice(existing, 1, normalized);
+    } else {
+      delegations.push(normalized);
+    }
+    this.runs.set(runId, { ...run, delegations, updatedAt: new Date() });
+    return cloneDelegation(normalized);
+  }
+
+  updateDelegation(runId: string, callId: string, updates: Partial<DelegationRecord>): DelegationRecord {
+    const run = this.runs.get(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const delegations = [...(run.delegations ?? [])];
+    const index = delegations.findIndex((entry) => entry.callId === callId);
+    if (index < 0) throw new Error(`delegation ${callId} not found for run ${runId}`);
+    const existing = delegations[index];
+    const updated: DelegationRecord = {
+      ...existing,
+      ...updates,
+      requestedAt: updates.requestedAt ? new Date(updates.requestedAt) : existing.requestedAt,
+      completedAt: updates.completedAt
+        ? new Date(updates.completedAt)
+        : updates.status && updates.status === 'completed'
+        ? new Date()
+        : existing.completedAt,
+    };
+    delegations[index] = cloneDelegation(updated);
+    this.runs.set(runId, { ...run, delegations, updatedAt: new Date() });
+    return cloneDelegation(updated);
+  }
+
+  rollback(runId: string, options: RollbackOptions): TimelineSnapshot {
+    const run = this.runs.get(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const events = this.events.get(runId) ?? [];
+    const { run: updatedRun, events: trimmedEvents } = applyRollbackToTimeline(run, events, options);
+    this.runs.set(runId, updatedRun);
+    this.events.set(runId, trimmedEvents);
+    return {
+      run: updatedRun,
+      events: [...trimmedEvents],
+    };
+  }
+}
+
+function cloneDelegation(record: DelegationRecord): DelegationRecord {
+  return {
+    callId: record.callId,
+    toolName: record.toolName,
+    requestedAt: new Date(record.requestedAt),
+    status: record.status,
+    arguments: record.arguments,
+    completedAt: record.completedAt ? new Date(record.completedAt) : undefined,
+    linkedRunId: record.linkedRunId,
+    output: record.output,
+    error: record.error,
+  };
+}
+
+function eventMatchesToolCall(event: EventRecord, callId: string): boolean {
+  const payload = event.payload;
+  if (payload && typeof payload === 'object') {
+    const obj = payload as Record<string, unknown>;
+    if (obj.call_id === callId || obj.callId === callId) return true;
+    if (obj.id === callId && (obj.type === 'tool_call' || obj.type === 'message')) return true;
+    if (obj.item && typeof obj.item === 'object' && (obj.item as any).id === callId) return true;
+  }
+  return false;
+}
+
+export function applyRollbackToTimeline(
+  run: RunRecord,
+  events: EventRecord[],
+  options: RollbackOptions,
+): { run: RunRecord; events: EventRecord[] } {
+  let workingEvents = [...events];
+  if (typeof options.sequence === 'number') {
+    workingEvents = workingEvents.filter((event) => event.sequence <= options.sequence!);
+  }
+  if (options.toolCallId) {
+    workingEvents = workingEvents.filter((event) => !eventMatchesToolCall(event, options.toolCallId!));
+  }
+
+  const reindexedEvents = workingEvents.map((event, idx) => ({ ...event, sequence: idx + 1 }));
+  const updatedResult = run.result ? stripToolCallFromResult(run.result, options.toolCallId) : run.result;
+
+  const metadata: Record<string, string> = {
+    ...(run.metadata ?? {}),
+    last_rollback_at: new Date().toISOString(),
+  };
+  if (options.sequence !== undefined) {
+    metadata.last_rollback_sequence = String(options.sequence);
+  }
+  if (options.operator) {
+    metadata.last_rollback_operator = options.operator;
+  }
+  if (options.reason) {
+    metadata.last_rollback_reason = options.reason;
+  }
+  if (options.toolCallId) {
+    metadata.last_rollback_tool_call = options.toolCallId;
+  }
+
+  const updatedRun: RunRecord = {
+    ...run,
+    result: updatedResult,
+    metadata,
+    updatedAt: new Date(),
+  };
+
+  return { run: updatedRun, events: reindexedEvents };
+}
+
+function stripToolCallFromResult(result: ResponsesResult, toolCallId?: string): ResponsesResult {
+  if (!toolCallId) return result;
+  const next: ResponsesResult['output'] = [];
+  for (const item of result.output ?? []) {
+    if (!item) continue;
+    if ((item as any).id === toolCallId || (item as any).call_id === toolCallId) {
+      continue;
+    }
+    if (item.type === 'message') {
+      const filteredContent = Array.isArray(item.content)
+        ? item.content.filter((part) => !('call_id' in (part as any) && (part as any).call_id === toolCallId))
+        : item.content;
+      next.push({ ...item, content: filteredContent });
+      continue;
+    }
+    next.push(item);
+  }
+
+  return {
+    ...result,
+    output: next,
+  };
 }

@@ -28,7 +28,7 @@ function logInfo(msg) {
 }
 
 const which = process.argv[3] // argv[2] is the script path in zx
-const validGates = ['typecheck', 'lint', 'unit', 'sast', 'secrets', 'audit', 'unused']
+const validGates = ['typecheck', 'lint', 'unit', 'sast', 'secrets', 'audit', 'unused', 'load']
 
 if (!which) {
   logError(`Usage: zx scripts/runGate.mjs <${validGates.join('|')}>`)
@@ -88,6 +88,9 @@ try {
     case 'unused':
       await runUnused()
       break
+    case 'load':
+      await runLoad()
+      break
   }
 } catch (error) {
   logError(`Gate ${which} failed: ${error.message}`)
@@ -131,13 +134,14 @@ async function runLint() {
   try {
     const result = await $`npm run -s lint`
     summary = { gate: 'lint', passed: true }
-    artifactPath = `${ARTIFACTS_DIR}/eslint.json`
-    await fs.promises.writeFile(artifactPath, result.stdout || '[]')
+    artifactPath = `${ARTIFACTS_DIR}/eslint.txt`
+    await fs.promises.writeFile(artifactPath, (result.stdout + '\n' + result.stderr).trim() || 'Lint succeeded with no output.')
     code = 0
   } catch (error) {
     summary = { gate: 'lint', passed: false }
-    artifactPath = `${ARTIFACTS_DIR}/eslint.json`
-    await fs.promises.writeFile(artifactPath, error.stdout || '[]')
+    artifactPath = `${ARTIFACTS_DIR}/eslint.txt`
+    const output = [error.stdout, error.stderr].filter(Boolean).join('\n').trim()
+    await fs.promises.writeFile(artifactPath, output || 'Lint failed with no output captured.')
     code = 1
   }
 }
@@ -238,6 +242,28 @@ async function runUnused() {
   await fs.promises.writeFile(artifactPath, JSON.stringify(out, null, 2))
   summary = { gate: 'unused', passed: true, count: findings.length, skipped: true }
   code = 0
+}
+
+async function runLoad() {
+  if (!hasNpmScript('test:load')) {
+    summary = { gate: 'load', passed: false, error: 'No test:load script found in package.json' }
+    code = 1
+    return
+  }
+
+  logInfo('Running load/performance guard...')
+  try {
+    const result = await $`npm run -s test:load`
+    artifactPath = `${ARTIFACTS_DIR}/load.txt`
+    await fs.promises.writeFile(artifactPath, [result.stdout, result.stderr].filter(Boolean).join('\n'))
+    summary = { gate: 'load', passed: true }
+    code = 0
+  } catch (error) {
+    artifactPath = `${ARTIFACTS_DIR}/load.txt`
+    await fs.promises.writeFile(artifactPath, [error.stdout, error.stderr].filter(Boolean).join('\n'))
+    summary = { gate: 'load', passed: false }
+    code = 1
+  }
 }
 
 async function getChangedLines() {

@@ -6,6 +6,7 @@ import { InMemoryResponsesArchive } from '../../src/shared/responses/archive';
 import type { ResponsesRequest, ResponsesResult } from '../../src/shared/openai/responsesSchemas';
 import { ToolRegistry } from '../../src/services/responses/toolRegistry';
 import { HistoryPlanner } from '../../src/services/responses/historyPlanner';
+import { DelegationTracker } from '../../src/services/responses/delegationTracker';
 
 const createClient = (result: ResponsesResult, headers?: Record<string, string>) => ({
   create: jest.fn(async () => ({ result, headers })),
@@ -34,6 +35,11 @@ describe('ResponsesRunCoordinator', () => {
               type: 'output_text',
               text: 'Hello world',
             },
+            {
+              type: 'output_audio',
+              audio: 'QUJD',
+              transcript: 'Hello world',
+            },
           ],
         },
       ],
@@ -48,6 +54,95 @@ describe('ResponsesRunCoordinator', () => {
     expect(timeline.run.status).toBe('completed');
     expect(client.create).toHaveBeenCalledTimes(1);
     expect(coordinator.getBufferedMessages('run-10')[0]?.text).toBe('Hello world');
+    const audio = coordinator.getBufferedOutputAudio('run-10');
+   expect(audio[0]?.audioBase64).toBe('QUJD');
+    expect(audio[0]?.transcript).toBe('Hello world');
+  });
+
+  it('buffers reasoning summaries when responses contain reasoning output items', async () => {
+    const archive = new InMemoryResponsesArchive();
+    const conversationManager = new ConversationStateManager(new InMemoryConversationStore());
+    const client = createClient({
+      id: 'resp_reasoning',
+      status: 'completed',
+      output: [
+        {
+          type: 'reasoning',
+          id: 'reasoning_1',
+          status: 'completed',
+          reasoning: [
+            {
+              type: 'reasoning',
+              text: 'Reasoned about the problem',
+            },
+          ],
+        },
+      ],
+    });
+    const coordinator = new ResponsesRunCoordinator({ archive, conversationManager, client });
+
+    await coordinator.startRun({ runId: 'run-reasoning', tenantId: 'tenant-reasoning', request: baseRequest });
+
+    expect(coordinator.getBufferedReasoning('run-reasoning')).toEqual(['Reasoned about the problem']);
+    expect(coordinator.getBufferedMessages('run-reasoning')).toHaveLength(0);
+  });
+
+  it('records speech configuration metadata', async () => {
+    const archive = new InMemoryResponsesArchive();
+    const conversationManager = new ConversationStateManager(new InMemoryConversationStore());
+    const client = createClient({ id: 'resp_speech', status: 'completed', output: [] });
+    const coordinator = new ResponsesRunCoordinator({ archive, conversationManager, client });
+
+    await coordinator.startRun({
+      runId: 'run-speech',
+      tenantId: 'tenant-audio',
+      request: baseRequest,
+      speech: {
+        mode: 'server_vad',
+        inputFormat: 'pcm16',
+        transcription: { enabled: true, model: 'gpt-4o-transcribe' },
+      },
+    });
+
+    const run = archive.getRun('run-speech');
+    expect(run?.metadata?.speech_mode).toBe('server_vad');
+    expect(run?.metadata?.speech_input_format).toBe('pcm16');
+    expect(run?.metadata?.speech_transcription).toBe('enabled');
+    expect(run?.metadata?.speech_transcription_model).toBe('gpt-4o-transcribe');
+  });
+
+  it('captures delegation lineage from tool calls', async () => {
+    const archive = new InMemoryResponsesArchive();
+    const conversationManager = new ConversationStateManager(new InMemoryConversationStore());
+    const client = createClient({ id: 'resp_delegate', status: 'completed', output: [] });
+    const delegationTracker = new DelegationTracker({ archive });
+    const coordinator = new ResponsesRunCoordinator({ archive, conversationManager, client, delegationTracker });
+
+    await coordinator.startRun({ runId: 'run-deleg', tenantId: 'tenant-deleg', request: baseRequest, background: true });
+    coordinator.handleEvent('run-deleg', { type: 'response.created', sequence_number: 1 });
+    coordinator.handleEvent('run-deleg', {
+      type: 'response.function_call_arguments.done',
+      sequence_number: 2,
+      call_id: 'call_123',
+      name: 'delegate_agent',
+      arguments: '{"task":"draft"}',
+    });
+    coordinator.handleEvent('run-deleg', {
+      type: 'response.output_item.done',
+      sequence_number: 3,
+      item: {
+        id: 'call_123',
+        type: 'tool_call',
+        status: 'completed',
+        output: { summary: 'ok' },
+      },
+    });
+
+    const delegations = coordinator.getDelegations('run-deleg');
+    expect(delegations).toHaveLength(1);
+    expect(delegations[0].toolName).toBe('delegate_agent');
+    expect(delegations[0].status).toBe('completed');
+    expect(delegations[0].output).toMatchObject({ summary: 'ok' });
   });
 
   it('respects vendor conversation policy and captures rate limits', async () => {

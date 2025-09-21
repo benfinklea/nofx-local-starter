@@ -98,6 +98,10 @@ export default function mount(app: Express){
           bufferedMessages: [],
           reasoning: [],
           refusals: [],
+          outputAudio: [],
+          outputImages: [],
+          inputTranscripts: [],
+          delegations: [],
           incidents: [],
         },
       });
@@ -123,6 +127,10 @@ export default function mount(app: Express){
         bufferedMessages: runtime.coordinator.getBufferedMessages(id),
         reasoning: runtime.coordinator.getBufferedReasoning(id),
         refusals: runtime.coordinator.getBufferedRefusals(id),
+        outputAudio: runtime.coordinator.getBufferedOutputAudio(id),
+        outputImages: runtime.coordinator.getBufferedImages(id),
+        inputTranscripts: runtime.coordinator.getBufferedInputTranscripts(id),
+        delegations: runtime.coordinator.getDelegations(id),
         incidents: getRunIncidents(id),
       },
     });

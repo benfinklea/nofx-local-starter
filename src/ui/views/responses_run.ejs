@@ -20,6 +20,20 @@
         <pre id="assistantOutput" class="scroll"></pre>
         <div id="refusals" class="muted" style="margin-top:8px"></div>
       </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Multimodal Artifacts</div><div class="bd" id="multimodalArtifacts">
+        <div class="subsection">
+          <h4>Assistant Audio</h4>
+          <div id="audioArtifacts" class="media-list muted">No audio captured.</div>
+        </div>
+        <div class="subsection" style="margin-top:12px">
+          <h4>Generated Images</h4>
+          <div id="imageArtifacts" class="image-grid muted">No images generated.</div>
+        </div>
+        <div class="subsection" style="margin-top:12px">
+          <h4>Input Transcripts</h4>
+          <div id="inputTranscripts" class="media-list muted">No input transcripts recorded.</div>
+        </div>
+      </div></div>
       <div class="card" style="margin-top:16px"><div class="hd">Timeline</div><div class="bd">
         <table id="eventTable"><thead><tr><th>#</th><th>Event</th><th>Timestamp</th></tr></thead><tbody></tbody></table>
       </div></div>
@@ -61,6 +75,9 @@
       <div class="card" style="margin-top:16px"><div class="hd">Incidents</div><div class="bd">
         <table id="incidentTable"><thead><tr><th>Status</th><th>Type</th><th>Observed</th></tr></thead><tbody></tbody></table>
       </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Delegations</div><div class="bd">
+        <table id="delegationTable"><thead><tr><th>Tool</th><th>Status</th><th>Requested</th><th>Completed</th></tr></thead><tbody></tbody></table>
+      </div></div>
     </div>
   </div>
 </div>
@@ -89,7 +106,7 @@
     renderModeratorNotes(run.safety?.moderatorNotes || []);
   }
 
-  function renderOutput(messages, reasoning, refusals){
+  function renderOutput(messages, reasoning, refusals, audio, images, transcripts){
     const output = Array.isArray(messages) && messages.length
       ? messages.map((m) => m.text || '').join('\n\n')
       : 'No assistant output yet.';
@@ -103,6 +120,77 @@
       reasons.push('Refusal: ' + refusals.join(' '));
     }
     reasonEl.textContent = reasons.join(' \u2022 ');
+    renderArtifacts(audio || [], images || [], transcripts || []);
+  }
+
+  function renderArtifacts(audioSegments, imageArtifacts, transcripts){
+    const audioContainer = document.getElementById('audioArtifacts');
+    if (audioContainer) {
+      if (Array.isArray(audioSegments) && audioSegments.length) {
+        audioContainer.classList.remove('muted');
+        audioContainer.innerHTML = audioSegments
+          .map((segment, index) => {
+            const label = escape(segment.itemId || `segment_${index + 1}`);
+            const source = segment.audioBase64 ? `data:audio/${segment.format || 'wav'};base64,${segment.audioBase64}` : '';
+            const audioHtml = source
+              ? `<audio controls preload="none" src="${source}"></audio>`
+              : '<div class="muted">No audio payload archived.</div>';
+            const transcriptHtml = segment.transcript
+              ? `<div class="muted" style="margin-top:4px">Transcript: ${escape(segment.transcript)}</div>`
+              : '';
+            return `<div class="artifact"><div class="artifact-label">${label}</div>${audioHtml}${transcriptHtml}</div>`;
+          })
+          .join('');
+      } else {
+        audioContainer.classList.add('muted');
+        audioContainer.textContent = 'No audio captured.';
+      }
+    }
+
+    const imageContainer = document.getElementById('imageArtifacts');
+    if (imageContainer) {
+      if (Array.isArray(imageArtifacts) && imageArtifacts.length) {
+        imageContainer.classList.remove('muted');
+        imageContainer.innerHTML = imageArtifacts
+          .map((artifact, index) => {
+            const label = escape(artifact.itemId || `image_${index + 1}`);
+            const source = artifact.imageUrl
+              ? artifact.imageUrl
+              : artifact.b64JSON
+              ? `data:image/png;base64,${artifact.b64JSON}`
+              : '';
+            const imageHtml = source
+              ? `<img src="${source}" alt="${label}" style="max-width:100%;border:1px solid #eee;border-radius:6px"/>`
+              : '<div class="muted">No image payload archived.</div>';
+            const meta = [];
+            if (artifact.size) meta.push(`Size: ${escape(artifact.size)}`);
+            if (artifact.background !== undefined && artifact.background !== null) meta.push(`Background: ${escape(String(artifact.background))}`);
+            if (artifact.createdAt) meta.push(`Created: ${new Date(artifact.createdAt).toLocaleString()}`);
+            const metaHtml = meta.length ? `<div class="muted" style="margin-top:4px">${meta.join(' \u2022 ')}</div>` : '';
+            return `<div class="artifact"><div class="artifact-label">${label}</div>${imageHtml}${metaHtml}</div>`;
+          })
+          .join('');
+      } else {
+        imageContainer.classList.add('muted');
+        imageContainer.textContent = 'No images generated.';
+      }
+    }
+
+    const transcriptContainer = document.getElementById('inputTranscripts');
+    if (transcriptContainer) {
+      if (Array.isArray(transcripts) && transcripts.length) {
+        transcriptContainer.classList.remove('muted');
+        transcriptContainer.innerHTML = transcripts
+          .map((entry, index) => {
+            const label = escape(entry.itemId || `input_${index + 1}`);
+            return `<div class="artifact"><div class="artifact-label">${label}</div><div>${escape(entry.transcript)}</div></div>`;
+          })
+          .join('');
+      } else {
+        transcriptContainer.classList.add('muted');
+        transcriptContainer.textContent = 'No input transcripts recorded.';
+      }
+    }
   }
 
   function renderEvents(events){
@@ -148,15 +236,40 @@
     </tr>`).join('');
   }
 
+  function renderDelegations(records){
+    const tbody = document.querySelector('#delegationTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(records) || records.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No delegation events recorded.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = records
+      .map((record) => `<tr>
+        <td>${escape(record.toolName || 'unknown')}</td>
+        <td><span class="badge ${record.status === 'completed' ? 'ok' : record.status === 'failed' ? 'err' : 'warn'}">${escape(record.status)}</span></td>
+        <td class="muted">${record.requestedAt ? new Date(record.requestedAt).toLocaleString() : '—'}</td>
+        <td class="muted">${record.completedAt ? new Date(record.completedAt).toLocaleString() : '—'}</td>
+      </tr>`)
+      .join('');
+  }
+
   async function refresh(){
     try {
       const res = await fetch(`/responses/runs/${runId}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
       if (!res.ok) return;
       const data = await res.json();
       renderMetadata(data.run || {});
-      renderOutput(data.bufferedMessages || [], data.reasoning || [], data.refusals || []);
+      renderOutput(
+        data.bufferedMessages || [],
+        data.reasoning || [],
+        data.refusals || [],
+        data.outputAudio || [],
+        data.outputImages || [],
+        data.inputTranscripts || [],
+      );
       renderEvents(data.events || []);
       renderIncidents(data.incidents || []);
+      renderDelegations(data.delegations || []);
     } catch {}
   }
 
@@ -181,13 +294,23 @@
       renderMetadata(preloaded.run);
     }
     if (Array.isArray(preloaded.bufferedMessages) || Array.isArray(preloaded.reasoning) || Array.isArray(preloaded.refusals)) {
-      renderOutput(preloaded.bufferedMessages || [], preloaded.reasoning || [], preloaded.refusals || []);
+      renderOutput(
+        preloaded.bufferedMessages || [],
+        preloaded.reasoning || [],
+        preloaded.refusals || [],
+        preloaded.outputAudio || [],
+        preloaded.outputImages || [],
+        preloaded.inputTranscripts || [],
+      );
     }
     if (Array.isArray(preloaded.events)) {
       renderEvents(preloaded.events);
     }
     if (Array.isArray(preloaded.incidents)) {
       renderIncidents(preloaded.incidents);
+    }
+    if (Array.isArray(preloaded.delegations)) {
+      renderDelegations(preloaded.delegations);
     }
     refresh();
     setInterval(refresh, 4000);
