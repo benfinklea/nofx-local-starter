@@ -5,7 +5,8 @@ import { getSettings, type Settings } from '../../lib/settings';
 import { listModels, type ModelRow } from '../../lib/models';
 import { isAdmin } from '../../lib/auth';
 import { BuilderTemplateManager } from '../../services/builder/builderManager';
-import { getResponsesRuntime, getResponsesOperationsSummary } from '../../services/responses/runtime';
+import { getResponsesRuntime, getResponsesOperationsSummary, getRunIncidents } from '../../services/responses/runtime';
+import type { SafetySnapshot } from '../../shared/responses/archive';
 
 const builderManager = new BuilderTemplateManager();
 
@@ -86,11 +87,18 @@ export default function mount(app: Express){
     if (!timeline) {
       return res.render('responses_run', {
         preloaded: {
-          run: { runId: id, status: 'unknown', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          run: {
+            runId: id,
+            status: 'unknown',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            safety: { hashedIdentifier: undefined, refusalCount: 0, moderatorNotes: [] },
+          },
           events: [],
           bufferedMessages: [],
           reasoning: [],
           refusals: [],
+          incidents: [],
         },
       });
     }
@@ -103,6 +111,8 @@ export default function mount(app: Express){
           metadata: timeline.run.metadata ?? {},
           createdAt: timeline.run.createdAt.toISOString(),
           updatedAt: timeline.run.updatedAt.toISOString(),
+          traceId: timeline.run.traceId,
+          safety: serializeSafety(timeline.run.safety),
         },
         events: timeline.events.map((event) => ({
           sequence: event.sequence,
@@ -113,6 +123,7 @@ export default function mount(app: Express){
         bufferedMessages: runtime.coordinator.getBufferedMessages(id),
         reasoning: runtime.coordinator.getBufferedReasoning(id),
         refusals: runtime.coordinator.getBufferedRefusals(id),
+        incidents: getRunIncidents(id),
       },
     });
   });
@@ -132,4 +143,19 @@ export default function mount(app: Express){
     if (error || !data) return res.status(404).send('not found');
     res.redirect(data.signedUrl);
   });
+}
+
+function serializeSafety(safety?: SafetySnapshot) {
+  if (!safety) return { hashedIdentifier: undefined, refusalCount: 0, moderatorNotes: [] };
+  return {
+    hashedIdentifier: safety.hashedIdentifier,
+    refusalCount: safety.refusalCount,
+    lastRefusalAt: safety.lastRefusalAt ? safety.lastRefusalAt.toISOString() : undefined,
+    moderatorNotes: safety.moderatorNotes.map((note) => ({
+      reviewer: note.reviewer,
+      note: note.note,
+      disposition: note.disposition,
+      recordedAt: note.recordedAt.toISOString(),
+    })),
+  };
 }

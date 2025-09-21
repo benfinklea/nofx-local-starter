@@ -1,5 +1,17 @@
 # Manual Testing Instructions
 
+> **Interactive Walkthrough Requirement**: You must personally open a web browser against the running NOFX dev stack and walk the interface end-to-end:
+>
+> 1. Start the backend (`npm run dev`) and frontend (`npm run fe:dev`) so the UI is reachable.
+> 2. Visit http://localhost:3000/health to confirm the API is live, then go to /ui/login and mint the admin cookie if needed.
+> 3. In /ui/builder, create a template (add an input_text field and enable a deployment channel) and click “Run Template”.
+> 4. Navigate to /ui/responses, open the run you just created, inspect the buffered assistant output, the raw `response.completed` event, and metadata.
+> 5. Click “Retry Run” and verify a second run with `retried_from` metadata appears.
+> 6. Toggle `RESPONSES_ARCHIVE_TTL_DAYS=1`, restart the API, refresh /ui/responses, and confirm older runs drop off; if necessary, edit a JSON file under `local_data/responses/` to simulate age.
+> 7. Hit `POST /responses/ops/prune` with `{ "days": 1 }` and verify stale runs disappear while recent ones remain.
+>
+> Document every click, page load, and observation, including any UI defects or known issues you encounter. Do not mark the walkthrough complete until each numbered step above has been performed in the browser.
+
 ## Environment Preparation
 1. Install Node.js 20 and PostgreSQL (or rely on the file-system store for quick checks).
 2. Copy `.env.example` to `.env` and populate `OPENAI_API_KEY`. Set `RESPONSES_RUNTIME_MODE=stub` for offline smoke tests; switch to real keys for end-to-end validation.

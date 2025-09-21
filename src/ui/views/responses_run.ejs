@@ -37,10 +37,29 @@
         <div class="metric"><div class="k">Model</div><div class="v" id="runModel">—</div></div>
         <div class="metric"><div class="k">Created</div><div class="v" id="runCreated">—</div></div>
         <div class="metric"><div class="k">Updated</div><div class="v" id="runUpdated">—</div></div>
+        <div class="metric"><div class="k">Trace ID</div><div class="v" id="runTrace">—</div></div>
+        <div class="metric"><div class="k">Safety Hash</div><div class="v" id="runSafety">—</div></div>
         <div class="metric"><div class="k">Metadata</div><div class="v"><pre id="runMetadata" class="scroll" style="max-height:140px"></pre></div></div>
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="btn primary small" onclick="retryRun()">Retry Run</button>
         </div>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Moderator Notes</div><div class="bd">
+        <ul id="moderatorNotes" class="list"></ul>
+        <form id="noteForm" style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <input type="text" id="noteReviewer" placeholder="Reviewer" required class="input"/>
+          <textarea id="noteText" placeholder="Add a note" rows="3" class="input"></textarea>
+          <select id="noteDisposition" class="input">
+            <option value="approved">Approved</option>
+            <option value="escalated">Escalated</option>
+            <option value="blocked">Blocked</option>
+            <option value="info">Info</option>
+          </select>
+          <button type="submit" class="btn small">Add Note</button>
+        </form>
+      </div></div>
+      <div class="card" style="margin-top:16px"><div class="hd">Incidents</div><div class="bd">
+        <table id="incidentTable"><thead><tr><th>Status</th><th>Type</th><th>Observed</th></tr></thead><tbody></tbody></table>
       </div></div>
     </div>
   </div>
@@ -65,6 +84,9 @@
     document.getElementById('runCreated').textContent = run.createdAt ? new Date(run.createdAt).toLocaleString() : '—';
     document.getElementById('runUpdated').textContent = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '—';
     document.getElementById('runMetadata').textContent = run.metadata ? JSON.stringify(run.metadata, null, 2) : '{}';
+    document.getElementById('runTrace').innerHTML = run.traceId ? `<code>${escape(run.traceId)}</code>` : '—';
+    document.getElementById('runSafety').textContent = run.safety?.hashedIdentifier || '—';
+    renderModeratorNotes(run.safety?.moderatorNotes || []);
   }
 
   function renderOutput(messages, reasoning, refusals){
@@ -102,6 +124,30 @@
     document.getElementById('eventsRaw').textContent = JSON.stringify(events, null, 2);
   }
 
+  function renderModeratorNotes(notes){
+    const list = document.getElementById('moderatorNotes');
+    if (!list) return;
+    if (!Array.isArray(notes) || notes.length === 0) {
+      list.innerHTML = '<li class="muted">No moderator notes recorded.</li>';
+      return;
+    }
+    list.innerHTML = notes.map((note) => `<li><strong>${escape(note.reviewer)}</strong> <span class="badge">${escape(note.disposition)}</span><br/><span class="muted">${new Date(note.recordedAt).toLocaleString()}</span><div>${escape(note.note)}</div></li>`).join('');
+  }
+
+  function renderIncidents(incidents){
+    const tbody = document.querySelector('#incidentTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(incidents) || incidents.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="muted">No incidents recorded for this run.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = incidents.map((incident) => `<tr>
+      <td>${escape(incident.status)}</td>
+      <td>${escape(incident.type)}</td>
+      <td class="muted">${incident.occurredAt ? new Date(incident.occurredAt).toLocaleString() : '—'}</td>
+    </tr>`).join('');
+  }
+
   async function refresh(){
     try {
       const res = await fetch(`/responses/runs/${runId}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
@@ -110,6 +156,7 @@
       renderMetadata(data.run || {});
       renderOutput(data.bufferedMessages || [], data.reasoning || [], data.refusals || []);
       renderEvents(data.events || []);
+      renderIncidents(data.incidents || []);
     } catch {}
   }
 
@@ -139,8 +186,43 @@
     if (Array.isArray(preloaded.events)) {
       renderEvents(preloaded.events);
     }
+    if (Array.isArray(preloaded.incidents)) {
+      renderIncidents(preloaded.incidents);
+    }
     refresh();
     setInterval(refresh, 4000);
+
+    const form = document.getElementById('noteForm');
+    if (form) {
+      form.addEventListener('submit', submitNote);
+    }
   })();
+
+  async function submitNote(ev){
+    ev.preventDefault();
+    const reviewerEl = document.getElementById('noteReviewer');
+    const noteEl = document.getElementById('noteText');
+    const dispositionEl = document.getElementById('noteDisposition');
+    if (!(reviewerEl instanceof HTMLInputElement) || !(noteEl instanceof HTMLTextAreaElement) || !(dispositionEl instanceof HTMLSelectElement)) {
+      return;
+    }
+    const reviewer = reviewerEl.value.trim();
+    const note = noteEl.value.trim();
+    const disposition = dispositionEl.value;
+    if (!reviewer || !note) return alert('Reviewer and note are required.');
+    const res = await fetch(`/responses/runs/${runId}/moderation-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ reviewer, note, disposition }),
+    });
+    if (!res.ok) {
+      alert('Failed to record note');
+      return;
+    }
+    reviewerEl.value = '';
+    noteEl.value = '';
+    refresh();
+  }
 </script>
 </body></html>

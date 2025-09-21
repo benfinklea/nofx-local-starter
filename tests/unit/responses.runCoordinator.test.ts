@@ -70,7 +70,7 @@ describe('ResponsesRunCoordinator', () => {
     });
 
     expect(request.conversation).toBe('conv_run-11');
-    expect(coordinator.getLastRateLimitSnapshot()?.limitRequests).toBe(3000);
+    expect(coordinator.getLastRateLimitSnapshot('tenant-vendor')?.limitRequests).toBe(3000);
   });
 
   it('queues background runs without invoking the client immediately', async () => {
@@ -121,5 +121,38 @@ describe('ResponsesRunCoordinator', () => {
     expect(result.context.storeFlag).toBe(true);
     expect(result.request.max_tool_calls).toBe(3);
     expect(result.request.tool_choice).toMatchObject({ function: { name: 'store_notes' } });
+  });
+
+  it('records incidents on failure events and resolves them on completion', async () => {
+    const incidents: any[] = [];
+    const incidentLog = {
+      recordIncident: jest.fn((payload: any) => {
+        const record = { id: `inc_${incidents.length}`, status: 'open', occurredAt: payload.occurredAt ?? new Date(), ...payload };
+        incidents.push(record);
+        return record;
+      }),
+      resolveIncidentsByRun: jest.fn((runId: string, resolution: any) => {
+        incidents.forEach((incident) => {
+          if (incident.runId === runId && incident.status === 'open') {
+            incident.status = 'resolved';
+            incident.resolution = resolution;
+          }
+        });
+      }),
+      getIncidentsForRun: jest.fn(() => incidents),
+      listIncidents: jest.fn(() => incidents),
+    } as any;
+
+    const archive = new InMemoryResponsesArchive();
+    const conversationManager = new ConversationStateManager(new InMemoryConversationStore());
+    const client = createClient({ id: 'resp_bg', status: 'completed', output: [] });
+    const coordinator = new ResponsesRunCoordinator({ archive, conversationManager, client, incidentLog });
+
+    await coordinator.startRun({ runId: 'run-incident', tenantId: 'tenant-inc', request: baseRequest, background: true });
+    coordinator.handleEvent('run-incident', { type: 'response.failed', sequence_number: 1 });
+    expect(incidentLog.recordIncident).toHaveBeenCalledWith(expect.objectContaining({ runId: 'run-incident', type: 'failed' }));
+
+    coordinator.handleEvent('run-incident', { type: 'response.completed', sequence_number: 2 });
+    expect(incidentLog.resolveIncidentsByRun).toHaveBeenCalledWith('run-incident', expect.objectContaining({ linkedRunId: 'run-incident' }));
   });
 });

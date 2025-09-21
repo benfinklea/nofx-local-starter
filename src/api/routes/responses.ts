@@ -1,8 +1,18 @@
 import type { Express, Request, Response } from 'express';
 import { z } from 'zod';
 import { isAdmin } from '../../lib/auth';
-import { getResponsesRuntime, getResponsesOperationsSummary, pruneResponsesOlderThanDays, retryResponsesRun } from '../../services/responses/runtime';
-import type { RunRecord } from '../../shared/responses/archive';
+import {
+  getResponsesRuntime,
+  getResponsesOperationsSummary,
+  pruneResponsesOlderThanDays,
+  retryResponsesRun,
+  listResponseIncidents,
+  resolveResponseIncident,
+  addResponsesModeratorNote,
+  exportResponsesRun,
+  getRunIncidents,
+} from '../../services/responses/runtime';
+import type { RunRecord, ModeratorNote } from '../../shared/responses/archive';
 
 function ensureAdmin(req: Request, res: Response): boolean {
   if (!isAdmin(req)) {
@@ -22,6 +32,9 @@ function serializeRun(run: RunRecord | undefined) {
     model: run.request?.model,
     metadata: run.metadata ?? {},
     conversationId: run.conversationId,
+    traceId: run.traceId,
+    safety: serializeSafety(run.safety),
+    tenantId: run.metadata?.tenant_id ?? run.metadata?.tenantId,
   };
 }
 
@@ -34,6 +47,25 @@ function serializeEvent(event: { sequence: number; type: string; payload: unknow
   };
 }
 
+function serializeSafety(safety?: RunRecord['safety']) {
+  if (!safety) return undefined;
+  return {
+    hashedIdentifier: safety.hashedIdentifier,
+    refusalCount: safety.refusalCount,
+    lastRefusalAt: safety.lastRefusalAt ? safety.lastRefusalAt.toISOString() : undefined,
+    moderatorNotes: safety.moderatorNotes.map(serializeModeratorNote),
+  };
+}
+
+function serializeModeratorNote(note: ModeratorNote) {
+  return {
+    reviewer: note.reviewer,
+    note: note.note,
+    disposition: note.disposition,
+    recordedAt: note.recordedAt.toISOString(),
+  };
+}
+
 export default function mount(app: Express) {
   app.get('/responses/ops/summary', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
@@ -42,6 +74,44 @@ export default function mount(app: Express) {
       res.json(summary);
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'failed to build summary' });
+    }
+  });
+
+  app.get('/responses/ops/incidents', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    try {
+      const status = typeof req.query.status === 'string' ? (req.query.status as 'open' | 'resolved') : 'open';
+      const incidents = listResponseIncidents(status);
+      res.json({ incidents });
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list incidents' });
+    }
+  });
+
+  app.post('/responses/ops/incidents/:id/resolve', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const { id } = req.params;
+    try {
+      const schema = z.object({
+        resolvedBy: z.string().min(1),
+        notes: z.string().optional(),
+        disposition: z.enum(['retry', 'dismissed', 'escalated', 'manual']).optional(),
+        linkedRunId: z.string().optional(),
+      });
+      const parsed = schema.parse(req.body ?? {});
+      const incident = resolveResponseIncident({
+        incidentId: id,
+        resolvedBy: parsed.resolvedBy,
+        notes: parsed.notes,
+        disposition: parsed.disposition,
+        linkedRunId: parsed.linkedRunId,
+      });
+      res.json({ incident });
+    } catch (err: unknown) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ error: err.flatten() });
+      }
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to resolve incident' });
     }
   });
 
@@ -79,6 +149,8 @@ export default function mount(app: Express) {
         reasoning: result.reasoningSummaries,
         refusals: result.refusals,
         historyPlan: result.historyPlan,
+        traceId: result.traceId,
+        safety: result.safety,
       });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
@@ -88,6 +160,43 @@ export default function mount(app: Express) {
         return res.status(404).json({ error: 'not found' });
       }
       res.status(500).json({ error: err instanceof Error ? err.message : 'retry failed' });
+    }
+  });
+
+  app.post('/responses/runs/:id/moderation-notes', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const { id } = req.params;
+    try {
+      const schema = z.object({
+        reviewer: z.string().min(1),
+        note: z.string().min(1),
+        disposition: z.enum(['approved', 'escalated', 'blocked', 'info']),
+      });
+      const parsed = schema.parse(req.body ?? {});
+      const note = addResponsesModeratorNote(id, {
+        reviewer: parsed.reviewer,
+        note: parsed.note,
+        disposition: parsed.disposition,
+      });
+      res.status(201).json({
+        note: serializeModeratorNote(note),
+      });
+    } catch (err: unknown) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ error: err.flatten() });
+      }
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to record note' });
+    }
+  });
+
+  app.post('/responses/runs/:id/export', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const { id } = req.params;
+    try {
+      const location = await exportResponsesRun(id);
+      res.json({ ok: true, path: location });
+    } catch (err: unknown) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'export failed' });
     }
   });
 
@@ -110,13 +219,16 @@ export default function mount(app: Express) {
       const timeline = runtime.archive.getTimeline(id);
       if (!timeline) return res.status(404).json({ error: 'not found' });
 
+      const incidents = getRunIncidents(id);
+
       res.json({
         run: serializeRun(timeline.run),
         events: timeline.events.map(serializeEvent),
         bufferedMessages: runtime.coordinator.getBufferedMessages(id),
         reasoning: runtime.coordinator.getBufferedReasoning(id),
         refusals: runtime.coordinator.getBufferedRefusals(id),
-        rateLimits: runtime.tracker.getLastSnapshot(),
+        rateLimits: runtime.tracker.getLastSnapshot(timeline.run.metadata?.tenant_id ?? timeline.run.metadata?.tenantId),
+        incidents,
       });
     } catch (err: unknown) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch run' });

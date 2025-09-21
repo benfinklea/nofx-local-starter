@@ -7,7 +7,10 @@ import { Pool } from 'pg';
 import IORedis from 'ioredis';
 import { performance } from 'perf_hooks';
 
-describe('Stress Tests - System Breaking Points', () => {
+const stressEnabled = process.env.ENABLE_STRESS_TESTS === '1';
+const describeStress = stressEnabled ? describe : describe.skip;
+
+describeStress('Stress Tests - System Breaking Points', () => {
   const API_URL = process.env.API_URL || 'http://localhost:3000';
   let metrics: any = {};
   let apiAvailable = false;

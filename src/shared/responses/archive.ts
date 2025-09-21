@@ -3,11 +3,29 @@ import type { ResponsesRequest, ResponsesResult } from '../openai/responsesSchem
 
 type RunStatus = 'queued' | 'in_progress' | 'completed' | 'failed' | 'cancelled' | 'incomplete';
 
+export type ModeratorDisposition = 'approved' | 'escalated' | 'blocked' | 'info';
+
+export interface ModeratorNote {
+  reviewer: string;
+  note: string;
+  disposition: ModeratorDisposition;
+  recordedAt: Date;
+}
+
+export interface SafetySnapshot {
+  hashedIdentifier?: string;
+  refusalCount: number;
+  lastRefusalAt?: Date;
+  moderatorNotes: ModeratorNote[];
+}
+
 type StartRunInput = {
   runId: string;
   request: ResponsesRequest | unknown;
   conversationId?: string;
   metadata?: Record<string, string>;
+  traceId?: string;
+  safety?: Partial<SafetySnapshot>;
 };
 
 type RecordEventInput = {
@@ -23,6 +41,13 @@ type UpdateStatusInput = {
   result?: ResponsesResult | unknown;
 };
 
+type SafetyUpdateInput = {
+  hashedIdentifier?: string;
+  refusalLoggedAt?: Date;
+};
+
+export type ModeratorNoteInput = Omit<ModeratorNote, 'recordedAt'> & { recordedAt?: Date };
+
 export interface RunRecord {
   runId: string;
   request: ResponsesRequest;
@@ -32,6 +57,8 @@ export interface RunRecord {
   createdAt: Date;
   updatedAt: Date;
   result?: ResponsesResult;
+  traceId?: string;
+  safety?: SafetySnapshot;
 }
 
 export interface EventRecord {
@@ -57,6 +84,9 @@ export interface ResponsesArchive {
   listRuns(): RunRecord[] | Promise<RunRecord[]>;
   deleteRun?(runId: string): void | Promise<void>;
   pruneOlderThan?(cutoff: Date): void | Promise<void>;
+  updateSafety?(runId: string, input: SafetyUpdateInput): SafetySnapshot | Promise<SafetySnapshot>;
+  addModeratorNote?(runId: string, input: ModeratorNoteInput): ModeratorNote | Promise<ModeratorNote>;
+  exportRun?(runId: string): string | Promise<string>;
 }
 
 export class InMemoryResponsesArchive implements ResponsesArchive {
@@ -78,6 +108,13 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
       status: 'queued',
       createdAt: now,
       updatedAt: now,
+      traceId: input.traceId,
+      safety: {
+        hashedIdentifier: input.safety?.hashedIdentifier,
+        refusalCount: input.safety?.refusalCount ?? 0,
+        lastRefusalAt: input.safety?.lastRefusalAt,
+        moderatorNotes: input.safety?.moderatorNotes ? [...input.safety.moderatorNotes] : [],
+      },
     };
     this.runs.set(run.runId, run);
     this.events.set(run.runId, []);
@@ -163,5 +200,42 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
         this.deleteRun(runId);
       }
     }
+  }
+
+  updateSafety(runId: string, input: SafetyUpdateInput): SafetySnapshot {
+    const run = this.runs.get(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const safety: SafetySnapshot = run.safety ?? { refusalCount: 0, moderatorNotes: [] };
+    if (input.hashedIdentifier) {
+      safety.hashedIdentifier = input.hashedIdentifier;
+    }
+    if (input.refusalLoggedAt) {
+      safety.refusalCount = (safety.refusalCount ?? 0) + 1;
+      safety.lastRefusalAt = input.refusalLoggedAt;
+    }
+    run.safety = {
+      hashedIdentifier: safety.hashedIdentifier,
+      refusalCount: safety.refusalCount,
+      lastRefusalAt: safety.lastRefusalAt,
+      moderatorNotes: [...(safety.moderatorNotes ?? [])],
+    };
+    this.runs.set(runId, run);
+    return run.safety;
+  }
+
+  addModeratorNote(runId: string, input: ModeratorNoteInput): ModeratorNote {
+    const run = this.runs.get(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const note: ModeratorNote = {
+      reviewer: input.reviewer,
+      note: input.note,
+      disposition: input.disposition,
+      recordedAt: input.recordedAt ?? new Date(),
+    };
+    const safety: SafetySnapshot = run.safety ?? { refusalCount: 0, moderatorNotes: [] };
+    safety.moderatorNotes = [...(safety.moderatorNotes ?? []), note];
+    run.safety = safety;
+    this.runs.set(runId, run);
+    return note;
   }
 }

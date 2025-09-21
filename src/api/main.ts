@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 import { recordEvent } from "../lib/events";
 import { mountRouters } from './loader';
 import builderRoutes from './routes/builder';
+import responsesRoutes from './routes/responses';
 import fs from 'node:fs';
 import http from 'node:http';
 import { initAutoBackupFromSettings } from '../lib/autobackup';
@@ -61,6 +62,10 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 // Register builder routes eagerly so that operator tooling is immediately available
 try {
   builderRoutes(app);
+} catch {}
+
+try {
+  responsesRoutes(app);
 } catch {}
 
 // Ensure default project has local_path pointing to this repo for convenience in dev
