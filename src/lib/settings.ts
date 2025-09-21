@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
 import { query } from './db';
 
 export type ApprovalsSettings = {
@@ -51,7 +54,35 @@ const DEFAULTS: Settings = {
   ops: { backupIntervalMin: 0 }
 };
 
+const ROOT = path.join(process.cwd(), 'local_data');
+const FILE = path.join(ROOT, 'settings.json');
+
+function ensureDirSync(p: string) { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
+
+function usingFsStore(): boolean {
+  const queueDriver = (process.env.QUEUE_DRIVER || 'memory').toLowerCase();
+  const driver = (process.env.DATA_DRIVER || (queueDriver === 'memory' ? 'fs' : 'db')).toLowerCase();
+  return driver === 'fs';
+}
+
+async function readFsSettings(): Promise<Settings> {
+  ensureDirSync(ROOT);
+  try {
+    const raw = await fsp.readFile(FILE, 'utf8');
+    const parsed = JSON.parse(raw) as Partial<Settings>;
+    return mergeSettings(DEFAULTS, parsed);
+  } catch {
+    return DEFAULTS;
+  }
+}
+
+async function writeFsSettings(settings: Settings): Promise<void> {
+  ensureDirSync(ROOT);
+  await fsp.writeFile(FILE, JSON.stringify(settings, null, 2));
+}
+
 async function ensureSettingsSchema() {
+  if (usingFsStore()) return;
   try {
     await query(`alter table nofx.settings add column if not exists llm jsonb not null default '{}'::jsonb`);
   } catch {}
@@ -61,6 +92,9 @@ async function ensureSettingsSchema() {
 }
 
 export async function getSettings(): Promise<Settings> {
+  if (usingFsStore()) {
+    return readFsSettings();
+  }
   try {
     await ensureSettingsSchema();
     const r = await query<{ approvals: any; gates: any; llm: any; ops: any }>(`select approvals, gates, llm, ops from nofx.settings where id='default' limit 1`);
@@ -90,9 +124,9 @@ export async function getSettings(): Promise<Settings> {
   }
 }
 
-export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
-  const current = await getSettings();
-  const next: Settings = {
+function mergeSettings(base: Settings, patch: Partial<Settings>): Settings {
+  const current = base;
+  return {
     approvals: { ...current.approvals, ...(patch.approvals || {}) },
     gates: { ...current.gates, ...(patch.gates || {}) },
     llm: {
@@ -113,6 +147,17 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
       backupIntervalMin: (patch as any).ops?.backupIntervalMin ?? current.ops?.backupIntervalMin ?? DEFAULTS.ops?.backupIntervalMin
     }
   };
+}
+
+export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
+  if (usingFsStore()) {
+    const current = await readFsSettings();
+    const next = mergeSettings(current, patch);
+    await writeFsSettings(next);
+    return next;
+  }
+  const current = await getSettings();
+  const next = mergeSettings(current, patch);
   try {
     await ensureSettingsSchema();
     await query(

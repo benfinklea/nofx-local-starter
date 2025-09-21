@@ -2,6 +2,8 @@
  * API Integration Tests
  */
 
+export {};
+
 // Mock Express app
 const mockApp = {
   get: jest.fn(),

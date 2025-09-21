@@ -12,7 +12,11 @@ export type Project = {
   default_branch?: string | null;
 };
 
-function driver() { return (process.env.DATA_DRIVER || (process.env.QUEUE_DRIVER === 'memory' ? 'fs' : 'db')).toLowerCase(); }
+function driver() {
+  const queueDriver = (process.env.QUEUE_DRIVER || 'memory').toLowerCase();
+  const dataDriver = process.env.DATA_DRIVER || (queueDriver === 'memory' ? 'fs' : 'db');
+  return dataDriver.toLowerCase();
+}
 const ROOT = path.join(process.cwd(), 'local_data');
 const FILE = path.join(ROOT, 'projects.json');
 

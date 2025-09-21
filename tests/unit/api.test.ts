@@ -2,6 +2,8 @@
  * API Module Unit Tests
  */
 
+export {};
+
 // Mock dependencies
 const mockApp = {
   get: jest.fn(),

@@ -50,8 +50,15 @@
   const runId = preloaded.run ? preloaded.run.runId : '<%= (preloaded && preloaded.run && preloaded.run.runId) || '' %>';
 
   function escape(text){
+    const replacements = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
     return String(text ?? '').replace(/[&<>"']/g, function(ch){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'} as any)[ch] || ch;
+      return replacements[ch] || ch;
     });
   }
 

@@ -10,7 +10,11 @@ type EventRow = { id: string; run_id: string; step_id?: string; type: string; pa
 type GateRow = { id: string; run_id: string; step_id: string; gate_type: string; status: string; created_at: string; approved_by?: string; approved_at?: string };
 type ArtifactRow = { id: string; step_id: string; type: string; path: string; metadata?: any; created_at: string };
 
-function dataDriver() { return (process.env.DATA_DRIVER || (process.env.QUEUE_DRIVER === 'memory' ? 'fs' : 'db')).toLowerCase(); }
+function dataDriver() {
+  const queueDriver = (process.env.QUEUE_DRIVER || 'memory').toLowerCase();
+  const configured = process.env.DATA_DRIVER || (queueDriver === 'memory' ? 'fs' : 'db');
+  return configured.toLowerCase();
+}
 const ROOT = path.join(process.cwd(), 'local_data');
 const FS_INBOX_KEYS = new Set<string>();
 
