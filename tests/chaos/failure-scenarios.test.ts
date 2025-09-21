@@ -8,7 +8,14 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-describe('Chaos Engineering - Failure Scenarios', () => {
+const chaosEnabled = process.env.ENABLE_CHAOS_TESTS === 'true';
+const describeChaos = chaosEnabled ? describe : describe.skip;
+
+if (!chaosEnabled) {
+  console.warn('[chaos tests] Skipping chaos engineering suite (set ENABLE_CHAOS_TESTS=true to enable).');
+}
+
+describeChaos('Chaos Engineering - Failure Scenarios', () => {
   const API_URL = process.env.API_URL || 'http://localhost:3000';
   let apiAvailable = false;
   let dockerAvailable = false;
