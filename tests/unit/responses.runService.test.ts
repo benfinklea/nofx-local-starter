@@ -51,11 +51,38 @@ describe('ResponsesRunService', () => {
     getBufferedMessages: jest.fn(() => [{ id: 'msg', text: 'hello' }]),
     getBufferedReasoning: jest.fn(() => ['reasoned']),
     getBufferedRefusals: jest.fn(() => ['nope']),
+    getBufferedOutputAudio: jest.fn(() => [{ itemId: 'msg', audioBase64: 'QUJD', transcript: 'hello audio', format: 'mp3' }]),
+    getBufferedImages: jest.fn(() => [{ itemId: 'img', b64JSON: 'AAA', size: '1024x1024' }]),
+    getBufferedInputTranscripts: jest.fn(() => [{ itemId: 'usr', transcript: 'Hi there' }]),
+    getDelegations: jest.fn(() => [
+      {
+        callId: 'call_1',
+        toolName: 'auto_delegate',
+        requestedAt: new Date('2024-01-01T00:00:00Z'),
+        status: 'requested',
+        arguments: { task: 'summarize' },
+      },
+    ]),
     registerSafetyHash: jest.fn(),
   } as unknown as jest.Mocked<ResponsesRunCoordinator>;
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  beforeEach(() => {
+    startRunMock.mockImplementation(async (input: any) => ({
+      request: {
+        model: 'gpt-4.1-mini',
+        input: 'plan my day',
+        metadata: input.request.metadata,
+        tools: [],
+        max_tool_calls: 3,
+        tool_choice: { type: 'function', function: { name: 'store_notes' } },
+      },
+      context: { storeFlag: true },
+    }));
+    coordinator.getArchive.mockReturnValue(archiveStub as any);
   });
 
   it('executes run and returns buffered information', async () => {
@@ -67,6 +94,11 @@ describe('ResponsesRunService', () => {
       tools: { include: ['store_notes'] },
       maxToolCalls: 3,
       toolChoice: { type: 'function', function: { name: 'store_notes' } },
+      speech: {
+        mode: 'manual',
+        inputFormat: 'wav',
+        transcription: { enabled: false },
+      },
     });
 
     expect(result.bufferedMessages[0].text).toBe('hello');
@@ -75,11 +107,37 @@ describe('ResponsesRunService', () => {
     expect(coordinator.startRun.mock.calls[0][0].metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expect.any(String) });
     expect(coordinator.startRun.mock.calls[0][0].request.metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expectedHash });
     expect(coordinator.startRun.mock.calls[0][0].request.safety_identifier).toBe(expectedHash);
+    expect(coordinator.startRun.mock.calls[0][0].speech).toMatchObject({ mode: 'manual', inputFormat: 'wav' });
     expect(result.refusals[0]).toBe('nope');
     expect(result.traceId).toBe('trace_abc');
     expect(result.safety?.hashedIdentifier).toBe(expectedHash);
     expect(result.safety?.refusalCount).toBe(2);
     expect(coordinator.registerSafetyHash).toHaveBeenCalledWith(expect.any(String), expectedHash);
+    expect(result.outputAudio[0]?.itemId).toBe('msg');
+    expect(result.outputImages[0]?.itemId).toBe('img');
+    expect(result.inputTranscripts[0]?.itemId).toBe('usr');
+    expect(result.delegations[0]?.toolName).toBe('auto_delegate');
+  });
+
+  it('sanitizes PII metadata before persisting', async () => {
+    const service = new ResponsesRunService(coordinator);
+    await service.execute({
+      tenantId: 'tenant-sensitive',
+      request: {
+        ...baseRequest,
+        metadata: { contact_email: 'pii@example.com' },
+      },
+      metadata: {
+        phone: '+15551234567',
+      },
+    });
+
+    const call = coordinator.startRun.mock.calls.at(-1)?.[0];
+    expect(call).toBeDefined();
+    const storedMetadata = call.request.metadata as Record<string, string>;
+    expect(storedMetadata.contact_email).toMatch(/^redacted:[a-f0-9]{64}$/);
+    expect(storedMetadata.phone).toMatch(/^redacted:[a-f0-9]{64}$/);
+    expect(storedMetadata.redacted_fields?.split(',').sort()).toEqual(['contact_email', 'phone']);
   });
 
   it('rejects invalid maxToolCalls', async () => {

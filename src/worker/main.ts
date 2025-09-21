@@ -48,14 +48,20 @@ log.info("Worker up");
 // Start outbox relay daemon
 startOutboxRelay();
 
-// Heartbeat to Redis for diagnostics
-try {
-  const hb = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
-  const key = 'nofx:worker:heartbeat';
-  setInterval(async () => {
-    try { await hb.set(key, String(Date.now()), 'EX', 10); } catch {}
-  }, 3000);
-} catch {}
+const shouldHeartbeat =
+  (process.env.QUEUE_DRIVER || '').toLowerCase() !== 'memory' &&
+  process.env.REDIS_URL &&
+  process.env.REDIS_URL !== 'memory';
+
+if (shouldHeartbeat) {
+  try {
+    const hb = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
+    const key = 'nofx:worker:heartbeat';
+    setInterval(async () => {
+      try { await hb.set(key, String(Date.now()), 'EX', 10); } catch {}
+    }, 3000);
+  } catch {}
+}
 
 // Dev-only restart watcher to exit when flag changes
 if (process.env.DEV_RESTART_WATCH === '1') {

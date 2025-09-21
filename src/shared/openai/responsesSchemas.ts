@@ -142,6 +142,18 @@ const assistantMessageSchema = z.object({
     .optional(),
 });
 
+const reasoningOutputSchema = z
+  .object({
+    type: z.literal('reasoning'),
+    id: z.string().optional(),
+    status: z.enum(['in_progress', 'completed', 'failed']).optional(),
+    reasoning: z.array(reasoningPartSchema).optional(),
+    content: z.array(reasoningPartSchema).optional(),
+    output: z.array(z.union([reasoningPartSchema, toolCallDeltaSchema, outputTextPartSchema])).optional(),
+    text: z.string().optional(),
+  })
+  .passthrough();
+
 export const responsesUsageSchema = z
   .object({
     input_tokens: z.number().int().nonnegative(),
@@ -156,7 +168,7 @@ export const responsesUsageSchema = z
 export const responsesResultSchema = z.object({
   id: z.string(),
   status: z.enum(['queued', 'in_progress', 'completed', 'failed', 'cancelled', 'incomplete']).default('queued'),
-  output: z.array(z.union([assistantMessageSchema, toolCallSchema])).optional(),
+  output: z.array(z.union([assistantMessageSchema, toolCallSchema, reasoningOutputSchema])).optional(),
   usage: responsesUsageSchema.optional(),
   model: z.string().optional(),
   metadata: metadataSchema.optional(),

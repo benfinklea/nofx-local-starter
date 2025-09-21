@@ -51,4 +51,26 @@ describe('Responses API contract', () => {
     expect(response.output?.[0]).toMatchObject({ id: 'msg_1' });
     expect(response.usage?.total_tokens).toBe(168);
   });
+
+  it('accepts reasoning output items', () => {
+    const response = validateResponsesResult({
+      id: 'resp_reasoning',
+      status: 'completed',
+      output: [
+        {
+          type: 'reasoning',
+          id: 'reasoning_1',
+          status: 'completed',
+          reasoning: [
+            {
+              type: 'reasoning',
+              text: 'Summarized chain-of-thought',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(response.output?.[0]).toMatchObject({ type: 'reasoning', id: 'reasoning_1' });
+  });
 });

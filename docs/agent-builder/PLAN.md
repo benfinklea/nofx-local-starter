@@ -97,6 +97,11 @@ _Last synced with Context7 Responses docs on 2025-09-18._
 - Delegation lineage visible in archive explorers.
 - Analytics dashboards sourcing exclusively from archived data.
 
+**Post-Phase 4 follow-ups**
+- Harden tenant-facing analytics with audio/image/delegation filters, alerting, and historical comparisons fed by the new archive metadata.
+- Expand regression coverage to include scripted speech/image rollback drills and document the manual checklist for multimodal reviews.
+- Publish operating guides for evaluating multimodal export bundles (hash redaction, lineage metadata, retry provenance).
+
 ## Phase 5 — Testing, Security, and Data Governance
 **Objective**: Formalise resilience, privacy, and tenancy guarantees before the UI overhaul so the platform scales safely.
 
@@ -105,22 +110,27 @@ _Last synced with Context7 Responses docs on 2025-09-18._
   - Integrate load and soak tests for streaming (high-concurrency SSE/WebSocket scenarios) into the gates.
   - Schedule chaos experiments (API outages, broker failures, delayed webhooks) and document expected recovery playbooks.
   - Create migration validation suites that diff legacy vs. Responses runs, guaranteeing functional parity for archived timelines.
+  - _Status_: `tests/perf/responses.load.test.ts` exercises 25 concurrent orchestrations and is wired into the new `gate:load` step; use this as the baseline for further soak/soak suites.
 - **Rollback Granularity & Storage Strategy**
   - Support partial rollbacks (individual tool executions or conversation segments) alongside full-run restores.
   - Define conflict-resolution rules when multiple operators modify the same workflow simultaneously.
   - Implement hot/warm/cold retention tiers, cost monitoring, and automated pruning with ADRs capturing each decision.
+  - _Status_: `/responses/runs/:id/rollback` now prunes timelines by sequence or tool-call id, updates metadata (`last_rollback_*` fields), and replays buffers after the rollback. Document remaining multi-operator conflict scenarios.
 - **Security & Privacy Controls**
   - Classify and scrub PII within archived events; enforce encryption-at-rest and in-flight for sensitive payloads.
   - Document data residency constraints and per-tenant storage locations.
   - Introduce fine-grained access controls / audit logs for archive viewers.
+  - _Status_: Request/metadata sanitiser hashes emails, phone numbers, and sensitive keys before archive writes; hashed safety identifiers never leave storage in cleartext. Next step: layer encryption-at-rest policies and reader ACLs.
 - **Multi-tenancy & Billing Observability**
   - Guarantee tenant isolation across storage, queues, and run orchestration.
   - Allow tenant-specific model catalogs and safety policies.
   - Feed usage and cost attribution (tokens, latency, storage) into billing systems and dashboards.
+  - _Status_: Ops summary & UI now surface per-tenant run counts, refusal totals, estimated spend (`RESPONSES_COST_PER_1K_TOKENS`), and residency metadata derived from `RESPONSES_TENANT_REGIONS`.
 - **Developer Experience & Knowledge Base**
   - Publish guides for running locally with the stubbed Responses API and debugging event streams.
   - Establish ADR cadence for major architectural choices (retention, security posture, tooling migrations).
   - Maintain migration checklists for workflow authors adapting to the new run service.
+  - _Status_: Manual QA checklist documents multimodal/delegation walkthroughs and rollback validation; next iteration should capture developer-focused debugging guides and ADR templates.
 
 ### Exit Criteria
 - Load/chaos suites run as part of CI or scheduled health checks with documented SLOs.
@@ -128,6 +138,7 @@ _Last synced with Context7 Responses docs on 2025-09-18._
 - Security/privacy policies (PII handling, encryption, residency) enforced and audited.
 - Tenant isolation, billing feeds, and per-tenant analytics operational.
 - Developer documentation (local mock, debugging, ADR index) published and maintained.
+- Multimodal & delegation validation suites (manual + scripted) execute as part of release gates with pass/fail recorded alongside other Phase 5 checks.
 
 ## Phase 6 — UI Modernization & Design System Adoption
 **Objective**: Replace the ad-hoc EJS + handcrafted CSS layouts with a cohesive, accessible design system (Material UI) while preserving existing functionality and the documentation archive workflows.
@@ -191,10 +202,15 @@ _Last synced with Context7 Responses docs on 2025-09-18._
 2. Create migrations for `responses_runs`, `responses_events`, and `conversation_snapshots`, then wire the gateway to write into them.
 3. Prototype SSE streaming with mocked events, verifying buffering + archive persistence + rollback playback.
 4. Draft acceptance tests ensuring the documentation feature (rollback timeline) works end-to-end using the new pipeline.
+5. Author ADRs covering partial rollback policy, metadata sanitisation, and tenant cost attribution so the new behaviours are captured formally.
+6. Extend chaos validation beyond stub mode (bring Supabase/Redis online in CI or host managed instances) so the Phase 5 gates can run against realistic dependencies.
+
+## Resolved Decisions
+- Live conversation context is pruned according to `RESPONSES_ARCHIVE_TTL_DAYS`; terminal runs remain queryable via the archive even when live state is trimmed.
+- `response.completed`, failure states, and incident writes persist synchronously to guarantee replay fidelity and operator visibility.
+- Metadata sanitation hashes PII (emails, phone numbers, secrets) before archive persistence; tenant residency is derived from `RESPONSES_TENANT_REGIONS` and surfaced in analytics/exports.
 
 ## Open Questions
-- How aggressively should we prune live conversation context while retaining archival fidelity for rollback?
-- Which events require synchronous persistence vs. asynchronous batching without risking data loss for rollbacks?
 - What governance do we need to let tenants export archived timelines without leaking sensitive metadata?
 
 When these sections are completed and the exit criteria satisfied, we will be ready for production migration off the legacy stack.

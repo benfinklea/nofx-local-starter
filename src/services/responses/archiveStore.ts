@@ -13,12 +13,16 @@ import type {
   SafetySnapshot,
   ModeratorNote,
   ModeratorNoteInput,
+  DelegationRecord,
+  RollbackOptions,
 } from '../../shared/responses/archive';
+import { applyRollbackToTimeline } from '../../shared/responses/archive';
 
-type SerializableRun = Omit<RunRecord, 'createdAt' | 'updatedAt' | 'safety'> & {
+type SerializableRun = Omit<RunRecord, 'createdAt' | 'updatedAt' | 'safety' | 'delegations'> & {
   createdAt: string;
   updatedAt: string;
   safety?: SerializableSafety;
+  delegations?: SerializableDelegation[];
 };
 
 type SerializableEvent = Omit<EventRecord, 'occurredAt'> & { occurredAt: string };
@@ -29,6 +33,11 @@ type SerializableSafety = Omit<SafetySnapshot, 'lastRefusalAt' | 'moderatorNotes
 };
 
 type SerializableModeratorNote = Omit<ModeratorNote, 'recordedAt'> & { recordedAt: string };
+
+type SerializableDelegation = Omit<DelegationRecord, 'requestedAt' | 'completedAt'> & {
+  requestedAt: string;
+  completedAt?: string;
+};
 
 function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) {
@@ -65,6 +74,22 @@ function deserializeModeratorNote(note: SerializableModeratorNote): ModeratorNot
   };
 }
 
+function serializeDelegation(record: DelegationRecord): SerializableDelegation {
+  return {
+    ...record,
+    requestedAt: record.requestedAt.toISOString(),
+    completedAt: record.completedAt ? record.completedAt.toISOString() : undefined,
+  };
+}
+
+function deserializeDelegation(record: SerializableDelegation): DelegationRecord {
+  return {
+    ...record,
+    requestedAt: new Date(record.requestedAt),
+    completedAt: record.completedAt ? new Date(record.completedAt) : undefined,
+  };
+}
+
 function serializeSafety(safety?: SafetySnapshot): SerializableSafety | undefined {
   if (!safety) return undefined;
   return {
@@ -91,6 +116,7 @@ function serializeRun(record: RunRecord): SerializableRun {
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     safety: serializeSafety(record.safety),
+    delegations: record.delegations ? record.delegations.map(serializeDelegation) : undefined,
   };
 }
 
@@ -100,6 +126,7 @@ function deserializeRun(record: SerializableRun): RunRecord {
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
     safety: deserializeSafety(record.safety),
+    delegations: record.delegations ? record.delegations.map(deserializeDelegation) : undefined,
   };
 }
 
@@ -149,6 +176,7 @@ export class FileSystemResponsesArchive implements ResponsesArchive {
     metadata?: Record<string, string>;
     traceId?: string;
     safety?: Partial<SafetySnapshot>;
+    delegations?: DelegationRecord[];
   }): RunRecord {
     const dir = this.runDir(input.runId);
     if (fs.existsSync(dir)) {
@@ -178,6 +206,7 @@ export class FileSystemResponsesArchive implements ResponsesArchive {
             moderatorNotes: input.safety.moderatorNotes ?? [],
           }
         : undefined,
+      delegations: input.delegations ? input.delegations.map((d) => deserializeDelegation(serializeDelegation(d))) : [],
     };
 
     writeJSON(this.runFile(input.runId), serializeRun(record));
@@ -324,6 +353,67 @@ export class FileSystemResponsesArchive implements ResponsesArchive {
     };
     writeJSON(this.runFile(runId), serializeRun(updatedRun));
     return note;
+  }
+
+  recordDelegation(runId: string, record: DelegationRecord): DelegationRecord {
+    const run = this.getRun(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const delegations = [...(run.delegations ?? [])];
+    const normalized = deserializeDelegation(serializeDelegation(record));
+    const index = delegations.findIndex((entry) => entry.callId === normalized.callId);
+    if (index >= 0) {
+      delegations.splice(index, 1, normalized);
+    } else {
+      delegations.push(normalized);
+    }
+    const updatedRun: RunRecord = {
+      ...run,
+      delegations,
+      updatedAt: new Date(),
+    };
+    writeJSON(this.runFile(runId), serializeRun(updatedRun));
+    return normalized;
+  }
+
+  updateDelegation(runId: string, callId: string, updates: Partial<DelegationRecord>): DelegationRecord {
+    const run = this.getRun(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const delegations = [...(run.delegations ?? [])];
+    const index = delegations.findIndex((entry) => entry.callId === callId);
+    if (index < 0) throw new Error(`delegation ${callId} not found for run ${runId}`);
+    const existing = delegations[index];
+    const updated: DelegationRecord = {
+      ...existing,
+      ...updates,
+      requestedAt: updates.requestedAt ? new Date(updates.requestedAt) : existing.requestedAt,
+      completedAt: updates.completedAt
+        ? new Date(updates.completedAt)
+        : updates.status && updates.status === 'completed'
+        ? new Date()
+        : existing.completedAt,
+    };
+    const normalized = deserializeDelegation(serializeDelegation(updated));
+    delegations.splice(index, 1, normalized);
+    const updatedRun: RunRecord = {
+      ...run,
+      delegations,
+      updatedAt: new Date(),
+    };
+    writeJSON(this.runFile(runId), serializeRun(updatedRun));
+    return normalized;
+  }
+
+  rollback(runId: string, options: RollbackOptions): TimelineSnapshot {
+    const run = this.getRun(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const events = readJSON<SerializableEvent[]>(this.eventsFile(runId), []).map(deserializeEvent);
+    const { run: updatedRun, events: trimmedEvents } = applyRollbackToTimeline(run, events, options);
+    writeJSON(this.runFile(runId), serializeRun(updatedRun));
+    writeJSON(this.eventsFile(runId), trimmedEvents.map(serializeEvent));
+    return {
+      run: updatedRun,
+      events: trimmedEvents,
+    };
   }
 
   async exportRun(runId: string): Promise<string> {
