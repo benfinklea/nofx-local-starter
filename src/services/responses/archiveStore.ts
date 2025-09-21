@@ -1,15 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import fsPromises from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
+import zlib from 'node:zlib';
 import { validateResponsesRequest, responsesResultSchema } from '../../shared/openai/responsesSchemas';
 import type { ResponsesRequest, ResponsesResult } from '../../shared/openai/responsesSchemas';
-import type { ResponsesArchive, RunRecord, EventRecord, TimelineSnapshot } from '../../shared/responses/archive';
+import type {
+  ResponsesArchive,
+  RunRecord,
+  EventRecord,
+  TimelineSnapshot,
+  SafetySnapshot,
+  ModeratorNote,
+  ModeratorNoteInput,
+} from '../../shared/responses/archive';
 
-type SerializableRun = Omit<RunRecord, 'createdAt' | 'updatedAt'> & {
+type SerializableRun = Omit<RunRecord, 'createdAt' | 'updatedAt' | 'safety'> & {
   createdAt: string;
   updatedAt: string;
+  safety?: SerializableSafety;
 };
 
 type SerializableEvent = Omit<EventRecord, 'occurredAt'> & { occurredAt: string };
+
+type SerializableSafety = Omit<SafetySnapshot, 'lastRefusalAt' | 'moderatorNotes'> & {
+  lastRefusalAt?: string;
+  moderatorNotes: SerializableModeratorNote[];
+};
+
+type SerializableModeratorNote = Omit<ModeratorNote, 'recordedAt'> & { recordedAt: string };
 
 function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) {
@@ -32,11 +51,46 @@ function writeJSON(file: string, value: unknown) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8');
 }
 
+function serializeModeratorNote(note: ModeratorNote): SerializableModeratorNote {
+  return {
+    ...note,
+    recordedAt: note.recordedAt.toISOString(),
+  };
+}
+
+function deserializeModeratorNote(note: SerializableModeratorNote): ModeratorNote {
+  return {
+    ...note,
+    recordedAt: new Date(note.recordedAt),
+  };
+}
+
+function serializeSafety(safety?: SafetySnapshot): SerializableSafety | undefined {
+  if (!safety) return undefined;
+  return {
+    hashedIdentifier: safety.hashedIdentifier,
+    refusalCount: safety.refusalCount,
+    lastRefusalAt: safety.lastRefusalAt ? safety.lastRefusalAt.toISOString() : undefined,
+    moderatorNotes: safety.moderatorNotes.map(serializeModeratorNote),
+  };
+}
+
+function deserializeSafety(safety?: SerializableSafety): SafetySnapshot | undefined {
+  if (!safety) return undefined;
+  return {
+    hashedIdentifier: safety.hashedIdentifier,
+    refusalCount: safety.refusalCount,
+    lastRefusalAt: safety.lastRefusalAt ? new Date(safety.lastRefusalAt) : undefined,
+    moderatorNotes: safety.moderatorNotes.map(deserializeModeratorNote),
+  };
+}
+
 function serializeRun(record: RunRecord): SerializableRun {
   return {
     ...record,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+    safety: serializeSafety(record.safety),
   };
 }
 
@@ -45,6 +99,7 @@ function deserializeRun(record: SerializableRun): RunRecord {
     ...record,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
+    safety: deserializeSafety(record.safety),
   };
 }
 
@@ -65,8 +120,14 @@ function deserializeEvent(record: SerializableEvent): EventRecord {
 export class FileSystemResponsesArchive implements ResponsesArchive {
   private readonly baseDir: string;
 
-  constructor(baseDir = path.join(process.cwd(), 'local_data', 'responses')) {
+  private readonly coldStorageDir?: string;
+
+  private readonly exportDir: string;
+
+  constructor(baseDir = path.join(process.cwd(), 'local_data', 'responses'), opts?: { coldStorageDir?: string; exportDir?: string }) {
     this.baseDir = baseDir;
+    this.coldStorageDir = opts?.coldStorageDir ?? process.env.RESPONSES_ARCHIVE_COLD_STORAGE_DIR;
+    this.exportDir = opts?.exportDir ?? path.join(this.baseDir, '..', 'exports');
   }
 
   private runDir(runId: string): string {
@@ -81,7 +142,14 @@ export class FileSystemResponsesArchive implements ResponsesArchive {
     return path.join(this.runDir(runId), 'events.json');
   }
 
-  startRun(input: { runId: string; request: ResponsesRequest | unknown; conversationId?: string; metadata?: Record<string, string> }): RunRecord {
+  startRun(input: {
+    runId: string;
+    request: ResponsesRequest | unknown;
+    conversationId?: string;
+    metadata?: Record<string, string>;
+    traceId?: string;
+    safety?: Partial<SafetySnapshot>;
+  }): RunRecord {
     const dir = this.runDir(input.runId);
     if (fs.existsSync(dir)) {
       const runPath = this.runFile(input.runId);
@@ -101,6 +169,15 @@ export class FileSystemResponsesArchive implements ResponsesArchive {
       status: 'queued',
       createdAt: now,
       updatedAt: now,
+      traceId: input.traceId,
+      safety: input.safety
+        ? {
+            hashedIdentifier: input.safety.hashedIdentifier,
+            refusalCount: input.safety.refusalCount ?? 0,
+            lastRefusalAt: input.safety.lastRefusalAt,
+            moderatorNotes: input.safety.moderatorNotes ?? [],
+          }
+        : undefined,
     };
 
     writeJSON(this.runFile(input.runId), serializeRun(record));
@@ -200,8 +277,84 @@ export class FileSystemResponsesArchive implements ResponsesArchive {
     const runs = this.listRuns();
     for (const run of runs) {
       if (run.updatedAt < cutoff) {
-        this.deleteRun(run.runId);
+        if (this.coldStorageDir) {
+          this.moveToColdStorage(run.runId);
+        } else {
+          this.deleteRun(run.runId);
+        }
       }
     }
+  }
+
+  updateSafety(runId: string, input: { hashedIdentifier?: string; refusalLoggedAt?: Date }): SafetySnapshot {
+    const run = this.getRun(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const safety: SafetySnapshot = run.safety ?? { refusalCount: 0, moderatorNotes: [] };
+    if (input.hashedIdentifier) {
+      safety.hashedIdentifier = input.hashedIdentifier;
+    }
+    if (input.refusalLoggedAt) {
+      safety.refusalCount = (safety.refusalCount ?? 0) + 1;
+      safety.lastRefusalAt = input.refusalLoggedAt;
+    }
+    const updatedRun: RunRecord = {
+      ...run,
+      safety,
+      updatedAt: new Date(),
+    };
+    writeJSON(this.runFile(runId), serializeRun(updatedRun));
+    return safety;
+  }
+
+  addModeratorNote(runId: string, input: ModeratorNoteInput): ModeratorNote {
+    const run = this.getRun(runId);
+    if (!run) throw new Error(`run ${runId} not found`);
+    const note: ModeratorNote = {
+      reviewer: input.reviewer,
+      note: input.note,
+      disposition: input.disposition,
+      recordedAt: input.recordedAt ?? new Date(),
+    };
+    const safety: SafetySnapshot = run.safety ?? { refusalCount: 0, moderatorNotes: [] };
+    safety.moderatorNotes = [...safety.moderatorNotes, note];
+    const updatedRun: RunRecord = {
+      ...run,
+      safety,
+      updatedAt: new Date(),
+    };
+    writeJSON(this.runFile(runId), serializeRun(updatedRun));
+    return note;
+  }
+
+  async exportRun(runId: string): Promise<string> {
+    const timeline = this.getTimeline(runId);
+    if (!timeline) {
+      throw new Error(`run ${runId} not found`);
+    }
+    ensureDir(this.exportDir);
+    const dest = path.join(this.exportDir, `${runId}.json.gz`);
+    const tmp = path.join(this.exportDir, `${runId}.${Date.now()}.json`);
+    await fsPromises.writeFile(tmp, JSON.stringify({
+      run: serializeRun(timeline.run),
+      events: timeline.events.map(serializeEvent),
+    }, null, 2));
+    await pipeline(fs.createReadStream(tmp), zlib.createGzip(), fs.createWriteStream(dest));
+    await fsPromises.rm(tmp);
+    return dest;
+  }
+
+  private moveToColdStorage(runId: string) {
+    if (!this.coldStorageDir) return;
+    const sourceDir = this.runDir(runId);
+    if (!fs.existsSync(sourceDir)) return;
+    const destinationRoot = path.resolve(this.coldStorageDir);
+    ensureDir(destinationRoot);
+    const destination = path.join(destinationRoot, runId);
+    if (fs.existsSync(destination)) {
+      fs.rmSync(destination, { recursive: true, force: true });
+    }
+    fs.mkdirSync(destination, { recursive: true });
+    fs.cpSync(sourceDir, destination, { recursive: true });
+    fs.rmSync(sourceDir, { recursive: true, force: true });
   }
 }

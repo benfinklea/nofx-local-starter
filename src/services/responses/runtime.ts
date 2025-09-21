@@ -10,6 +10,9 @@ import { HistoryPlanner } from './historyPlanner';
 import type { ResponsesClient } from './runCoordinator';
 import type { ResponsesResult } from '../../shared/openai/responsesSchemas';
 import { OpenAIResponsesClient } from './openaiClient';
+import { IncidentLog, type IncidentRecord, type IncidentStatus, type IncidentDisposition } from './incidentLog';
+import type { RateLimitTenantSummary, RateLimitSnapshot } from './rateLimitTracker';
+import type { ModeratorNote, ModeratorDisposition } from '../../shared/responses/archive';
 
 type RuntimeBundle = {
   archive: FileSystemResponsesArchive;
@@ -17,6 +20,7 @@ type RuntimeBundle = {
   service: ResponsesRunService;
   tracker: RateLimitTracker;
   toolRegistry: ToolRegistry;
+  incidents: IncidentLog;
 };
 
 export interface ResponsesOperationsSummary {
@@ -32,9 +36,58 @@ export interface ResponsesOperationsSummary {
     model?: string;
     createdAt: string;
     updatedAt: string;
+    traceId?: string;
+    tenantId?: string;
+    refusalCount?: number;
   }>;
-  lastRateLimits?: ReturnType<RateLimitTracker['getLastSnapshot']>;
+  totalRefusals: number;
+  lastRateLimits?: SerializedRateLimitSnapshot;
+  rateLimitTenants: SerializedTenantRateLimit[];
+  tenantRollup: TenantRollup[];
+  openIncidents: number;
+  incidentDetails: SerializedIncident[];
 }
+
+type SerializedRateLimitSnapshot = (Omit<RateLimitSnapshot, 'observedAt'> & { observedAt: string }) | undefined;
+
+type SerializedTenantRateLimit = {
+  tenantId: string;
+  latest?: SerializedRateLimitSnapshot;
+  averageProcessingMs?: number;
+  remainingRequestsPct?: number;
+  remainingTokensPct?: number;
+  alert?: 'requests' | 'tokens';
+};
+
+type TenantRollup = {
+  tenantId: string;
+  runCount: number;
+  totalTokens: number;
+  averageTokensPerRun: number;
+  refusalCount: number;
+  lastRunAt?: string;
+};
+
+type SerializedIncident = {
+  id: string;
+  runId: string;
+  status: string;
+  type: string;
+  sequence: number;
+  occurredAt: string;
+  tenantId?: string;
+  model?: string;
+  requestId?: string;
+  traceId?: string;
+  reason?: string;
+  resolution?: {
+    resolvedAt: string;
+    resolvedBy: string;
+    notes?: string;
+    disposition: string;
+    linkedRunId?: string;
+  };
+};
 
 let bundle: RuntimeBundle | undefined;
 
@@ -87,7 +140,10 @@ function createRuntime(): RuntimeBundle {
     ? path.resolve(process.env.RESPONSES_ARCHIVE_DIR)
     : path.join(process.cwd(), 'local_data', 'responses');
 
-  const archive = new FileSystemResponsesArchive(archiveDir);
+  const archive = new FileSystemResponsesArchive(archiveDir, {
+    coldStorageDir: process.env.RESPONSES_ARCHIVE_COLD_STORAGE_DIR,
+    exportDir: process.env.RESPONSES_ARCHIVE_EXPORT_DIR,
+  });
   const conversationStore = new InMemoryConversationStore();
   const defaultPolicy = (process.env.RESPONSES_DEFAULT_POLICY || '').toLowerCase() === 'vendor'
     ? { strategy: 'vendor' as const }
@@ -98,6 +154,7 @@ function createRuntime(): RuntimeBundle {
   const historyPlanner = new HistoryPlanner({
     contextWindowTokens: Number(process.env.RESPONSES_CONTEXT_WINDOW_TOKENS || 128000),
   });
+  const incidentLog = new IncidentLog(archiveDir);
 
   const ttlEnv = Number(process.env.RESPONSES_ARCHIVE_TTL_DAYS || 0);
   if (ttlEnv > 0 && typeof archive.pruneOlderThan === 'function') {
@@ -112,10 +169,11 @@ function createRuntime(): RuntimeBundle {
     rateLimitTracker: tracker,
     toolRegistry,
     historyPlanner,
+    incidentLog,
   });
   const service = new ResponsesRunService(coordinator);
 
-  return { archive, coordinator, service, tracker, toolRegistry };
+  return { archive, coordinator, service, tracker, toolRegistry, incidents: incidentLog };
 }
 
 export function getResponsesRuntime(): RuntimeBundle {
@@ -138,6 +196,9 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
   let failuresLast24h = 0;
   let totalTokens = 0;
   let lastRunAt: Date | undefined;
+  let totalRefusals = 0;
+
+  const tenantRollupMap = new Map<string, { runs: number; tokens: number; refusals: number; lastRunAt?: Date }>();
 
   for (const run of runs) {
     const status = run.status ?? 'unknown';
@@ -150,6 +211,17 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     }
     const tokens = run.result?.usage?.total_tokens ?? 0;
     totalTokens += tokens;
+    const tenantId = run.metadata?.tenant_id ?? run.metadata?.tenantId ?? 'default';
+    const current = tenantRollupMap.get(tenantId) ?? { runs: 0, tokens: 0, refusals: 0 };
+    current.runs += 1;
+    current.tokens += tokens;
+    if (!current.lastRunAt || run.updatedAt > current.lastRunAt) {
+      current.lastRunAt = run.updatedAt;
+    }
+    const refusals = run.safety?.refusalCount ?? 0;
+    current.refusals += refusals;
+    tenantRollupMap.set(tenantId, current);
+    totalRefusals += refusals;
   }
 
   const recentRuns = runs.slice(0, 10).map((run) => ({
@@ -158,7 +230,23 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     model: run.request?.model,
     createdAt: run.createdAt.toISOString(),
     updatedAt: run.updatedAt.toISOString(),
+    traceId: run.traceId,
+    tenantId: run.metadata?.tenant_id ?? run.metadata?.tenantId,
+    refusalCount: run.safety?.refusalCount,
   }));
+
+  const tenantRollup: TenantRollup[] = Array.from(tenantRollupMap.entries()).map(([tenantId, data]) => ({
+    tenantId,
+    runCount: data.runs,
+    totalTokens: data.tokens,
+    averageTokensPerRun: data.runs ? data.tokens / data.runs : 0,
+    refusalCount: data.refusals,
+    lastRunAt: data.lastRunAt ? data.lastRunAt.toISOString() : undefined,
+  }));
+
+  const openIncidents = runtime.incidents.listIncidents({ status: 'open' }).map(serializeIncident);
+  const rateLimitSummaries = runtime.tracker.getTenantSummaries().map(serializeTenantSummary);
+  const lastRateSnapshot = runtime.tracker.getLastSnapshot();
 
   return {
     totalRuns: runs.length,
@@ -168,7 +256,12 @@ export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
     totalTokens,
     averageTokensPerRun: runs.length ? totalTokens / runs.length : 0,
     recentRuns,
-    lastRateLimits: runtime.tracker.getLastSnapshot(),
+    totalRefusals,
+    lastRateLimits: lastRateSnapshot ? serializeSnapshot(lastRateSnapshot) : undefined,
+    rateLimitTenants: rateLimitSummaries,
+    tenantRollup: tenantRollup.sort((a, b) => b.totalTokens - a.totalTokens),
+    openIncidents: openIncidents.length,
+    incidentDetails: openIncidents,
   };
 }
 
@@ -218,5 +311,90 @@ export function retryResponsesRun(originalRunId: string, options?: { tenantId?: 
     history: undefined,
     conversationPolicy: { strategy: 'stateless' },
     background: options?.background ?? false,
+  }).then((result) => {
+    runtime.incidents.resolveIncidentsByRun(originalRunId, {
+      resolvedBy: 'system',
+      disposition: 'retry',
+      linkedRunId: result.runId,
+    });
+    return result;
   });
+}
+
+export function listResponseIncidents(status: IncidentStatus = 'open'): SerializedIncident[] {
+  const runtime = getResponsesRuntime();
+  return runtime.incidents.listIncidents({ status }).map(serializeIncident);
+}
+
+export function resolveResponseIncident(input: { incidentId: string; resolvedBy: string; notes?: string; disposition?: string; linkedRunId?: string }): SerializedIncident {
+  const runtime = getResponsesRuntime();
+  const record = runtime.incidents.resolveIncident({
+    incidentId: input.incidentId,
+    resolvedBy: input.resolvedBy,
+    notes: input.notes,
+    disposition: (input.disposition as IncidentDisposition | undefined) ?? 'manual',
+    linkedRunId: input.linkedRunId,
+  });
+  return serializeIncident(record);
+}
+
+export function addResponsesModeratorNote(runId: string, note: { reviewer: string; note: string; disposition: ModeratorDisposition; recordedAt?: Date }): ModeratorNote {
+  const runtime = getResponsesRuntime();
+  const created = runtime.archive.addModeratorNote?.(runId, note);
+  if (!created) throw new Error('archive does not support moderator notes');
+  return created;
+}
+
+export async function exportResponsesRun(runId: string): Promise<string> {
+  const runtime = getResponsesRuntime();
+  if (!runtime.archive.exportRun) throw new Error('archive export not supported');
+  return runtime.archive.exportRun(runId);
+}
+
+export function getRunIncidents(runId: string): SerializedIncident[] {
+  const runtime = getResponsesRuntime();
+  return runtime.incidents.getIncidentsForRun(runId).map(serializeIncident);
+}
+
+function serializeSnapshot(snapshot: RateLimitSnapshot): SerializedRateLimitSnapshot {
+  return {
+    ...snapshot,
+    observedAt: snapshot.observedAt.toISOString(),
+  };
+}
+
+function serializeTenantSummary(summary: RateLimitTenantSummary): SerializedTenantRateLimit {
+  return {
+    tenantId: summary.tenantId,
+    latest: summary.latest ? serializeSnapshot(summary.latest) : undefined,
+    averageProcessingMs: summary.averageProcessingMs,
+    remainingRequestsPct: summary.remainingRequestsPct,
+    remainingTokensPct: summary.remainingTokensPct,
+    alert: summary.alert,
+  };
+}
+
+function serializeIncident(record: IncidentRecord): SerializedIncident {
+  return {
+    id: record.id,
+    runId: record.runId,
+    status: record.status,
+    type: record.type,
+    sequence: record.sequence,
+    occurredAt: record.occurredAt.toISOString(),
+    tenantId: record.tenantId,
+    model: record.model,
+    requestId: record.requestId,
+    traceId: record.traceId,
+    reason: record.reason,
+    resolution: record.resolution
+      ? {
+          resolvedAt: record.resolution.resolvedAt.toISOString(),
+          resolvedBy: record.resolution.resolvedBy,
+          notes: record.resolution.notes,
+          disposition: record.resolution.disposition,
+          linkedRunId: record.resolution.linkedRunId,
+        }
+      : undefined,
+  };
 }

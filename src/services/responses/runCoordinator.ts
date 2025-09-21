@@ -1,12 +1,14 @@
+import { trace, SpanStatusCode, type Span, type Attributes } from '@opentelemetry/api';
 import { validateResponsesRequest } from '../../shared/openai/responsesSchemas';
 import type { ResponsesRequest, ResponsesResult } from '../../shared/openai/responsesSchemas';
-import { InMemoryResponsesArchive, type ResponsesArchive } from '../../shared/responses/archive';
+import { InMemoryResponsesArchive, type ResponsesArchive, type RunRecord } from '../../shared/responses/archive';
 import { ResponsesEventRouter } from '../../shared/responses/eventRouter';
 import { ConversationStateManager, type ConversationPolicy } from './conversationStateManager';
 import { RateLimitTracker, type RateLimitSnapshot } from './rateLimitTracker';
 import { ToolRegistry, type ToolRequestConfig } from './toolRegistry';
 import { StreamingBuffer, type StreamingEvent } from './streamBuffer';
 import { HistoryPlanner, type HistoryPlanInput, type HistoryPlan } from './historyPlanner';
+import { IncidentLog } from './incidentLog';
 
 export interface ResponsesClient {
   create(request: ResponsesRequest & { stream?: false }): Promise<{ result: ResponsesResult; headers?: Record<string, string> }>;
@@ -25,6 +27,7 @@ type StartRunOptions = {
   history?: HistoryPlanInput;
   maxToolCalls?: number;
   toolChoice?: ResponsesRequest['tool_choice'];
+  safety?: { hashedIdentifier?: string };
 };
 
 type CoordinatorDeps = {
@@ -34,6 +37,7 @@ type CoordinatorDeps = {
   rateLimitTracker?: RateLimitTracker;
   toolRegistry?: ToolRegistry;
   historyPlanner?: HistoryPlanner;
+  incidentLog?: IncidentLog;
 };
 
 export class ResponsesRunCoordinator {
@@ -53,6 +57,12 @@ export class ResponsesRunCoordinator {
 
   private readonly historyPlanner: HistoryPlanner | undefined;
 
+  private readonly incidentLog: IncidentLog | undefined;
+
+  private readonly spans = new Map<string, Span>();
+
+  private readonly tracer = trace.getTracer('responses.runCoordinator');
+
   constructor(deps: CoordinatorDeps) {
     this.archive = deps.archive ?? new InMemoryResponsesArchive();
     this.conversationManager = deps.conversationManager;
@@ -60,6 +70,7 @@ export class ResponsesRunCoordinator {
     this.rateLimitTracker = deps.rateLimitTracker;
     this.toolRegistry = deps.toolRegistry ?? new ToolRegistry();
     this.historyPlanner = deps.historyPlanner;
+    this.incidentLog = deps.incidentLog;
   }
 
   async startRun(options: StartRunOptions): Promise<{
@@ -90,20 +101,35 @@ export class ResponsesRunCoordinator {
       tool_choice: options.toolChoice ?? (options.request as ResponsesRequest).tool_choice,
     });
 
-    this.archive.startRun({ runId: options.runId, request: requestPayload, conversationId: context.conversation, metadata: requestPayload.metadata });
+    const span = this.startTracingSpan(options, requestPayload);
+    const traceId = span?.spanContext().traceId;
+
+    this.archive.startRun({
+      runId: options.runId,
+      request: requestPayload,
+      conversationId: context.conversation,
+      metadata: requestPayload.metadata,
+      traceId,
+      safety: options.safety,
+    });
     const router = new ResponsesEventRouter({ runId: options.runId, archive: this.archive });
     this.routers.set(options.runId, router);
     this.buffers.set(options.runId, new StreamingBuffer());
 
     if (!options.background) {
       const { result, headers } = await this.client.create({ ...requestPayload, stream: false });
-      this.captureRateLimits(headers);
+      this.captureRateLimits(headers, options.tenantId);
+      this.recordTracingEvent(options.runId, 'response.completed', {
+        status: result.status,
+        usage_total_tokens: result.usage?.total_tokens,
+      });
       router.handleEvent({ type: 'response.completed', sequence_number: 1, response: result });
       this.buffers.get(options.runId)?.handleEvent({
         type: 'response.output_text.done',
         item_id: extractAssistantMessageId(result) ?? 'assistant',
         text: extractAssistantText(result),
       });
+      this.finalizeSpan(options.runId, 'response.completed');
     }
 
     return {
@@ -118,16 +144,23 @@ export class ResponsesRunCoordinator {
     if (!router) {
       throw new Error(`router for run ${runId} not registered`);
     }
+    this.recordTracingEvent(runId, event.type, { sequence: event.sequence_number ?? event.sequenceNumber });
     router.handleEvent(event);
     this.buffers.get(runId)?.handleEvent(event as StreamingEvent);
+    this.processSafetyHooks(runId, event);
+    this.processIncidentHooks(runId, event);
+    if (this.isTerminalEvent(event.type)) {
+      const status = event.type === 'response.failed' ? 'error' : event.type;
+      this.finalizeSpan(runId, status, event);
+    }
   }
 
   getArchive(): ResponsesArchive {
     return this.archive;
   }
 
-  getLastRateLimitSnapshot(): RateLimitSnapshot | undefined {
-    return this.rateLimitTracker?.getLastSnapshot();
+  getLastRateLimitSnapshot(tenantId?: string): RateLimitSnapshot | undefined {
+    return this.rateLimitTracker?.getLastSnapshot(tenantId);
   }
 
   getBufferedMessages(runId: string) {
@@ -148,9 +181,88 @@ export class ResponsesRunCoordinator {
     return undefined;
   }
 
-  private captureRateLimits(headers?: Record<string, string>): void {
+  registerSafetyHash(runId: string, hashed: string) {
+    this.archive.updateSafety?.(runId, { hashedIdentifier: hashed });
+  }
+
+  private processSafetyHooks(runId: string, event: { type: string }): void {
+    if (event.type === 'response.refusal.done') {
+      this.archive.updateSafety?.(runId, { refusalLoggedAt: new Date() });
+      this.recordTracingEvent(runId, 'responses.refusal.recorded');
+    }
+  }
+
+  private processIncidentHooks(runId: string, event: { type: string; sequence_number?: number; [key: string]: unknown }): void {
+    if (!this.incidentLog) return;
+    if (event.type === 'response.failed' || event.type === 'response.incomplete') {
+      const runCandidate = this.archive.getRun?.(runId);
+      const run: RunRecord | undefined = runCandidate instanceof Promise ? undefined : runCandidate;
+      const tenantId = run?.metadata?.tenant_id ?? run?.metadata?.tenantId;
+      const lastRate = tenantId ? this.rateLimitTracker?.getLastSnapshot(tenantId) : this.rateLimitTracker?.getLastSnapshot();
+      this.incidentLog.recordIncident({
+        runId,
+        type: event.type === 'response.failed' ? 'failed' : 'incomplete',
+        sequence: (event.sequence_number ?? event.sequenceNumber ?? 0) as number,
+        occurredAt: new Date(),
+        tenantId,
+        model: run?.request?.model,
+        requestId: lastRate?.requestId,
+        traceId: run?.traceId,
+        reason: JSON.stringify(event),
+      });
+      this.recordTracingEvent(runId, 'responses.incident.recorded');
+    }
+    if (event.type === 'response.completed') {
+      this.incidentLog.resolveIncidentsByRun(runId, {
+        resolvedBy: 'system',
+        disposition: 'manual',
+        linkedRunId: runId,
+      });
+    }
+  }
+
+  private isTerminalEvent(type: string): boolean {
+    return type === 'response.completed' || type === 'response.failed' || type === 'response.cancelled' || type === 'response.incomplete';
+  }
+
+  private startTracingSpan(options: StartRunOptions, request: ResponsesRequest): Span {
+    const span = this.tracer.startSpan('responses.run', {
+      attributes: {
+        'responses.run_id': options.runId,
+        'responses.tenant_id': options.tenantId,
+        'responses.model': request.model,
+        'responses.store_flag': request.store ?? false,
+        'responses.conversation_id': request.conversation && typeof request.conversation === 'string' ? request.conversation : undefined,
+      },
+    });
+    this.spans.set(options.runId, span);
+    return span;
+  }
+
+  private recordTracingEvent(runId: string, name: string, attributes: Record<string, unknown> = {}) {
+    const span = this.spans.get(runId);
+    if (!span) return;
+    const filtered: Attributes = Object.fromEntries(
+      Object.entries(attributes).filter(([, value]) => value !== undefined),
+    ) as Attributes;
+    span.addEvent(name, filtered);
+  }
+
+  private finalizeSpan(runId: string, status: string, payload?: unknown) {
+    const span = this.spans.get(runId);
+    if (!span) return;
+    if (status === 'response.failed' || status === 'error') {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: typeof payload === 'object' ? JSON.stringify(payload) : undefined });
+    } else {
+      span.setStatus({ code: SpanStatusCode.UNSET });
+    }
+    this.spans.delete(runId);
+    span.end();
+  }
+
+  private captureRateLimits(headers: Record<string, string> | undefined, tenantId: string): void {
     if (!headers || !this.rateLimitTracker) return;
-    this.rateLimitTracker.capture(headers);
+    this.rateLimitTracker.capture(headers, { tenantId });
   }
 }
 

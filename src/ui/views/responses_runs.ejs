@@ -22,9 +22,26 @@
         <div class="metric"><div class="k">Last Run</div><div class="v" id="summary_last">—</div></div>
         <div class="metric"><div class="k">Avg Tokens</div><div class="v" id="summary_avg_tokens">0</div></div>
         <div class="metric"><div class="k">Rate Limit Remaining</div><div class="v" id="summary_rate">—</div></div>
+        <div class="metric"><div class="k">Total Refusals</div><div class="v" id="summary_refusals">0</div></div>
+        <div class="metric"><div class="k">Open Incidents</div><div class="v" id="summary_incidents">0</div></div>
       </div></div>
     </div>
   </div>
+  <div class="grid" style="gap:16px;margin-bottom:16px">
+    <div class="col-6">
+      <div class="card"><div class="hd">Rate Limit Watch</div><div class="bd">
+        <table id="rateLimitTable"><thead><tr><th>Tenant</th><th>Remaining Requests</th><th>Remaining Tokens</th><th>Last Seen</th></tr></thead><tbody></tbody></table>
+      </div></div>
+    </div>
+    <div class="col-6">
+      <div class="card"><div class="hd">Open Incidents</div><div class="bd">
+        <table id="incidentsTable"><thead><tr><th>Run</th><th>Type</th><th>Observed</th><th>Status</th></tr></thead><tbody></tbody></table>
+      </div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px"><div class="hd">Tenant Usage</div><div class="bd">
+    <table id="tenantTable"><thead><tr><th>Tenant</th><th>Runs</th><th>Total Tokens</th><th>Avg Tokens</th><th>Refusals</th><th>Last Run</th></tr></thead><tbody></tbody></table>
+  </div></div>
   <div class="card"><div class="bd">
     <table id="responsesTable">
       <thead><tr><th>ID</th><th>Status</th><th>Model</th><th>Created</th></tr></thead>
@@ -72,6 +89,11 @@
     document.getElementById('summary_avg_tokens').textContent = data.averageTokensPerRun ? data.averageTokensPerRun.toFixed(1) : '0';
     const remaining = data.lastRateLimits?.remainingRequests ?? data.lastRateLimits?.remainingTokens;
     document.getElementById('summary_rate').textContent = typeof remaining === 'number' ? String(remaining) : '—';
+    document.getElementById('summary_refusals').textContent = data.totalRefusals ?? 0;
+    document.getElementById('summary_incidents').textContent = data.openIncidents ?? 0;
+    renderRateLimits(data.rateLimitTenants || []);
+    renderIncidents(data.incidentDetails || []);
+    renderTenantRollup(data.tenantRollup || []);
   }
 
   async function refreshSummary(){
@@ -81,6 +103,71 @@
       const data = await res.json();
       applySummary(data);
     } catch {}
+  }
+
+  function renderRateLimits(items){
+    const tbody = document.querySelector('#rateLimitTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(items) || items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No rate limit telemetry yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((item) => {
+      const latest = item.latest || {};
+      const observed = latest.observedAt ? new Date(latest.observedAt).toLocaleTimeString() : '—';
+      const reqPct = formatPct(item.remainingRequestsPct);
+      const tokPct = formatPct(item.remainingTokensPct);
+      const alertClass = item.alert ? 'badge err' : 'badge ok';
+      const alertLabel = item.alert ? item.alert.toUpperCase() : 'HEALTHY';
+      return `<tr>
+        <td><code>${escape(item.tenantId)}</code></td>
+        <td>${reqPct}</td>
+        <td>${tokPct}</td>
+        <td>${observed} <span class="badge ${alertClass}" style="margin-left:6px">${alertLabel}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderIncidents(items){
+    const tbody = document.querySelector('#incidentsTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(items) || items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No open incidents.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((item) => {
+      const time = item.occurredAt ? new Date(item.occurredAt).toLocaleTimeString() : '—';
+      return `<tr>
+        <td><code><a href="/ui/responses/${item.runId}">${item.runId}</a></code></td>
+        <td>${escape(item.type)}</td>
+        <td class="muted">${time}</td>
+        <td>${escape(item.status)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderTenantRollup(items){
+    const tbody = document.querySelector('#tenantTable tbody');
+    if (!tbody) return;
+    if (!Array.isArray(items) || items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No tenant usage recorded.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map((item) => {
+      return `<tr>
+        <td><code>${escape(item.tenantId)}</code></td>
+        <td>${item.runCount}</td>
+        <td>${item.totalTokens}</td>
+        <td>${item.averageTokensPerRun.toFixed(1)}</td>
+        <td>${item.refusalCount}</td>
+        <td class="muted">${item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function formatPct(value){
+    if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+    return `${Math.round(value * 100)}%`;
   }
 
   (function init(){
