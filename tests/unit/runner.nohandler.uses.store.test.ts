@@ -20,17 +20,18 @@ describe('runner uses store.updateStep for no-handler case', () => {
   test('marks step failed via store.updateStep', async () => {
     const modStore = await import('../../src/lib/store');
     const store = modStore.store;
+    const factories = await import('../../src/testing/factories');
     const spy = jest.spyOn(store, 'updateStep');
     const { runStep } = await import('../../src/worker/runner');
-    const run = await store.createRun({ goal: 'no-handler' }) as any;
-    const runId = run.id || String(run);
-    // tool that has no handler
-    const step = await store.createStep(runId, 'unknown', 'tool:not-implemented', {}) as any;
-    const stepId = step.id || String(step);
-    await expect(runStep(runId, stepId)).rejects.toBeTruthy();
+    const run = await factories.makeRun(store, { goal: 'no-handler' });
+    const step = await factories.makeStep(store, {
+      runId: run.id,
+      name: 'unknown',
+      tool: 'tool:not-implemented',
+    });
+    await expect(runStep(run.id, step.id)).rejects.toBeTruthy();
     expect(spy).toHaveBeenCalled();
-    const updated = await store.getStep(stepId) as any;
-    expect(String(updated.status).toLowerCase()).toBe('failed');
+    const updated = await store.getStep(step.id);
+    expect(String(updated?.status ?? '').toLowerCase()).toBe('failed');
   });
 });
-

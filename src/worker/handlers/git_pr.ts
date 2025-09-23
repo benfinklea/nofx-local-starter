@@ -58,7 +58,7 @@ async function getArtifactBuffer(pth: string): Promise<Buffer> {
 
 function parseOrigin(url: string){
   // supports git@github.com:owner/repo.git or https://github.com/owner/repo.git
-  let m = url.match(/github.com[:/](.+?)\/(.+?)(?:\.git)?$/);
+  const m = url.match(/github.com[:/](.+?)\/(.+?)(?:\.git)?$/);
   if (!m) throw new Error('unsupported origin url: ' + url);
   return { owner: m[1], repo: m[2] };
 }

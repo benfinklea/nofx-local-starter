@@ -14,6 +14,7 @@ import {
   rollbackResponsesRun,
 } from '../../services/responses/runtime';
 import type { RunRecord, ModeratorNote } from '../../shared/responses/archive';
+import { log } from '../../lib/logger';
 
 function ensureAdmin(req: Request, res: Response): boolean {
   if (!isAdmin(req)) {
@@ -130,6 +131,25 @@ export default function mount(app: Express) {
         return res.status(400).json({ error: err.flatten() });
       }
       res.status(500).json({ error: err instanceof Error ? err.message : 'prune failed' });
+    }
+  });
+
+  app.post('/responses/ops/ui-event', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    try {
+      const schema = z.object({
+        source: z.string().min(1),
+        intent: z.string().min(1),
+        metadata: z.record(z.any()).optional(),
+      });
+      const payload = schema.parse(req.body ?? {});
+      log.info({ event: 'responses.ui_event', ...payload }, 'Responses UI interaction');
+      res.json({ ok: true });
+    } catch (err: unknown) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ error: err.flatten() });
+      }
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to log ui event' });
     }
   });
 

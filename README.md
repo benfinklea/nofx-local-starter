@@ -2,6 +2,9 @@
 
 Fast path to a functional control plane on your Mac. Single-tenant, but schema keeps `tenant_id` so we can migrate cleanly.
 
+## AI Contributor Note
+- Any automation or AI assistant (including Codex) must read `AI_CODER_GUIDE.md` before making changes in this repository.
+
 ## Prereqs
 - Docker Desktop (running)
 - Node 20+ (`node -v`)

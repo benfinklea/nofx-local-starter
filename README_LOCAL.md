@@ -2,6 +2,9 @@
 
 Fast path to run a single-tenant control plane + worker locally with **Supabase CLI**. Migrate to Supabase Cloud later with `supabase link && supabase db push`.
 
+## AI Contributor Note
+- Any automation or AI assistant (including Codex) must read `AI_CODER_GUIDE.md` before making changes in this repository.
+
 ## Prereqs
 - macOS with Docker Desktop
 - Node 20+

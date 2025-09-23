@@ -59,6 +59,7 @@ export default defineConfig({
       '/models': 'http://localhost:3000',
       '/settings': 'http://localhost:3000',
       '/gates': 'http://localhost:3000',
+      '/builder': 'http://localhost:3000',
       '/backups': 'http://localhost:3000',
       '/dev': 'http://localhost:3000',
       '/health': 'http://localhost:3000',
@@ -66,7 +67,8 @@ export default defineConfig({
       '/login': 'http://localhost:3000',
       '/logout': 'http://localhost:3000',
       '/ui/login': 'http://localhost:3000',
-      '/ui/static': 'http://localhost:3000'
+      '/ui/static': 'http://localhost:3000',
+      '/ui/builder': 'http://localhost:3000'
     },
     fs: {
       // Allow reading project root and shared types from the monorepo path

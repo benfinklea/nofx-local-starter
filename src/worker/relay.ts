@@ -1,5 +1,5 @@
 import { store } from "../lib/store";
-import { enqueue } from "../lib/queue";
+import { enqueue, OUTBOX_TOPIC, type OutboxJobPayload } from "../lib/queue";
 import { log } from "../lib/logger";
 
 const INTERVAL_MS = Number(process.env.OUTBOX_RELAY_INTERVAL_MS || 1000);
@@ -23,8 +23,15 @@ export function startOutboxRelay() {
       type OutboxRow = { id: string; topic: string; payload: unknown };
       for (const r of rows as OutboxRow[]) {
         try {
-          const payload = typeof r.payload === 'object' && r.payload !== null ? r.payload as Record<string, unknown> : {};
-          await enqueue(r.topic, { ...payload, __attempt: 1 });
+          if (r.topic === OUTBOX_TOPIC) {
+            const payload = normalizeOutboxPayload(r.payload);
+            await enqueue(OUTBOX_TOPIC, { ...payload, __attempt: 1 });
+          } else {
+            const payload = typeof r.payload === 'object' && r.payload !== null
+              ? { ...(r.payload as Record<string, unknown>), __attempt: 1 }
+              : { __attempt: 1 };
+            await enqueue(r.topic, payload);
+          }
           await store.outboxMarkSent(r.id);
         } catch {
           // leave unsent for next tick
@@ -39,6 +46,29 @@ export function startOutboxRelay() {
   }
 
   scheduleTick();
+}
+
+function normalizeOutboxPayload(value: unknown): OutboxJobPayload {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('outbox payload must be an object');
+  }
+
+  const record = value as Record<string, unknown>;
+  const runId = record.runId;
+  const type = record.type;
+  if (typeof runId !== 'string' || typeof type !== 'string') {
+    throw new Error('outbox payload missing runId or type');
+  }
+
+  const payload = record.payload as OutboxJobPayload['payload'];
+  const stepIdValue = record.stepId;
+  const stepId = typeof stepIdValue === 'string' ? stepIdValue : undefined;
+  return {
+    runId,
+    type,
+    payload,
+    ...(stepId ? { stepId } : {}),
+  };
 }
 
 export default startOutboxRelay;

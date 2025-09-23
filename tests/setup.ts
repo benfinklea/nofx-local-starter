@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
+import http from 'node:http';
 
 // Load test environment
 dotenv.config({ path: '.env.test' });
@@ -10,6 +11,28 @@ process.env.DISABLE_INLINE_RUNNER = '1';
 // Use filesystem-backed store during tests to avoid external DB dependency
 process.env.DATA_DRIVER = process.env.DATA_DRIVER || 'fs';
 process.env.DISABLE_REDIS_STRESS = '1';
+
+jest.mock('supertest', () => {
+  const mock = require('./helpers/mockSupertest');
+  return mock;
+});
+
+// Force HTTP servers created during tests (e.g., via supertest) to bind to
+// 127.0.0.1 instead of 0.0.0.0, which is blocked by the sandbox.
+const originalListen = http.Server.prototype.listen;
+http.Server.prototype.listen = function patchedListen(port?: any, ...args: any[]) {
+  // When called with only a port (or port + callback), insert localhost host.
+  if (typeof port === 'number') {
+    if (args.length === 0) {
+      return originalListen.call(this, port, '127.0.0.1');
+    }
+    if (typeof args[0] === 'function') {
+      const callback = args[0];
+      return originalListen.call(this, port, '127.0.0.1', callback);
+    }
+  }
+  return originalListen.call(this, port, ...args);
+};
 
 // Prevent real Redis connections during tests unless explicitly overridden
 jest.mock('ioredis', () => {
@@ -42,8 +65,13 @@ global.testUtils = {
 
     try {
       await pool.query('TRUNCATE nofx.run, nofx.step, nofx.artifact, nofx.event CASCADE');
+    } catch (err) {
+      // Ignore cleanup failures when the database is not available in CI
+      if (process.env.CI) {
+        console.warn('Skipping DB cleanup: database unavailable');
+      }
     } finally {
-      await pool.end();
+      await pool.end().catch(() => {});
     }
   },
 

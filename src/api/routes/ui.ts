@@ -7,19 +7,29 @@ import { isAdmin } from '../../lib/auth';
 import { BuilderTemplateManager } from '../../services/builder/builderManager';
 import { getResponsesRuntime, getResponsesOperationsSummary, getRunIncidents } from '../../services/responses/runtime';
 import type { SafetySnapshot } from '../../shared/responses/archive';
+import { runsReactEnabled, builderReactEnabled, settingsReactEnabled, responsesReactEnabled } from '../../lib/uiFlags';
 
 const builderManager = new BuilderTemplateManager();
 
 export default function mount(app: Express){
   app.get('/ui/runs', async (_req, res) => {
+    if (runsReactEnabled) {
+      return res.redirect('/ui/app/#/runs');
+    }
     const rows = await store.listRuns(100);
     res.render('runs', { runs: rows });
   });
   // Place the 'new' route BEFORE the ':id' route to avoid param capture
   app.get('/ui/runs/new', async (_req, res) => {
+    if (runsReactEnabled) {
+      return res.redirect('/ui/app/#/runs/new');
+    }
     res.render('new_run');
   });
   app.get('/ui/runs/:id', async (req, res) => {
+    if (runsReactEnabled) {
+      return res.redirect(`/ui/app/#/runs/${encodeURIComponent(req.params.id)}`);
+    }
     const runId = req.params.id;
     const run = await store.getRun(runId);
     if (!run) {
@@ -32,6 +42,9 @@ export default function mount(app: Express){
   });
   app.get('/ui/settings', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
+    if (settingsReactEnabled) {
+      return res.redirect('/ui/app/#/settings');
+    }
     let settings: Settings | null = null; let models: ModelRow[] = [];
     try { settings = await getSettings(); } catch {}
     try { models = await listModels(); } catch {}
@@ -43,10 +56,16 @@ export default function mount(app: Express){
   });
   app.get('/ui/models', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
+    if (settingsReactEnabled) {
+      return res.redirect('/ui/app/#/models');
+    }
     res.render('models');
   });
   app.get('/ui/builder', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
+    if (builderReactEnabled) {
+      return res.redirect('/ui/app/#/builder');
+    }
     let templates = [] as unknown[];
     let responsesRuns = [] as unknown[];
     try { templates = await builderManager.listTemplates(); } catch {}
@@ -63,6 +82,9 @@ export default function mount(app: Express){
   });
   app.get('/ui/responses', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
+    if (responsesReactEnabled) {
+      return res.redirect(`/ui/app/#/responses`);
+    }
     const runtime = getResponsesRuntime();
     let runs = [] as unknown[];
     let summary: unknown = null;
@@ -82,6 +104,9 @@ export default function mount(app: Express){
   app.get('/ui/responses/:id', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
     const { id } = req.params;
+    if (responsesReactEnabled) {
+      return res.redirect(`/ui/app/#/responses/${encodeURIComponent(id)}`);
+    }
     const runtime = getResponsesRuntime();
     const timeline = runtime.archive.getTimeline(id);
     if (!timeline) {

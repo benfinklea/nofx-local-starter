@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+> **AI assistants:** Read `AI_CODER_GUIDE.md` before performing any work on this repo. It contains mandatory guardrails.
+
 ## Project Structure & Module Organization
 The Node 20 backend lives in `src/`: `src/api` hosts the Express entrypoint, `src/worker` runs BullMQ jobs, and `src/shared` contains cross-cutting types. Frontend code resides in `apps/frontend` (Vite). Shared libraries belong in `packages/shared`, operational scripts in `scripts/`, and CLI helpers in `commands/`. Tests are grouped under `tests/**` (e.g., `tests/integration/projects.api.test.ts`), with Supabase configs and seed data in `supabase/`.
 
@@ -24,4 +26,3 @@ Load secrets from local `.env` files via `dotenv`; never commit credentials. Use
 
 ## MCP / Context7 Usage
 Always use context7 when I need code generation, setup or configuration steps, or library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
-

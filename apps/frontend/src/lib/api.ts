@@ -1,3 +1,5 @@
+import { apiBase } from '../config';
+
 export type Plan = { goal: string; steps: Array<{ name: string; tool: string; inputs?: any }> };
 export type Run = { id: string; status: string; created_at?: string; plan?: Plan };
 export type Project = { id: string; name: string; repo_url?: string|null; local_path?: string|null; workspace_mode?: string; default_branch?: string|null };
@@ -11,11 +13,17 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   const headers = new Headers(init?.headers || {});
   if (projectId) headers.set('x-project-id', projectId);
 
-  const url = typeof input === 'string' ? input : input.url;
+  // Add base URL if needed
+  let fetchUrl: RequestInfo = input;
+  if (typeof input === 'string') {
+    fetchUrl = apiBase ? `${apiBase}${input}` : input;
+  }
+
+  const url = typeof fetchUrl === 'string' ? fetchUrl : fetchUrl.url;
   console.log(`[API] Making request to: ${url}`, { method: init?.method || 'GET', projectId });
 
   try {
-    const response = await fetch(input, { ...init, headers });
+    const response = await fetch(fetchUrl, { ...init, headers });
 
     console.log(`[API] Response from ${url}:`, {
       status: response.status,

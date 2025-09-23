@@ -4,7 +4,6 @@ import Grid from '@mui/material/Grid2';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import List from '@mui/material/List';
@@ -12,11 +11,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import { getRun, getTimeline, type Event } from '../lib/api';
-
-function StatusChip({ status }: { status: string }) {
-  const color = status === 'succeeded' ? 'success' : status === 'failed' ? 'error' : status === 'running' ? 'info' : 'default';
-  return <Chip label={status} color={color as any} size="small" />;
-}
+import StatusChip from '../components/StatusChip';
 
 export default function RunDetail(){
   const { id } = useParams();

@@ -13,20 +13,23 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import Chip from '@mui/material/Chip';
 import { Link as RouterLink } from 'react-router-dom';
 import { listRuns, type Run } from '../lib/api';
+import StatusChip from '../components/StatusChip';
 import SystemHealth from '../components/SystemHealth';
-
-function StatusChip({ status }: { status: string }) {
-  const color = status === 'succeeded' ? 'success' : status === 'failed' ? 'error' : status === 'running' ? 'info' : 'default';
-  return <Chip label={status} color={color as any} size="small" />;
-}
 
 export default function Runs(){
   const [rows, setRows] = React.useState<Run[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  console.log('[Runs Component] Rendering with state:', {
+    rowsCount: rows.length,
+    rows: rows,
+    loading,
+    error,
+    hasRows: rows.length > 0
+  });
 
   async function loadRuns() {
     try {
@@ -37,6 +40,7 @@ export default function Runs(){
       const data = await listRuns(50);
       const endTime = Date.now();
       console.log('[Runs] Runs loaded successfully:', { count: data.length, loadTime: endTime - startTime + 'ms' });
+      console.log('[Runs] Setting rows with data:', data);
       setRows(data);
     } catch (err) {
       console.error('[Runs] Error loading runs:', err);
@@ -65,7 +69,7 @@ export default function Runs(){
     <Container sx={{ mt: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h5" gutterBottom>Runs</Typography>
+          <Typography variant="h5" gutterBottom>Runs ({rows.length})</Typography>
           <SystemHealth compact />
         </Box>
         <Button
@@ -120,7 +124,7 @@ export default function Runs(){
                 <TableRow key={r.id} hover>
                   <TableCell>
                     <Link component={RouterLink} to={`/runs/${r.id}`}>
-                      {r.plan?.goal || 'ad-hoc run'}
+                      {(r as any).title || r.plan?.goal || 'ad-hoc run'}
                     </Link>
                   </TableCell>
                   <TableCell><Box component="span"><StatusChip status={r.status} /></Box></TableCell>

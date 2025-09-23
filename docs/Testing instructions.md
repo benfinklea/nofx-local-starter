@@ -18,6 +18,8 @@
 3. Run `npm install` to install dependencies.
 4. Start backing services with `./Start DB + NOFX.command`. The script now auto-installs the Supabase CLI via `npx` when it isn’t present, exports `QUEUE_DRIVER=memory`/`REDIS_URL=memory`, boots the Supabase Postgres stack, and launches the API, worker, and Vite frontend.
 5. If you prefer to start pieces manually, run `npm run dev` (API + worker) and `VITE_HOST=0.0.0.0 VITE_PORT=5173 npm run fe:dev` so the frontend binds to `0.0.0.0` for remote/browser access.
+6. To validate the Material UI experience, set `UI_RESPONSES_UI_MODE=mui` (either in `.env` or the shell) *before* starting the API. This redirects `/ui/responses` and `/ui/responses/:id` to the React app served at `/ui/app/#/responses[...]` while keeping the EJS templates available when the flag is off.
+7. For Phase 7 migrations, toggle `UI_RUNS_UI_MODE=mui` to exercise the React dashboard (`/ui/app/#/runs` and `/ui/app/#/runs/:id`) and `UI_SETTINGS_UI_MODE=true` to drive `/ui/app/#/settings` and `/ui/app/#/models`. These flags can be flipped per-tenant to control rollout cadence.
 
 ## Sanity Checks
 1. Hit `http://localhost:3000/health` and confirm `{ ok: true }`.
@@ -41,10 +43,10 @@
 7. Press **Retry Run** and ensure a new run appears with `retried_from` metadata pointing to the original and an automatic incident resolution entry.
 
 ## Operational Dashboards
-1. On `/ui/responses`, confirm the summary metrics (total runs, failures in the last 24h, average tokens, refusal totals, open incidents).
+1. On `/ui/responses`, confirm the summary metrics (total runs, failures in the last 24h, average tokens, refusal totals, open incidents). With the React flag enabled, the page should redirect to `/ui/app/#/responses` and render the Material UI dashboard.
 2. Click **View Ops Summary** and verify the tenant rollups include run counts, total tokens, refusal counts, latest run timestamps, and rate-limit snapshots (remaining request/token percentages).
 3. Verify the audio/image/delegation charts surface accurate counts and success rates that match the archived events you inspected above.
-4. Confirm the **Total Estimated Cost** metric and the tenant table’s new “Estimated Cost / Regions” columns populate using the latest archive metadata (with real runs, ensure the figures line up with the request usage and tenant region config).
+4. Confirm the **Total Estimated Cost** metric and the tenant table’s new “Estimated Cost / Regions” columns populate using the latest archive metadata (with real runs, ensure the figures line up with the request usage and tenant region config). In the React UI, hover tooltips should reveal the full region list and telemetry should log a `responses-dashboard` UI event on mount.
 5. Toggle `RESPONSES_ARCHIVE_TTL_DAYS=1`, restart the API, and verify runs older than one day disappear after a refresh.
 6. Call `POST /responses/ops/prune` with `{ "days": 0.1 }` (via `curl` or Postman) and confirm old runs purge while newer ones remain.
 7. Check the console logs for rate-limit snapshots when using real API keys (`x-ratelimit-*` values) and ensure the UI reflects the latest snapshot.

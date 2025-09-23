@@ -141,7 +141,14 @@ _Last synced with Context7 Responses docs on 2025-09-18._
 - Multimodal & delegation validation suites (manual + scripted) execute as part of release gates with pass/fail recorded alongside other Phase 5 checks.
 
 ## Phase 6 — UI Modernization & Design System Adoption
+_Status_: ✅ Completed 2025-02-04  
 **Objective**: Replace the ad-hoc EJS + handcrafted CSS layouts with a cohesive, accessible design system (Material UI) while preserving existing functionality and the documentation archive workflows.
+
+**Highlights**
+- React/Vite shell with Material UI theme runs behind `/ui/app/#/*`, preserving legacy EJS routes via the `UI_RESPONSES_UI_MODE` flag.
+- Design tokens and accessibility checklist ratified in `docs/ui/design-system.md`; Storybook stories exercise the shared tokens through the `AppTheme` provider.
+- Responses dashboard and run detail React pages now mirror the legacy timeline (multimodal playback, incidents, delegations) with Vitest coverage.
+- Feature flag, telemetry logging (`logUiEvent`), and gateway redirects enable per-tenant rollout and rollback without impacting existing routes.
 
 ### Workstreams
 - **Information Architecture & Audit**

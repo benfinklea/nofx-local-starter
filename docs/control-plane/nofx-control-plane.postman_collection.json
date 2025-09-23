@@ -1,0 +1,1874 @@
+{
+  "info": {
+    "name": "NOFX Control Plane API",
+    "description": "The NOFX Control Plane orchestration API for managing execution runs, steps, and artifacts.\n\n## Overview\nThe control plane turns human or system requests into durable, auditable execution runs.\nIt normalizes incoming plans, persists them, schedules work on the queue, tracks lineage,\nand streams updates to any surface (UI, CLI, Slack bots, downstream services).\n\n## Authentication\nMost endpoints require admin authentication via cookie. Use `/login` endpoint to authenticate.\n\n## Base URL\nDefault: `http://localhost:3000`\n",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string",
+      "description": "Current run ID for testing"
+    },
+    {
+      "key": "gateId",
+      "value": "",
+      "type": "string",
+      "description": "Current gate ID for testing"
+    },
+    {
+      "key": "projectId",
+      "value": "default",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "in",
+        "value": "cookie",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "nofx_admin",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{adminCookie}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Setup",
+      "description": "Initial setup and authentication",
+      "item": [
+        {
+          "name": "Login (Get Admin Cookie)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"admin\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "description": "Health operations",
+      "item": [
+        {
+          "name": "Health check",
+          "description": "Check API and database health status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Service is healthy",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Service is healthy",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"ok\": true,\n  \"database\": {\n    \"status\": \"ok\",\n    \"error\": \"string\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get metrics",
+          "description": "Get Prometheus-formatted metrics for monitoring",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Runs",
+      "description": "Runs operations",
+      "item": [
+        {
+          "name": "Create a new run",
+          "description": "Create a new execution run from a plan or standard prompt.\n\nSupports two modes:\n1. **Plan mode**: Provide a structured plan with steps\n2. **Standard mode**: Provide a natural language prompt that will be converted to a plan\n",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": {\n    \"goal\": \"Write documentation\",\n    \"steps\": [\n      {\n        \"name\": \"write_readme\",\n        \"tool\": \"codegen\",\n        \"inputs\": {\n          \"topic\": \"API Documentation\",\n          \"content\": \"Write comprehensive API docs\"\n        }\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "201 - Run created successfully",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/runs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"plan\": {\n    \"goal\": \"Write documentation\",\n    \"steps\": [\n      {\n        \"name\": \"write_readme\",\n        \"tool\": \"codegen\",\n        \"inputs\": {\n          \"topic\": \"API Documentation\",\n          \"content\": \"Write comprehensive API docs\"\n        }\n      }\n    ]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Run created successfully",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"uuid-example\",\n  \"status\": \"queued\",\n  \"projectId\": \"string\"\n}"
+            },
+            {
+              "name": "400 - Invalid request",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/runs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"plan\": {\n    \"goal\": \"Write documentation\",\n    \"steps\": [\n      {\n        \"name\": \"write_readme\",\n        \"tool\": \"codegen\",\n        \"inputs\": {\n          \"topic\": \"API Documentation\",\n          \"content\": \"Write comprehensive API docs\"\n        }\n      }\n    ]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Invalid request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"string\",\n  \"details\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "List runs",
+          "description": "Get a list of recent runs with optional filtering",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": 50,
+                  "description": "Maximum number of runs to return",
+                  "disabled": true
+                },
+                {
+                  "key": "projectId",
+                  "value": "",
+                  "description": "Filter by project ID",
+                  "disabled": true
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - List of runs",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/runs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": 50,
+                      "description": "Maximum number of runs to return",
+                      "disabled": true
+                    },
+                    {
+                      "key": "projectId",
+                      "value": "",
+                      "description": "Filter by project ID",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "List of runs",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"runs\": [\n    {\n      \"id\": \"uuid-example\",\n      \"tenant_id\": \"string\",\n      \"project_id\": \"string\",\n      \"status\": \"pending\",\n      \"goal\": \"string\",\n      \"created_at\": \"2024-01-01T00:00:00Z\",\n      \"updated_at\": \"2024-01-01T00:00:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Preview a plan",
+          "description": "Preview the plan that would be generated from a standard prompt without creating a run",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/runs/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs",
+                "preview"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"standard\": {\n    \"prompt\": \"string\",\n    \"quality\": true,\n    \"openPr\": false,\n    \"filePath\": \"string\",\n    \"summarizeQuery\": \"string\",\n    \"summarizeTarget\": \"string\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Preview of the generated plan",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/runs/preview",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs",
+                    "preview"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"standard\": {\n    \"prompt\": \"string\",\n    \"quality\": true,\n    \"openPr\": false,\n    \"filePath\": \"string\",\n    \"summarizeQuery\": \"string\",\n    \"summarizeTarget\": \"string\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Preview of the generated plan",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"steps\": [\n    {\n      \"name\": \"string\",\n      \"tool\": \"string\",\n      \"inputs\": {},\n      \"tools_allowed\": [\n        \"string\"\n      ],\n      \"env_allowed\": [\n        \"string\"\n      ],\n      \"secrets_scope\": \"string\"\n    }\n  ],\n  \"plan\": {\n    \"goal\": \"string\",\n    \"steps\": [\n      {\n        \"name\": null,\n        \"tool\": null,\n        \"inputs\": null,\n        \"tools_allowed\": null,\n        \"env_allowed\": null,\n        \"secrets_scope\": null\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get run details",
+          "description": "Get detailed information about a specific run including steps and artifacts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/runs/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}",
+                  "description": "Run ID"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Run details",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/runs/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}",
+                      "description": "Run ID"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Run details",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"run\": {\n    \"id\": \"uuid-example\",\n    \"tenant_id\": \"string\",\n    \"project_id\": \"string\",\n    \"status\": \"pending\",\n    \"goal\": \"string\",\n    \"created_at\": \"2024-01-01T00:00:00Z\",\n    \"updated_at\": \"2024-01-01T00:00:00Z\"\n  },\n  \"steps\": [\n    {\n      \"id\": \"uuid-example\",\n      \"run_id\": \"uuid-example\",\n      \"name\": \"string\",\n      \"tool\": \"string\",\n      \"status\": \"pending\",\n      \"inputs\": {},\n      \"outputs\": {},\n      \"error\": \"string\",\n      \"created_at\": \"2024-01-01T00:00:00Z\",\n      \"started_at\": \"2024-01-01T00:00:00Z\",\n      \"finished_at\": \"2024-01-01T00:00:00Z\"\n    }\n  ],\n  \"artifacts\": [\n    {\n      \"id\": \"uuid-example\",\n      \"run_id\": \"uuid-example\",\n      \"step_id\": \"uuid-example\",\n      \"type\": \"string\",\n      \"path\": \"string\",\n      \"metadata\": {},\n      \"created_at\": \"2024-01-01T00:00:00Z\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "404 - Run not found",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/runs/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}",
+                      "description": "Run ID"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Run not found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"string\",\n  \"details\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get run timeline",
+          "description": "Get the event timeline for a run showing all state transitions and activities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/runs/:id/timeline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs",
+                ":id",
+                "timeline"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}",
+                  "description": "Run ID"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Timeline events",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/runs/:id/timeline",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs",
+                    ":id",
+                    "timeline"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}",
+                      "description": "Run ID"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Timeline events",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": \"uuid-example\",\n    \"run_id\": \"uuid-example\",\n    \"step_id\": \"uuid-example\",\n    \"event_type\": \"string\",\n    \"payload\": {},\n    \"created_at\": \"2024-01-01T00:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Stream run events",
+          "description": "Server-Sent Events (SSE) stream of timeline updates for real-time monitoring.\n\nEvent types:\n- `init`: Initial batch of events\n- `append`: New events since last update\n",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/runs/:id/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs",
+                ":id",
+                "stream"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}",
+                  "description": "Run ID"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Gates",
+      "description": "Gates operations",
+      "item": [
+        {
+          "name": "List gates for a run",
+          "description": "Get all manual approval gates associated with a run",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/runs/:id/gates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs",
+                ":id",
+                "gates"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}",
+                  "description": "Run ID"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - List of gates",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/runs/:id/gates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "runs",
+                    ":id",
+                    "gates"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}",
+                      "description": "Run ID"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "List of gates",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": \"uuid-example\",\n    \"run_id\": \"uuid-example\",\n    \"step_id\": \"uuid-example\",\n    \"name\": \"string\",\n    \"description\": \"string\",\n    \"status\": \"pending\",\n    \"approved_by\": \"string\",\n    \"approved_at\": \"2024-01-01T00:00:00Z\",\n    \"created_at\": \"2024-01-01T00:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Create a gate",
+          "description": "Create a new manual approval gate",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/gates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gates"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"runId\": \"uuid-example\",\n  \"stepId\": \"uuid-example\",\n  \"name\": \"string\",\n  \"description\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "201 - Gate created",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/gates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "gates"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"runId\": \"uuid-example\",\n  \"stepId\": \"uuid-example\",\n  \"name\": \"string\",\n  \"description\": \"string\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Gate created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"uuid-example\",\n  \"run_id\": \"uuid-example\",\n  \"step_id\": \"uuid-example\",\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"status\": \"pending\",\n  \"approved_by\": \"string\",\n  \"approved_at\": \"2024-01-01T00:00:00Z\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Approve a gate",
+          "description": "Approve a manual gate to allow execution to continue",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/gates/:id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gates",
+                ":id",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}",
+                  "description": "Gate ID"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Gate approved",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/gates/:id/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "gates",
+                    ":id",
+                    "approve"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}",
+                      "description": "Gate ID"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"string\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Gate approved",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"ok\": true,\n  \"message\": \"string\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Waive a gate",
+          "description": "Waive a gate to skip it and continue execution",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/gates/:id/waive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gates",
+                ":id",
+                "waive"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}",
+                  "description": "Gate ID"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Gate waived",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/gates/:id/waive",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "gates",
+                    ":id",
+                    "waive"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}",
+                      "description": "Gate ID"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"string\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Gate waived",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"ok\": true,\n  \"message\": \"string\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "description": "Projects operations",
+      "item": [
+        {
+          "name": "List projects",
+          "description": "Get all projects",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - List of projects",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/projects",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "projects"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "List of projects",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"projects\": [\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"description\": \"string\",\n      \"local_path\": \"string\",\n      \"git_url\": \"string\",\n      \"workspace_mode\": \"local_path\",\n      \"settings\": {},\n      \"created_at\": \"2024-01-01T00:00:00Z\",\n      \"updated_at\": \"2024-01-01T00:00:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create project",
+          "description": "Create a new project",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "201 - Project created",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/projects",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "projects"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Project created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"string\",\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {},\n  \"created_at\": \"2024-01-01T00:00:00Z\",\n  \"updated_at\": \"2024-01-01T00:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get project",
+          "description": "Get project details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/projects/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Project details",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/projects/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "projects",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Project details",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"string\",\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {},\n  \"created_at\": \"2024-01-01T00:00:00Z\",\n  \"updated_at\": \"2024-01-01T00:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update project",
+          "description": "Update project settings",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/projects/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Project updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/projects/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "projects",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Project updated",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"string\",\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"local_path\": \"string\",\n  \"git_url\": \"string\",\n  \"workspace_mode\": \"local_path\",\n  \"settings\": {},\n  \"created_at\": \"2024-01-01T00:00:00Z\",\n  \"updated_at\": \"2024-01-01T00:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete project",
+          "description": "Delete a project",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/projects/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Project deleted",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/projects/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "projects",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Project deleted",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"ok\": true\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Operations",
+      "description": "Operations operations",
+      "item": [
+        {
+          "name": "List backups",
+          "description": "Get list of available backups",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/backups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backups"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": 20,
+                  "disabled": true
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - List of backups",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/backups",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "backups"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": 20,
+                      "disabled": true
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "List of backups",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": \"string\",\n    \"path\": \"string\",\n    \"size\": 1,\n    \"note\": \"string\",\n    \"scope\": \"data\",\n    \"created_by\": \"string\",\n    \"created_at\": \"2024-01-01T00:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Create backup",
+          "description": "Create a new system backup",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/backups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backups"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"string\",\n  \"scope\": \"data\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "201 - Backup created",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/backups",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "backups"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"string\",\n  \"scope\": \"data\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Backup created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"string\",\n  \"path\": \"string\",\n  \"size\": 1,\n  \"note\": \"string\",\n  \"scope\": \"data\",\n  \"created_by\": \"string\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Restore backup",
+          "description": "Restore system from a backup",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/backups/:id/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backups",
+                ":id",
+                "restore"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "inherit"
+            }
+          },
+          "response": [
+            {
+              "name": "200 - Backup restored",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/backups/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "backups",
+                    ":id",
+                    "restore"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{id}}"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "auth": {
+                  "type": "inherit"
+                }
+              },
+              "status": "Backup restored",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"ok\": true,\n  \"meta\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Admin login",
+          "description": "Authenticate as admin user",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "description": "Clear authentication session",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Example Workflows",
+      "description": "Common workflow examples",
+      "item": [
+        {
+          "name": "Simple Code Generation",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": {\n    \"goal\": \"Generate hello world\",\n    \"steps\": [\n      {\n        \"name\": \"hello\",\n        \"tool\": \"codegen\",\n        \"inputs\": {\n          \"prompt\": \"Write a hello world function\"\n        }\n      }\n    ]\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Quality Checked Deployment",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": {\n    \"goal\": \"Deploy with quality checks\",\n    \"steps\": [\n      {\n        \"name\": \"typecheck\",\n        \"tool\": \"gate:typecheck\"\n      },\n      {\n        \"name\": \"test\",\n        \"tool\": \"gate:test\"\n      },\n      {\n        \"name\": \"deploy\",\n        \"tool\": \"deploy:production\",\n        \"inputs\": {\n          \"environment\": \"production\"\n        }\n      }\n    ]\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "AI from Prompt",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runs"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"standard\": {\n    \"prompt\": \"Write unit tests for the auth module\",\n    \"quality\": true,\n    \"openPr\": false\n  }\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { subscribe, STEP_READY_TOPIC, OUTBOX_TOPIC } from "../lib/queue";
-import { runStep } from "./runner";
+import { runStep, markStepTimedOut } from "./runner";
 import { log } from "../lib/logger";
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,11 +18,12 @@ function hashInputs(val: any) {
   return crypto.createHash('sha256').update(JSON.stringify(val || {})).digest('hex').slice(0, 12);
 }
 
-subscribe(STEP_READY_TOPIC, async ({ runId, stepId, idempotencyKey, __attempt }: any) => {
+subscribe(STEP_READY_TOPIC, async ({ runId, stepId, idempotencyKey, __attempt }) => {
   return runWithContext({ runId, stepId, retryCount: Math.max(0, Number(__attempt || 1) - 1) }, async () => {
     log.info({ runId, stepId, attempt: __attempt }, "worker handling step");
     // Compute or use provided idempotency key, and guard via inbox
     let key = String(idempotencyKey || '');
+    let marked = false;
     try {
       if (!key) {
         const step = await store.getStep(stepId);
@@ -32,14 +33,33 @@ subscribe(STEP_READY_TOPIC, async ({ runId, stepId, idempotencyKey, __attempt }:
     if (key) {
       const isNew = await store.inboxMarkIfNew(key).catch(()=> true);
       if (!isNew) { log.info({ key }, 'inbox.duplicate.ignored'); return; }
+      marked = true;
     }
-    const timeout = new Promise((_res, rej) => setTimeout(() => rej(new Error('step timeout')), STEP_TIMEOUT_MS));
+    let timeoutHandle: NodeJS.Timeout | null = null;
+    const timeout = new Promise((_res, rej) => {
+      timeoutHandle = setTimeout(() => rej(new Error('step timeout')), STEP_TIMEOUT_MS);
+    });
     try {
       await Promise.race([ runStep(runId, stepId), timeout ]);
-      await store.outboxAdd(OUTBOX_TOPIC, { type: 'step.succeeded', runId, stepId });
+      await store.outboxAdd(OUTBOX_TOPIC, { type: 'step.succeeded', runId, stepId }).catch(() => {});
     } catch (err: any) {
-      await store.outboxAdd(OUTBOX_TOPIC, { type: 'step.failed', runId, stepId, error: err?.message || String(err) });
+      if (err && typeof err.message === 'string' && err.message.toLowerCase() === 'step timeout') {
+        await markStepTimedOut(runId, stepId, STEP_TIMEOUT_MS);
+      }
+      await store.outboxAdd(OUTBOX_TOPIC, {
+        type: 'step.failed',
+        runId,
+        stepId,
+        error: (err && typeof err.message === 'string') ? err.message : String(err)
+      }).catch(() => {});
       throw err;
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      if (marked && key) {
+        await store.inboxDelete(key).catch(() => {});
+      }
     }
   });
 });

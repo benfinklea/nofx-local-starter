@@ -1,0 +1,1065 @@
+openapi: 3.0.3
+info:
+  title: NOFX Control Plane API
+  description: |
+    The NOFX Control Plane orchestration API for managing execution runs, steps, and artifacts.
+
+    ## Overview
+    The control plane turns human or system requests into durable, auditable execution runs.
+    It normalizes incoming plans, persists them, schedules work on the queue, tracks lineage,
+    and streams updates to any surface (UI, CLI, Slack bots, downstream services).
+
+    ## Authentication
+    Most endpoints require admin authentication via cookie. Use `/login` endpoint to authenticate.
+
+    ## Base URL
+    Default: `http://localhost:3000`
+  version: 1.0.0
+  contact:
+    name: NOFX Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.nofx.io
+    description: Production server (placeholder)
+
+tags:
+  - name: Runs
+    description: Run creation and management
+  - name: Gates
+    description: Manual approval gates
+  - name: Projects
+    description: Project management
+  - name: Models
+    description: AI model configuration
+  - name: Operations
+    description: System operations and maintenance
+  - name: Health
+    description: Health and monitoring
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API and database health status
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  database:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [ok, error]
+                      error:
+                        type: string
+                        description: Error message if database is down
+
+  /runs:
+    post:
+      tags:
+        - Runs
+      summary: Create a new run
+      description: |
+        Create a new execution run from a plan or standard prompt.
+
+        Supports two modes:
+        1. **Plan mode**: Provide a structured plan with steps
+        2. **Standard mode**: Provide a natural language prompt that will be converted to a plan
+      operationId: createRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required:
+                    - plan
+                  properties:
+                    plan:
+                      $ref: '#/components/schemas/Plan'
+                    projectId:
+                      type: string
+                      default: default
+                      description: Project ID to associate with the run
+                - type: object
+                  required:
+                    - standard
+                  properties:
+                    standard:
+                      type: object
+                      required:
+                        - prompt
+                      properties:
+                        prompt:
+                          type: string
+                          description: Natural language prompt describing the task
+                        quality:
+                          type: boolean
+                          default: true
+                          description: Enable quality gates
+                        openPr:
+                          type: boolean
+                          default: false
+                          description: Open a pull request after completion
+                        filePath:
+                          type: string
+                          description: Target file path for operations
+                        summarizeQuery:
+                          type: string
+                          description: Query for summarization
+                        summarizeTarget:
+                          type: string
+                          description: Target for summarization
+            examples:
+              planMode:
+                summary: Create run with structured plan
+                value:
+                  plan:
+                    goal: "Write documentation"
+                    steps:
+                      - name: "write_readme"
+                        tool: "codegen"
+                        inputs:
+                          topic: "API Documentation"
+                          content: "Write comprehensive API docs"
+              standardMode:
+                summary: Create run from prompt
+                value:
+                  standard:
+                    prompt: "Write unit tests for the auth module"
+                    quality: true
+                    openPr: false
+      responses:
+        '201':
+          description: Run created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    description: Unique run ID
+                  status:
+                    type: string
+                    enum: [queued]
+                  projectId:
+                    type: string
+                    description: Associated project ID
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags:
+        - Runs
+      summary: List runs
+      description: Get a list of recent runs with optional filtering
+      operationId: listRuns
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of runs to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: projectId
+          in: query
+          description: Filter by project ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Run'
+
+  /runs/preview:
+    post:
+      tags:
+        - Runs
+      summary: Preview a plan
+      description: Preview the plan that would be generated from a standard prompt without creating a run
+      operationId: previewRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - standard
+              properties:
+                standard:
+                  type: object
+                  required:
+                    - prompt
+                  properties:
+                    prompt:
+                      type: string
+                    quality:
+                      type: boolean
+                      default: true
+                    openPr:
+                      type: boolean
+                      default: false
+                    filePath:
+                      type: string
+                    summarizeQuery:
+                      type: string
+                    summarizeTarget:
+                      type: string
+      responses:
+        '200':
+          description: Preview of the generated plan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Step'
+                  plan:
+                    $ref: '#/components/schemas/Plan'
+
+  /runs/{id}:
+    get:
+      tags:
+        - Runs
+      summary: Get run details
+      description: Get detailed information about a specific run including steps and artifacts
+      operationId: getRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Run ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Run details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run:
+                    $ref: '#/components/schemas/Run'
+                  steps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StepDetail'
+                  artifacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Artifact'
+        '404':
+          description: Run not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /runs/{id}/timeline:
+    get:
+      tags:
+        - Runs
+      summary: Get run timeline
+      description: Get the event timeline for a run showing all state transitions and activities
+      operationId: getRunTimeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Run ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Timeline events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+
+  /runs/{id}/stream:
+    get:
+      tags:
+        - Runs
+      summary: Stream run events
+      description: |
+        Server-Sent Events (SSE) stream of timeline updates for real-time monitoring.
+
+        Event types:
+        - `init`: Initial batch of events
+        - `append`: New events since last update
+      operationId: streamRunEvents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Run ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: SSE stream of events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-sent events stream
+
+  /runs/{id}/gates:
+    get:
+      tags:
+        - Gates
+      summary: List gates for a run
+      description: Get all manual approval gates associated with a run
+      operationId: getRunGates
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Run ID
+          schema:
+            type: string
+            format: uuid
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of gates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Gate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gates:
+    post:
+      tags:
+        - Gates
+      summary: Create a gate
+      description: Create a new manual approval gate
+      operationId: createGate
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - runId
+                - stepId
+                - name
+              properties:
+                runId:
+                  type: string
+                  format: uuid
+                stepId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Gate created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gates/{id}/approve:
+    post:
+      tags:
+        - Gates
+      summary: Approve a gate
+      description: Approve a manual gate to allow execution to continue
+      operationId: approveGate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Gate ID
+          schema:
+            type: string
+            format: uuid
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  description: Optional approval note
+      responses:
+        '200':
+          description: Gate approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Gate not found
+
+  /gates/{id}/waive:
+    post:
+      tags:
+        - Gates
+      summary: Waive a gate
+      description: Waive a gate to skip it and continue execution
+      operationId: waiveGate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Gate ID
+          schema:
+            type: string
+            format: uuid
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for waiving the gate
+      responses:
+        '200':
+          description: Gate waived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: List projects
+      description: Get all projects
+      operationId: listProjects
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Projects
+      summary: Create project
+      description: Create a new project
+      operationId: createProject
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectInput'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /projects/{id}:
+    get:
+      tags:
+        - Projects
+      summary: Get project
+      description: Get project details
+      operationId: getProject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Project not found
+
+    patch:
+      tags:
+        - Projects
+      summary: Update project
+      description: Update project settings
+      operationId: updateProject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectInput'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags:
+        - Projects
+      summary: Delete project
+      description: Delete a project
+      operationId: deleteProject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Project deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /backups:
+    get:
+      tags:
+        - Operations
+      summary: List backups
+      description: Get list of available backups
+      operationId: listBackups
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of backups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Backup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Operations
+      summary: Create backup
+      description: Create a new system backup
+      operationId: createBackup
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  description: Optional backup note
+                scope:
+                  type: string
+                  enum: [data, full]
+                  default: data
+                  description: Backup scope (data only or full including project files)
+      responses:
+        '201':
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Backup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /backups/{id}/restore:
+    post:
+      tags:
+        - Operations
+      summary: Restore backup
+      description: Restore system from a backup
+      operationId: restoreBackup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Backup restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  meta:
+                    type: object
+                    description: Restore metadata
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Restore failed
+
+  /metrics:
+    get:
+      tags:
+        - Health
+      summary: Get metrics
+      description: Get Prometheus-formatted metrics for monitoring
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Prometheus-formatted metrics
+
+  /login:
+    post:
+      tags:
+        - Operations
+      summary: Admin login
+      description: Authenticate as admin user
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: Authentication cookie
+        '401':
+          description: Invalid password
+
+  /logout:
+    post:
+      tags:
+        - Operations
+      summary: Logout
+      description: Clear authentication session
+      operationId: logout
+      responses:
+        '200':
+          description: Logged out
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: Cleared authentication cookie
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: nofx_admin
+
+  schemas:
+    Plan:
+      type: object
+      required:
+        - goal
+        - steps
+      properties:
+        goal:
+          type: string
+          description: High-level goal of the execution plan
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Step'
+
+    Step:
+      type: object
+      required:
+        - name
+        - tool
+      properties:
+        name:
+          type: string
+          description: Step name/identifier
+        tool:
+          type: string
+          description: Tool to execute (e.g., codegen, gate:typecheck, manual:approve)
+        inputs:
+          type: object
+          additionalProperties: true
+          description: Tool-specific input parameters
+        tools_allowed:
+          type: array
+          items:
+            type: string
+          description: Allowed tools for security policy
+        env_allowed:
+          type: array
+          items:
+            type: string
+          description: Allowed environment variables
+        secrets_scope:
+          type: string
+          description: Secrets access scope
+
+    Run:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+        project_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, cancelled]
+        goal:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    StepDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        tool:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, cancelled]
+        inputs:
+          type: object
+        outputs:
+          type: object
+        error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+
+    Artifact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        step_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          description: Artifact type (e.g., file, log, image)
+        path:
+          type: string
+          description: Storage path or URL
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        step_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          description: Event type (e.g., run.created, step.started, step.finished)
+        payload:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    Gate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        step_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, waived, expired]
+        approved_by:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        local_path:
+          type: string
+        git_url:
+          type: string
+        workspace_mode:
+          type: string
+          enum: [local_path, git_url, temp]
+        settings:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        local_path:
+          type: string
+        git_url:
+          type: string
+        workspace_mode:
+          type: string
+          enum: [local_path, git_url, temp]
+        settings:
+          type: object
+
+    Backup:
+      type: object
+      properties:
+        id:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        note:
+          type: string
+        scope:
+          type: string
+          enum: [data, full]
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: auth required
+              login:
+                type: string
+                example: /ui/login

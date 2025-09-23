@@ -1,10 +1,10 @@
 import { log } from "../logger";
 import { metrics } from "../metrics";
 
-type Job = { id: number; payload: any; runAt: number; enqueuedAt: number };
+type Job = { id: number; payload: unknown; runAt: number; enqueuedAt: number };
 
 export class MemoryQueueAdapter {
-  private subs = new Map<string, Array<(p:any)=>Promise<void>>>();
+  private subs = new Map<string, Array<(payload: unknown) => Promise<unknown>>>();
   private queues = new Map<string, Job[]>();
   private active = new Map<string, number>();
   private counts = new Map<string, { waiting:number; active:number; completed:number; failed:number; delayed:number; paused:number }>();
@@ -35,7 +35,7 @@ export class MemoryQueueAdapter {
     } catch {}
   }
 
-  async enqueue(topic: string, payload: any, options?: { delay?: number }) {
+  async enqueue(topic: string, payload: unknown, options?: { delay?: number }) {
     this.ensure(topic);
     const delay = Math.max(0, Number(options?.delay || 0));
     const now = Date.now();
@@ -50,7 +50,7 @@ export class MemoryQueueAdapter {
     setTimeout(() => this.drain(topic), Math.max(0, runAt - Date.now()));
   }
 
-  subscribe(topic: string, handler: (payload:any)=>Promise<void>) {
+  subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>) {
     const arr = this.subs.get(topic) || [];
     arr.push(handler);
     this.subs.set(topic, arr);
@@ -88,17 +88,27 @@ export class MemoryQueueAdapter {
           c.failed += 1;
           log.error({ topic, jobId: job.id, status: 'failed', err }, 'memq.failed');
           // retry with backoff schedule; on max, move to DLQ
-          const attempt = Number(job.payload?.__attempt || 1);
+          const rawPayload = job.payload;
+          const payloadObject = (typeof rawPayload === 'object' && rawPayload !== null)
+            ? rawPayload as Record<string, unknown>
+            : {};
+          const attempt = Number(payloadObject['__attempt'] ?? 1);
           const nextIndex = attempt; // index into backoffSchedule for next delay
           const nextDelay = this.backoffScheduleMs[nextIndex];
           if (Number.isFinite(nextDelay)) {
-            const nextPayload = { ...job.payload, __attempt: attempt + 1 };
+            const nextPayload = { ...payloadObject, __attempt: attempt + 1 };
             await this.enqueue(topic, nextPayload, { delay: nextDelay });
-            try { metrics.retriesTotal.inc({ provider: String(job.payload?.provider || 'queue') }); } catch {}
+            try {
+              const providerValue = payloadObject['provider'];
+              const provider = typeof providerValue === 'string'
+                ? providerValue
+                : String(providerValue ?? 'queue');
+              metrics.retriesTotal.inc({ provider });
+            } catch {}
           } else {
             const dlqTopic = (topic === 'step.ready') ? 'step.dlq' : `${topic}.dlq`;
             const dlqs = this.dlq.get(dlqTopic) || [];
-            dlqs.push({ id: this.idSeq++, payload: job.payload, runAt: Date.now(), enqueuedAt: Date.now() } as Job);
+            dlqs.push({ id: this.idSeq++, payload: rawPayload, runAt: Date.now(), enqueuedAt: Date.now() } as Job);
             this.dlq.set(dlqTopic, dlqs);
             log.warn({ topic, jobId: job.id, attempts: attempt, dlqTopic }, 'memq.to_dlq');
           }
@@ -130,7 +140,11 @@ export class MemoryQueueAdapter {
     const take = arr.splice(0, Math.max(0, Math.min(max, arr.length)));
     this.dlq.set(topic, arr);
     for (const job of take) {
-      const payload = { ...job.payload, __attempt: 1 };
+      const rawPayload = job.payload;
+      const payloadObject = (typeof rawPayload === 'object' && rawPayload !== null)
+        ? rawPayload as Record<string, unknown>
+        : {};
+      const payload = { ...payloadObject, __attempt: 1 };
       const from = topic.endsWith('.dlq') ? topic.replace(/\.dlq$/, '.ready') : topic;
       await this.enqueue(from, payload, { delay: 0 });
     }
