@@ -28,7 +28,7 @@ function logInfo(msg) {
 }
 
 const which = process.argv[3] // argv[2] is the script path in zx
-const validGates = ['typecheck', 'lint', 'unit', 'sast', 'secrets', 'audit', 'unused', 'load']
+const validGates = ['typecheck', 'lint', 'unit', 'sast', 'secrets', 'audit', 'unused', 'load', 'ui']
 
 if (!which) {
   logError(`Usage: zx scripts/runGate.mjs <${validGates.join('|')}>`)
@@ -90,6 +90,9 @@ try {
       break
     case 'load':
       await runLoad()
+      break
+    case 'ui':
+      await runUi()
       break
   }
 } catch (error) {
@@ -262,6 +265,28 @@ async function runLoad() {
     artifactPath = `${ARTIFACTS_DIR}/load.txt`
     await fs.promises.writeFile(artifactPath, [error.stdout, error.stderr].filter(Boolean).join('\n'))
     summary = { gate: 'load', passed: false }
+    code = 1
+  }
+}
+
+async function runUi() {
+  if (!hasNpmScript('test:ui')) {
+    summary = { gate: 'ui', passed: false, error: 'No test:ui script found in package.json' }
+    code = 1
+    return
+  }
+
+  logInfo('Running React UI tests...')
+  try {
+    const result = await $`npm run -s test:ui`
+    artifactPath = `${ARTIFACTS_DIR}/ui-tests.txt`
+    await fs.promises.writeFile(artifactPath, [result.stdout, result.stderr].filter(Boolean).join('\n'))
+    summary = { gate: 'ui', passed: true }
+    code = 0
+  } catch (error) {
+    artifactPath = `${ARTIFACTS_DIR}/ui-tests.txt`
+    await fs.promises.writeFile(artifactPath, [error.stdout, error.stderr].filter(Boolean).join('\n'))
+    summary = { gate: 'ui', passed: false }
     code = 1
   }
 }

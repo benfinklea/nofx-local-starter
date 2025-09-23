@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import path from 'node:path';
 import { z } from "zod";
 import { PlanSchema } from "../shared/types";
@@ -18,11 +19,29 @@ import startOutboxRelay from '../worker/relay';
 import { requestObservability, setContext } from '../lib/observability';
 import { initTracing } from '../lib/tracing';
 import { getProject, updateProject } from '../lib/projects';
+import { retryStep, StepNotFoundError, StepNotRetryableError } from '../lib/runRecovery';
+import { isAdmin } from '../lib/auth';
 
 dotenv.config();
 export const app = express();
 // Optional tracing (OpenTelemetry) if enabled via env
 initTracing('nofx-api').catch(()=>{});
+
+// Enable CORS for frontend development
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
+}));
+
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 // Observability middleware: request ID + latency logging + correlation
@@ -57,7 +76,27 @@ try {
   }
 } catch {}
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", async (_req, res) => {
+  try {
+    // Test database connection
+    const { query } = await import('../lib/db');
+    await query('SELECT 1');
+    res.json({ ok: true, database: { status: 'ok' } });
+  } catch (error) {
+    res.json({ ok: true, database: { status: 'error', error: 'Database connection failed' } });
+  }
+});
+
+// Redirect /ui/app routes to Vite dev server in development
+if (process.env.NODE_ENV === 'development') {
+  app.get('/ui/app', (req, res) => {
+    res.redirect('http://localhost:5173/ui/app/');
+  });
+  app.get('/ui/app/*', (req, res) => {
+    const vitePath = req.originalUrl;
+    res.redirect(`http://localhost:5173${vitePath}`);
+  });
+}
 
 // Register builder routes eagerly so that operator tooling is immediately available
 try {
@@ -262,6 +301,26 @@ function listenWithRetry(attempt = 0) {
   });
   server.listen(port, () => log.info(`API listening on :${port}`));
 }
+
+app.post('/runs/:runId/steps/:stepId/retry', async (req, res) => {
+  if (!isAdmin(req)) {
+    return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+  }
+  const { runId, stepId } = req.params;
+  try {
+    await retryStep(runId, stepId);
+    res.status(202).json({ ok: true });
+  } catch (err) {
+    if (err instanceof StepNotFoundError) {
+      return res.status(404).json({ error: 'step not found' });
+    }
+    if (err instanceof StepNotRetryableError) {
+      return res.status(409).json({ error: err.message });
+    }
+    log.error({ err, runId, stepId }, 'step.retry.error');
+    return res.status(500).json({ error: 'retry failed' });
+  }
+});
 if (process.env.NODE_ENV !== 'test') {
   listenWithRetry();
 }

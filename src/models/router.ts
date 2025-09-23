@@ -1,160 +1,287 @@
-import { openaiChat } from './providers/openai';
-import { claudeChat } from './providers/anthropic';
-import { geminiChat } from './providers/gemini';
-import { getSettings } from '../lib/settings';
-import { httpChat } from './providers/http';
+import crypto from 'node:crypto';
+import type { ModelRow } from '../lib/models';
 import { getModelByName } from '../lib/models';
+import { getSettings } from '../lib/settings';
 import { metrics } from '../lib/metrics';
 import { setContext } from '../lib/observability';
 import { getCacheJSON, setCacheJSON } from '../lib/cache';
-import crypto from 'node:crypto';
+import { claudeChat } from './providers/anthropic';
+import { geminiChat } from './providers/gemini';
+import { httpChat } from './providers/http';
+import { openaiChat } from './providers/openai';
+import type {
+  CoreProvider,
+  ProviderConfig,
+  ProviderConfigMap,
+  RouteResult,
+} from './providers/types';
 
-export type TaskKind = 'codegen'|'reasoning'|'docs';
+export type TaskKind = 'codegen' | 'reasoning' | 'docs';
 export type RouteOpts = { maxOutputTokens?: number };
 
-export async function routeLLM(kind: TaskKind, prompt: string, opts?: RouteOpts){
+const RETRY_DELAY_STEP_MS = 250;
+
+export async function routeLLM(kind: TaskKind, prompt: string, opts?: RouteOpts): Promise<RouteResult> {
   const { llm } = await getSettings();
-  const modelOrder = llm?.modelOrder?.[kind as 'docs'|'reasoning'|'codegen'] || [];
-  let lastErr: any;
+  const providerConfigs: ProviderConfigMap = llm.providers ?? {};
+  const modelOrder = llm.modelOrder?.[kind] ?? [];
+  let lastErr: unknown;
+
   if (modelOrder.length) {
     for (const name of modelOrder) {
       try {
-        const m = await getModelByName(name);
-        if (!m || m.active === false) continue;
-        const cached = await maybeGetDocsCache(kind, prompt, m.name);
-        if (cached) return cached as any;
-        const out: any = await callModelWithRetry(m, prompt, opts);
-        await maybeSetDocsCache(kind, prompt, m.name, out);
-        if (typeof out === 'string') return out;
-        return { ...out, provider: m.provider, model: m.name };
-      } catch (e:any) { lastErr = e; }
-    }
-    throw lastErr || new Error('no model succeeded');
-  }
-  const order = await pickOrder(kind);
-  for (const p of order) {
-    try {
-      try { setContext({ provider: p }); } catch {}
-      const model = (p==='openai' ? process.env.OPENAI_MODEL : p==='anthropic' ? process.env.ANTHROPIC_MODEL : p==='gemini' ? process.env.GEMINI_MODEL : undefined);
-      if (kind === 'docs') {
-        const cached = await maybeGetDocsCache(kind, prompt, model || p);
-        if (cached) return cached as any;
+        const model = await getModelByName(name);
+        if (!model || model.active === false) continue;
+        const cached = await maybeGetDocsCache(kind, prompt, model.name);
+        if (cached) return cached;
+        const result = await callModelWithRetry(model, prompt, opts);
+        await maybeSetDocsCache(kind, prompt, model.name, result);
+        if (typeof result === 'string') return result;
+        return { ...result, provider: model.provider, model: model.name };
+      } catch (error) {
+        lastErr = error;
       }
-      const out = await callWithRetry(p, prompt, model as any, 2, 15000, opts);
-      if (kind === 'docs') await maybeSetDocsCache(kind, prompt, model || p, out);
-      return out;
-    } catch (e:any) { lastErr = e; }
+    }
+    throw (lastErr as Error) || new Error('no model succeeded');
   }
-  throw lastErr || new Error('no provider succeeded');
+
+  const order = await pickOrder(kind);
+  for (const provider of order) {
+    try {
+      setContextSafe({ provider });
+      const modelName = resolvePreferredModel(provider);
+      if (kind === 'docs') {
+        const cached = await maybeGetDocsCache(kind, prompt, modelName ?? provider);
+        if (cached) return cached;
+      }
+      const result = await callWithRetry(provider, prompt, modelName, providerConfigs, 2, 15_000, opts);
+      if (kind === 'docs') {
+        await maybeSetDocsCache(kind, prompt, modelName ?? provider, result);
+      }
+      return result;
+    } catch (error) {
+      lastErr = error;
+    }
+  }
+
+  throw (lastErr as Error) || new Error('no provider succeeded');
 }
-async function pickOrder(kind: TaskKind): Promise<Array<'openai'|'anthropic'|'gemini'>> {
-  const envPref = (process.env.LLM_ORDER || '').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean) as any[];
-  if (envPref.length) return envPref as any;
+
+async function pickOrder(kind: TaskKind): Promise<CoreProvider[]> {
+  const envPref = (process.env.LLM_ORDER || '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter((value): value is CoreProvider => value === 'openai' || value === 'anthropic' || value === 'gemini');
+  if (envPref.length) return envPref;
+
   try {
     const { llm } = await getSettings();
-    const order = llm?.order?.[kind as 'docs'|'reasoning'|'codegen'];
-    if (Array.isArray(order) && order.length) return order as any;
-  } catch {}
-  if (kind === 'codegen') return ['openai','anthropic','gemini'];
-  if (kind === 'reasoning') return ['anthropic','openai','gemini'];
-  return ['gemini','anthropic','openai'];
+    const order = llm.order?.[kind];
+    if (Array.isArray(order) && order.length) return order;
+  } catch {
+    // ignore and fall back to defaults
+  }
+
+  if (kind === 'codegen') return ['openai', 'anthropic', 'gemini'];
+  if (kind === 'reasoning') return ['anthropic', 'openai', 'gemini'];
+  return ['gemini', 'anthropic', 'openai'];
 }
-function call(p: string, prompt: string, model?: string, custom?: any, opts?: RouteOpts){
-  if (p==='openai') return openaiChat(prompt, model, { maxOutputTokens: opts?.maxOutputTokens });
-  if (p==='anthropic') return claudeChat(prompt, model, opts?.maxOutputTokens);
-  if (p==='gemini') return geminiChat(prompt, model);
-  if (custom && custom.kind === 'openai-compatible') {
-    const baseURL = custom.baseUrl || process.env[`LLM_${p.toUpperCase()}_BASE_URL`];
-    const apiKeyEnv = process.env[`LLM_${p.toUpperCase()}_API_KEY`] ? `LLM_${p.toUpperCase()}_API_KEY` : undefined;
+
+function call(
+  provider: string,
+  prompt: string,
+  model: string | undefined,
+  customConfig: ProviderConfig | undefined,
+  opts?: RouteOpts,
+): Promise<RouteResult> {
+  if (provider === 'openai') {
+    return openaiChat(prompt, model, { maxOutputTokens: opts?.maxOutputTokens });
+  }
+  if (provider === 'anthropic') {
+    return claudeChat(prompt, model, opts?.maxOutputTokens);
+  }
+  if (provider === 'gemini') {
+    return geminiChat(prompt, model);
+  }
+
+  if (customConfig && isOpenAICompatibleConfig(customConfig)) {
+    const baseURL = customConfig.baseUrl || resolveEnvBaseUrl(provider);
+    const apiKeyEnv = resolveProviderApiKeyEnv(provider);
     return openaiChat(prompt, model, { baseURL, apiKeyEnv, maxOutputTokens: opts?.maxOutputTokens });
   }
-  if (custom && custom.kind === 'http') {
-    const endpoint = custom.baseUrl || process.env[`LLM_${p.toUpperCase()}_BASE_URL`];
-    if (!endpoint) throw new Error('http provider missing baseUrl');
-    const apiKeyEnv = process.env[`LLM_${p.toUpperCase()}_API_KEY`] ? `LLM_${p.toUpperCase()}_API_KEY` : undefined;
+
+  if (customConfig && isHttpConfig(customConfig)) {
+    const endpoint = customConfig.baseUrl || resolveEnvBaseUrl(provider);
+    if (!endpoint) throw new Error(`http provider ${provider} missing baseUrl`);
+    const apiKeyEnv = resolveProviderApiKeyEnv(provider);
     return httpChat(prompt, endpoint, apiKeyEnv, model);
   }
-  throw new Error('unknown provider ' + p);
+
+  throw new Error(`unknown provider ${provider}`);
 }
 
-async function callWithRetry(p: string, prompt: string, model: string|undefined, retries=2, timeoutMs=15000, opts?: RouteOpts){
-  let lastErr: any;
-  for (let attempt=0; attempt<=retries; attempt++){
+async function callWithRetry(
+  provider: string,
+  prompt: string,
+  model: string | undefined,
+  providerConfigs: ProviderConfigMap,
+  retries = 2,
+  timeoutMs = 15_000,
+  opts?: RouteOpts,
+): Promise<RouteResult> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const { llm } = await getSettings();
-      const custom = llm?.providers ? (llm.providers as any)[p] : undefined;
-      try { setContext({ retryCount: attempt }); } catch {}
-      if (attempt > 0) { try { metrics.retriesTotal.inc({ provider: p }); } catch {} }
-      const res = await withTimeout(call(p, prompt, model, custom, opts), timeoutMs);
-      return res;
-    } catch (e:any) {
-      lastErr = e;
-      await delay((attempt+1)*250);
+      const custom = providerConfigs[provider];
+      setContextSafe({ retryCount: attempt });
+      if (attempt > 0) {
+        incrementRetryMetric(provider);
+      }
+      return await withTimeout(call(provider, prompt, model, custom, opts), timeoutMs);
+    } catch (error) {
+      lastErr = error;
+      await delay((attempt + 1) * RETRY_DELAY_STEP_MS);
     }
   }
-  throw lastErr;
+  throw (lastErr as Error) || new Error(`retry exhausted for provider ${provider}`);
 }
 
-async function callModelWithRetry(m: { kind: string; base_url?: string; provider: string; name: string }, prompt: string, opts?: RouteOpts, retries=2, timeoutMs=15000){
-  let lastErr: any;
-  for (let attempt=0; attempt<=retries; attempt++){
+async function callModelWithRetry(
+  model: ModelRow,
+  prompt: string,
+  opts?: RouteOpts,
+  retries = 2,
+  timeoutMs = 15_000,
+): Promise<RouteResult> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      try { setContext({ provider: m.provider }); } catch {}
-      try { setContext({ retryCount: attempt }); } catch {}
-      if (attempt > 0) { try { metrics.retriesTotal.inc({ provider: m.provider }); } catch {} }
-      const res = await withTimeout(callModel(m, prompt, opts), timeoutMs);
-      return res;
-    } catch (e:any) {
-      lastErr = e;
-      await delay((attempt+1)*250);
+      setContextSafe({ provider: model.provider });
+      setContextSafe({ retryCount: attempt });
+      if (attempt > 0) {
+        incrementRetryMetric(model.provider);
+      }
+      return await withTimeout(callModel(model, prompt, opts), timeoutMs);
+    } catch (error) {
+      lastErr = error;
+      await delay((attempt + 1) * RETRY_DELAY_STEP_MS);
     }
   }
-  throw lastErr;
+  throw (lastErr as Error) || new Error(`retry exhausted for model ${model.name}`);
 }
 
-function callModel(m: { kind: string; base_url?: string; provider: string; name: string }, prompt: string, opts?: RouteOpts){
-  const kind = (m.kind || '').toLowerCase();
-  if (kind === 'openai') return openaiChat(prompt, m.name, { maxOutputTokens: opts?.maxOutputTokens });
-  if (kind === 'anthropic') return claudeChat(prompt, m.name, opts?.maxOutputTokens);
-  if (kind === 'gemini') return geminiChat(prompt, m.name);
+function callModel(model: ModelRow, prompt: string, opts?: RouteOpts): Promise<RouteResult> {
+  const kind = (model.kind || '').toLowerCase();
+  if (kind === 'openai') {
+    return openaiChat(prompt, model.name, { maxOutputTokens: opts?.maxOutputTokens });
+  }
+  if (kind === 'anthropic') {
+    return claudeChat(prompt, model.name, opts?.maxOutputTokens);
+  }
+  if (kind === 'gemini') {
+    return geminiChat(prompt, model.name);
+  }
   if (kind === 'openai-compatible') {
-    const apiKeyEnv = `LLM_${m.provider.toUpperCase()}_API_KEY`;
-    return openaiChat(prompt, m.name, { baseURL: m.base_url, apiKeyEnv, maxOutputTokens: opts?.maxOutputTokens });
+    const apiKeyEnv = `LLM_${model.provider.toUpperCase()}_API_KEY`;
+    return openaiChat(prompt, model.name, {
+      baseURL: model.base_url,
+      apiKeyEnv,
+      maxOutputTokens: opts?.maxOutputTokens,
+    });
   }
   if (kind === 'http') {
-    const apiKeyEnv = `LLM_${m.provider.toUpperCase()}_API_KEY`;
-    if (!m.base_url) throw new Error('http model missing base_url');
-    return httpChat(prompt, m.base_url, apiKeyEnv, m.name);
+    const apiKeyEnv = `LLM_${model.provider.toUpperCase()}_API_KEY`;
+    if (!model.base_url) throw new Error('http model missing base_url');
+    return httpChat(prompt, model.base_url, apiKeyEnv, model.name);
   }
-  throw new Error('unknown model kind ' + kind);
+  throw new Error(`unknown model kind ${model.kind}`);
 }
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('llm timeout')), ms);
-    p.then(v => { clearTimeout(t); resolve(v); }, err => { clearTimeout(t); reject(err); });
+    const timer = setTimeout(() => reject(new Error('llm timeout')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
   });
 }
 
-function delay(ms:number){ return new Promise(r=>setTimeout(r, ms)); }
-
-// ------- Docs cache helpers -------
-function cacheKey(kind: TaskKind, prompt: string, model: string) {
-  const h = crypto.createHash('sha256').update(prompt).digest('hex').slice(0, 24);
-  return `${kind}:${model}:${h}`;
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
-async function maybeGetDocsCache(kind: TaskKind, prompt: string, model: string | undefined) {
+
+function cacheKey(kind: TaskKind, prompt: string, model: string): string {
+  const hash = crypto.createHash('sha256').update(prompt).digest('hex').slice(0, 24);
+  return `${kind}:${model}:${hash}`;
+}
+
+async function maybeGetDocsCache(kind: TaskKind, prompt: string, model: string | undefined): Promise<RouteResult | undefined> {
   if (kind !== 'docs') return undefined;
   const ttlMs = Math.max(0, Number(process.env.DOCS_CACHE_TTL_MS || 10 * 60 * 1000));
   if (ttlMs === 0) return undefined;
   const key = cacheKey(kind, prompt, model || 'default');
-  const v = await getCacheJSON('llm', key);
-  return v || undefined;
+  const cached = await getCacheJSON<RouteResult>('llm', key);
+  return cached ?? undefined;
 }
-async function maybeSetDocsCache(kind: TaskKind, prompt: string, model: string | undefined, value: any) {
+
+async function maybeSetDocsCache(kind: TaskKind, prompt: string, model: string | undefined, value: RouteResult): Promise<void> {
   if (kind !== 'docs') return;
   const ttlMs = Math.max(0, Number(process.env.DOCS_CACHE_TTL_MS || 10 * 60 * 1000));
   if (ttlMs === 0) return;
   const key = cacheKey(kind, prompt, model || 'default');
-  await setCacheJSON('llm', key, value, ttlMs).catch(()=>{});
+  await setCacheJSON('llm', key, value, ttlMs).catch(() => {});
+}
+
+function resolvePreferredModel(provider: CoreProvider): string | undefined {
+  const raw = provider === 'openai'
+    ? process.env.OPENAI_MODEL
+    : provider === 'anthropic'
+      ? process.env.ANTHROPIC_MODEL
+      : provider === 'gemini'
+        ? process.env.GEMINI_MODEL
+        : undefined;
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function resolveEnvBaseUrl(provider: string): string | undefined {
+  const key = `LLM_${provider.toUpperCase()}_BASE_URL`;
+  const value = process.env[key];
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function resolveProviderApiKeyEnv(provider: string): string | undefined {
+  const key = `LLM_${provider.toUpperCase()}_API_KEY`;
+  return typeof process.env[key] === 'string' ? key : undefined;
+}
+
+function isOpenAICompatibleConfig(config: ProviderConfig): config is ProviderConfig & { kind: 'openai-compatible' } {
+  return config.kind === 'openai-compatible';
+}
+
+function isHttpConfig(config: ProviderConfig): config is ProviderConfig & { kind: 'http' } {
+  return config.kind === 'http';
+}
+
+function setContextSafe(values: Record<string, unknown>): void {
+  try {
+    setContext(values);
+  } catch {
+    // observability is optional during tests
+  }
+}
+
+function incrementRetryMetric(provider: string): void {
+  try {
+    metrics.retriesTotal.inc({ provider });
+  } catch {
+    // metrics are best-effort
+  }
 }

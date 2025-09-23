@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import request from 'supertest';
-import type { Express } from 'express';
+import type { Express, Request, Response } from 'express';
+import { accessSync } from 'node:fs';
+import path from 'node:path';
 
 describe('Path safety: artifacts route', () => {
   let app: Express;
+  let handler: ((req: Request, res: Response) => any) | undefined;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
@@ -15,18 +17,56 @@ describe('Path safety: artifacts route', () => {
     if (typeof mount === 'function') {
       mount(app);
     }
+    const stack: any[] = (app as any)?._router?.stack || [];
+    handler = stack
+      .map(layer => layer?.route)
+      .filter(Boolean)
+      .find((route: any) => route?.path === '/ui/artifacts/signed')
+      ?.stack?.[0]?.handle;
+    if (typeof handler !== 'function') {
+      throw new Error('artifacts handler not mounted');
+    }
   });
 
+  async function invokeArtifacts(query: Record<string, unknown>) {
+    if (!handler) throw new Error('handler missing');
+    const req = { query } as unknown as Request;
+    const result: { status: number; body?: unknown; filePath?: string } = { status: 200 };
+    const res = {
+      status(code: number) {
+        result.status = code;
+        return this;
+      },
+      send(payload: unknown) {
+        result.body = payload;
+        return this;
+      },
+      redirect() {
+        throw new Error('redirect not expected');
+      },
+      sendFile(filePath: string, cb?: (err?: unknown) => void) {
+        result.filePath = filePath;
+        try {
+          accessSync(filePath);
+          cb?.();
+        } catch (err) {
+          cb?.(err);
+        }
+        return this;
+      },
+    } as unknown as Response;
+
+    await handler(req, res);
+    return result;
+  }
+
   it('rejects traversal outside local_data', async () => {
-    const res = await request(app)
-      .get('/ui/artifacts/signed')
-      .query({ path: '../../etc/passwd' });
-    expect([400,404]).toContain(res.status);
+    const res = await invokeArtifacts({ path: '../../etc/passwd' });
+    expect([400, 404]).toContain(res.status);
   });
 
   it('serves an existing artifact path under local_data', async () => {
     const fs = await import('node:fs/promises');
-    const path = await import('node:path');
     const { store } = await import('./lib/store');
     expect(store.driver).toBe('fs');
     const rel = path.join('runs','t-run','steps','t-step','hello.txt');
@@ -35,10 +75,9 @@ describe('Path safety: artifacts route', () => {
     await fs.writeFile(full, 'ok', 'utf8');
     await expect(fs.access(full)).resolves.toBeUndefined();
 
-    const res = await request(app)
-      .get('/ui/artifacts/signed')
-      .query({ path: rel });
+    const res = await invokeArtifacts({ path: rel });
     expect(res.status).toBe(200);
+    expect(res.filePath && path.resolve(res.filePath)).toBe(path.resolve(full));
   });
 });
 

@@ -5,17 +5,24 @@ import { saveArtifact } from "../../lib/artifacts";
 import { codegenReadme } from "../../tools/codegen";
 import { getSettings } from "../../lib/settings";
 import { getModelByName } from "../../lib/models";
+import { log } from "../../lib/logger";
 
 const handler: StepHandler = {
   match: (tool) => tool === 'codegen',
   async run({ runId, step }) {
     const stepId = step.id;
-    await store.updateStep(stepId, { status: 'running', started_at: new Date().toISOString() });
+    const startedAt = new Date().toISOString();
+    log.info({ runId, stepId, tool: step.tool }, 'codegen.step.starting');
+    await store.updateStep(stepId, { status: 'running', started_at: startedAt });
     await recordEvent(runId, "step.started", { name: step.name, tool: step.tool }, stepId);
 
     const inputs = step.inputs || {} as any;
     const filename = typeof inputs.filename === 'string' && inputs.filename.trim().length > 0 ? String(inputs.filename).trim() : 'README.md';
+
+    log.debug({ runId, stepId, filename }, 'codegen.step.codegen.begin');
     const result = await codegenReadme(inputs || {});
+    log.debug({ runId, stepId, provider: result.provider, model: result.model }, 'codegen.step.codegen.complete');
+
     let costUSD: number | undefined;
     if (result.usage) {
       const { llm } = await getSettings();
@@ -40,11 +47,12 @@ const handler: StepHandler = {
       costUSD = (inputTokens/1000000)*inP + (outputTokens/1000000)*outP;
       await recordEvent(runId, 'llm.usage', { provider: result.provider, model: result.model, usage: result.usage, costUSD }, stepId);
     }
-    if (result.usage) {
-      await recordEvent(runId, 'llm.usage', { provider: result.provider, model: result.model, usage: result.usage }, stepId);
-    }
+
+    log.debug({ runId, stepId, filename }, 'codegen.step.artifact.begin');
     const artifactName = filename;
     const pth = await saveArtifact(runId, stepId, artifactName, result.content, 'text/markdown');
+    log.info({ runId, stepId, artifact: pth }, 'codegen.step.artifact.saved');
+
     await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs: { artifact: pth, provider: result.provider, model: result.model, usage: result.usage } });
     await recordEvent(runId, "step.finished", { artifact: pth, provider: result.provider, model: result.model, costUSD }, stepId);
   }

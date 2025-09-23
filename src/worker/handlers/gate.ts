@@ -7,7 +7,6 @@ import { saveArtifact } from "../../lib/artifacts";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { query } from "../../lib/db";
 import { buildMinimalEnv } from "../../lib/secrets";
 
 function contentTypeFor(name: string) {

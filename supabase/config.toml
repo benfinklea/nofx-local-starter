@@ -2,10 +2,20 @@ project_id = "nofx-local-starter"
 
 [api]
 enabled = true
-port = 54321
+port = 50002
 
 [db]
-port = 54322
+port = 50000
 
 [studio]
-port = 54323
+port = 50004
+
+[analytics]
+enabled = true
+port = 50001
+backend = "postgres"
+
+
+[inbucket]
+enabled = true
+port = 50003

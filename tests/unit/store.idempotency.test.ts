@@ -19,16 +19,22 @@ describe('store idempotency + inbox', () => {
 
   test('createStep is idempotent for same key', async () => {
     const { store } = await import('../../src/lib/store');
-    const run = await store.createRun({ goal: 'test' }) as any;
-    const runId: string = run.id || String(run);
+    const factories = await import('../../src/testing/factories');
+    const run = await factories.makeRun(store, { goal: 'test' });
     const key = 'k1';
-    const a = await store.createStep(runId, 's1', 'codegen', { a: 1 }, key) as any;
-    const b = await store.createStep(runId, 's1', 'codegen', { a: 1 }, key) as any;
-    const sidA = a.id || String(a); const sidB = b?.id || String(b || '');
-    const byKey = await store.getStepByIdempotencyKey(runId, key) as any;
-    expect(sidA).toBeDefined();
-    expect(sidB === undefined || sidB === sidA).toBeTruthy();
-    expect(byKey?.id).toBe(sidA);
+    const primary = await factories.makeStep(store, {
+      runId: run.id,
+      name: 's1',
+      tool: 'codegen',
+      inputs: { a: 1 },
+      idempotencyKey: key,
+    });
+    const duplicate = await store.createStep(run.id, 's1', 'codegen', { a: 1 }, key);
+    const duplicateId = duplicate?.id ?? primary.id;
+    const byKey = await store.getStepByIdempotencyKey(run.id, key);
+    expect(primary.id).toBeDefined();
+    expect(duplicateId).toBe(primary.id);
+    expect(byKey?.id).toBe(primary.id);
   });
 
   test('inboxMarkIfNew enforces exactly-once', async () => {
@@ -39,4 +45,3 @@ describe('store idempotency + inbox', () => {
     expect(ok2).toBe(false);
   });
 });
-

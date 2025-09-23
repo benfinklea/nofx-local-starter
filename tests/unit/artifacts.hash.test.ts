@@ -21,16 +21,14 @@ describe('Artifact hashing', () => {
   test('saveArtifact stores sha256 in metadata', async () => {
     const { store } = await import('../../src/lib/store');
     const { saveArtifact } = await import('../../src/lib/artifacts');
-    const run = await store.createRun({ goal: 'hash' }) as any;
-    const runId = run.id || String(run);
-    const step = await store.createStep(runId, 's1', 'codegen', {}) as any;
-    const stepId = step.id || String(step);
+    const factories = await import('../../src/testing/factories');
+    const run = await factories.makeRun(store, { goal: 'hash' });
+    const step = await factories.makeStep(store, { runId: run.id, name: 's1', tool: 'codegen' });
     const content = '# hello\n';
-    const p = await saveArtifact(runId, stepId, 'README.md', content, 'text/markdown');
-    const arts = await store.listArtifactsByRun(runId) as any[];
-    const row = arts.find(a => a.path === p);
+    const artifactPath = await saveArtifact(run.id, step.id, 'README.md', content, 'text/markdown');
+    const artifacts = await store.listArtifactsByRun(run.id);
+    const row = artifacts.find((a) => a.path === artifactPath);
     const sha = crypto.createHash('sha256').update(content).digest('hex');
     expect(row?.metadata?.sha256).toBe(sha);
   });
 });
-

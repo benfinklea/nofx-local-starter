@@ -2,6 +2,7 @@ import { Queue, Worker, JobsOptions, Job } from "bullmq";
 import IORedis from "ioredis";
 import { log } from "../logger";
 import { metrics } from "../metrics";
+import { STEP_DLQ_TOPIC } from "./constants";
 
 export class RedisQueueAdapter {
   connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
@@ -9,7 +10,7 @@ export class RedisQueueAdapter {
   });
   queues = new Map<string, Queue>();
   private readonly backoffScheduleMs = [0, 2000, 5000, 10000];
-  private readonly DLQ_TOPIC = 'step.dlq';
+  private readonly DLQ_TOPIC = STEP_DLQ_TOPIC;
 
   private getQueue(topic: string) {
     if (!this.queues.has(topic)) {
@@ -32,12 +33,12 @@ export class RedisQueueAdapter {
       // Oldest waiting job age (approximate, scans up to 20 waiting jobs)
       try {
         const now = Date.now();
-        const waiting = await (q as any).getWaiting(0, 19) as Job[];
+        const waiting = await q.getWaiting(0, 19);
         let oldestTs: number | null = null;
-        for (const j of waiting) {
-          const ts = (j as any).timestamp as number | undefined;
-          if (typeof ts === 'number') {
-            if (oldestTs == null || ts < oldestTs) oldestTs = ts;
+        for (const job of waiting as Job[]) {
+          const ts = Number(job.timestamp);
+          if (Number.isFinite(ts)) {
+            oldestTs = oldestTs == null ? ts : Math.min(oldestTs, ts);
           }
         }
         const age = oldestTs != null ? Math.max(0, now - oldestTs) : 0;
@@ -45,12 +46,12 @@ export class RedisQueueAdapter {
       } catch {}
     } catch {}
   }
-  async enqueue(topic: string, payload: any, options?: JobsOptions) {
+  async enqueue(topic: string, payload: unknown, options?: JobsOptions) {
     await this.getQueue(topic).add("job", payload, options);
     log.info({ topic, payload }, "enqueued");
     this.updateGauges(topic);
   }
-  subscribe(topic: string, handler: (payload:any)=>Promise<void>) {
+  subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>) {
     const concurrency = Math.max(1, Number(process.env.WORKER_CONCURRENCY || process.env.NOFX_WORKER_CONCURRENCY || 1));
     const w = new Worker(topic, async (job) => {
       await handler(job.data);
@@ -62,15 +63,24 @@ export class RedisQueueAdapter {
       log.error({ topic, jobId: job?.id, status: 'failed', err }, 'worker.failed');
       try {
         if (!job) return;
-        const data = job.data || {};
-        const attempt = Number(data.__attempt || 1);
+        const rawData = job.data;
+        const payload = (typeof rawData === 'object' && rawData !== null)
+          ? rawData as Record<string, unknown>
+          : {};
+        const attempt = Number(payload['__attempt'] ?? 1);
         const nextDelay = this.backoffScheduleMs[attempt];
         if (Number.isFinite(nextDelay)) {
-          const nextPayload = { ...data, __attempt: attempt + 1 };
+          const nextPayload = { ...payload, __attempt: attempt + 1 };
           await this.getQueue(topic).add('job', nextPayload, { delay: nextDelay });
-          try { metrics.retriesTotal.inc({ provider: String(data?.provider || 'queue') }); } catch {}
+          try {
+            const providerValue = payload['provider'];
+            const provider = typeof providerValue === 'string'
+              ? providerValue
+              : String(providerValue ?? 'queue');
+            metrics.retriesTotal.inc({ provider });
+          } catch {}
         } else {
-          await this.getQueue(this.DLQ_TOPIC).add('job', data, { delay: 0 });
+          await this.getQueue(this.DLQ_TOPIC).add('job', payload, { delay: 0 });
           log.warn({ topic, jobId: job.id, attempts: attempt }, 'redis.to_dlq');
         }
       } catch (e) {

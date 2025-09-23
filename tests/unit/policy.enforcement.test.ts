@@ -20,13 +20,16 @@ describe('Policy enforcement', () => {
   test('denies tool not in allowlist', async () => {
     const { store } = await import('../../src/lib/store');
     const { runStep } = await import('../../src/worker/runner');
-    const run = await store.createRun({ goal: 'policy' }) as any;
-    const runId = run.id || String(run);
-    const step = await store.createStep(runId, 's1', 'codegen', { _policy: { tools_allowed: ['manual:approve'] } }) as any;
-    const stepId = step.id || String(step);
-    await runStep(runId, stepId).catch(()=>{});
-    const s = await store.getStep(stepId) as any;
-    expect(String(s.status).toLowerCase()).toBe('failed');
+    const factories = await import('../../src/testing/factories');
+    const run = await factories.makeRun(store, { goal: 'policy' });
+    const step = await factories.makeStep(store, {
+      runId: run.id,
+      name: 's1',
+      tool: 'codegen',
+      inputs: { _policy: { tools_allowed: ['manual:approve'] } },
+    });
+    await runStep(run.id, step.id).catch(() => {});
+    const refreshed = await store.getStep(step.id);
+    expect(String(refreshed?.status ?? '').toLowerCase()).toBe('failed');
   });
 });
-
