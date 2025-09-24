@@ -29,6 +29,11 @@ describe('Artifact hashing', () => {
     const artifacts = await store.listArtifactsByRun(run.id);
     const row = artifacts.find((a) => a.path === artifactPath);
     const sha = crypto.createHash('sha256').update(content).digest('hex');
-    expect(row?.metadata?.sha256).toBe(sha);
+    const metadata = row?.metadata;
+    const shaFromMetadata =
+      metadata && typeof metadata === 'object' && metadata !== null && !Array.isArray(metadata)
+        ? (metadata as Record<string, unknown>).sha256
+        : undefined;
+    expect(shaFromMetadata).toBe(sha);
   });
 });

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { Message, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/messages';
 import type { ProviderResponse } from './types';
 
 const DEFAULT_MAX_TOKENS = 800;
@@ -13,11 +14,14 @@ export async function claudeChat(
 
   const client = new Anthropic({ apiKey });
   const started = Date.now();
-  const response = await client.messages.create({
+  const params: MessageCreateParamsNonStreaming = {
     model,
     max_tokens: Math.max(1, Number(maxOutputTokens || DEFAULT_MAX_TOKENS)),
     messages: [{ role: 'user', content: prompt }],
-  });
+    stream: false,
+  };
+
+  const response = await client.messages.create(params);
 
   const text = extractText(response) ?? '';
   const usage = extractUsage(response, started);
@@ -25,9 +29,7 @@ export async function claudeChat(
   return { text, provider: 'anthropic', model, usage };
 }
 
-type MessageResponse = Awaited<ReturnType<Anthropic['messages']['create']>>;
-
-function extractText(response: MessageResponse): string | undefined {
+function extractText(response: Message): string | undefined {
   const first = Array.isArray(response.content) ? response.content[0] : undefined;
   if (first && typeof first === 'object' && first !== null && 'text' in first) {
     const text = (first as { text?: unknown }).text;
@@ -37,7 +39,7 @@ function extractText(response: MessageResponse): string | undefined {
 }
 
 function extractUsage(
-  response: MessageResponse,
+  response: Message,
   started: number,
 ): ProviderResponse<'anthropic'>['usage'] {
   const usage = (response as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;

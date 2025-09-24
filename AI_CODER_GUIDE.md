@@ -109,6 +109,8 @@ ADMIN_PASSWORD=admin
 
 Ports are defined in `supabase/config.toml`, `.env`, and the Docker compose overlays; update those sources if you change a binding and keep this table in sync.
 
+> ⚠️ **Dev restart watch**: keep `DEV_RESTART_WATCH=0` for all non-interactive launches (nohup, scripts, CI). Turning it on in headless mode causes infinite respawns. Only enable it temporarily in a foreground terminal; set `DEV_RESTART_ALLOW_HEADLESS=1` if you truly need headless behaviour.
+
 ## Core Concepts
 
 ### 1. Runs

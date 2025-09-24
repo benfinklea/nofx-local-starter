@@ -4,6 +4,10 @@ cd "$(dirname "$0")"
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js is required. Please install Node 20+ from nodejs.org"; exit 1;
 fi
+if [ "${DEV_RESTART_WATCH:-0}" = "1" ]; then
+  echo "DEV_RESTART_WATCH=1 detected; resetting to 0 to avoid runaway restart loops."
+fi
+export DEV_RESTART_WATCH=0
 echo "Stopping previous NOFX app instances (if any)…"
 pkill -f "ts-node-dev.*src/simple.ts" 2>/dev/null || true
 pkill -f "ts-node-dev.*src/api/main.ts" 2>/dev/null || true

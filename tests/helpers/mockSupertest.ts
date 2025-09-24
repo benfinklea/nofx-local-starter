@@ -97,10 +97,12 @@ class RequestChain {
 
       const payloadBuffer = bufferFromBody(this.body);
       if (payloadBuffer) {
-        socket.end(payloadBuffer);
-      } else {
-        socket.end();
+        if (!req.headers['content-length']) {
+          req.headers['content-length'] = String(payloadBuffer.length);
+        }
+        req.push(payloadBuffer);
       }
+      req.push(null);
 
       const resSocket = new PassThrough();
       const res = new ServerResponse(req);
@@ -113,7 +115,9 @@ class RequestChain {
       res.assignSocket(resSocket);
 
       res.on('finish', async () => {
-        const text = Buffer.concat(chunks).toString('utf8');
+        const raw = Buffer.concat(chunks).toString('utf8');
+        const separatorIndex = raw.indexOf('\r\n\r\n');
+        const text = separatorIndex >= 0 ? raw.slice(separatorIndex + 4) : raw;
         const headers = res.getHeaders();
         let parsed: any = text;
         const contentType = headers['content-type'];

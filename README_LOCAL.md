@@ -66,10 +66,11 @@ curl -s http://localhost:3000/dev/worker/health | jq
 ```
 
 ## Notes
-- Queue uses an in‑memory queue in Simple Mode. In advanced mode it uses **BullMQ** with Redis.
+- Queue uses an in-memory queue in Simple Mode. In advanced mode it uses **BullMQ** with Redis.
 - Storage uses Supabase Storage buckets. Artifacts land in `artifacts/` bucket.
 - No multi-tenancy; `tenant_id` defaults to `'local'`.
 - RLS off for local simplicity. Enable RLS + row policies when moving to cloud.
+- Keep `DEV_RESTART_WATCH=0` for `Start *.command` launchers, CI, or any `nohup`/background sessions. Enable it only when you are in an interactive terminal and need `ts-node-dev` to recycle the process.
 
 ## Troubleshooting
 - API up: `curl -s http://localhost:3000/health` should return `{ ok: true }`.

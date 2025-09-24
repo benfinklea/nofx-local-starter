@@ -7,7 +7,7 @@ export interface ProviderUsage {
   latencyMs?: number;
 }
 
-export interface ProviderResponse<TProvider extends string = CoreProvider> {
+export interface ProviderResponse<TProvider extends string = string> {
   text: string;
   provider: TProvider;
   model: string;
@@ -52,4 +52,3 @@ export function toNumber(value: unknown): number | undefined {
   }
   return undefined;
 }
-

@@ -21,8 +21,9 @@ describe('Memory queue retry backoff and exactly-once (delayed)', () => {
     const topic = 'test.backoff.' + Date.now();
     const attempts: number[] = [];
 
-    subscribe(topic, async (payload: RetryPayload) => {
-      const n = Number(payload.__attempt ?? 1);
+    subscribe(topic, async (payload) => {
+      const data = payload as RetryPayload;
+      const n = Number(data.__attempt ?? 1);
       attempts.push(n);
       if (n < 3) throw new Error('boom');
       // success on third attempt
