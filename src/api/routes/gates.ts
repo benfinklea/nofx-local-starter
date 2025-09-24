@@ -32,11 +32,14 @@ export default function mount(app: Express){
     const runs = await store.listRuns(50);
     type GateLite = { id: string; run_id: string };
     let found: GateLite | null = null;
-    for (const r of runs) {
-      const runId = (typeof r === 'object' && r !== null && 'id' in (r as Record<string, unknown>)) ? String((r as { id: unknown }).id) : String(r);
-      const gs = await store.listGatesByRun(runId);
-      const g = (gs as Array<{ id: string; run_id: string }>).find(x => x.id === id);
-      if (g) { found = { id: g.id, run_id: g.run_id }; break; }
+    for (const run of runs) {
+      const runId = String(run.id);
+      const gateRows = await store.listGatesByRun(runId);
+      const gateMatch = gateRows.find((g) => g.id === id);
+      if (gateMatch) {
+        found = { id: gateMatch.id, run_id: gateMatch.run_id };
+        break;
+      }
     }
     if (!found) return res.status(404).json({ error: 'not found' });
     await store.updateGate(id, { status: 'passed', run_id: found.run_id, approved_by: approvedBy });
@@ -55,11 +58,14 @@ export default function mount(app: Express){
     const runs = await store.listRuns(50);
     type GateLite = { id: string; run_id: string };
     let found: GateLite | null = null;
-    for (const r of runs) {
-      const runId = (typeof r === 'object' && r !== null && 'id' in (r as Record<string, unknown>)) ? String((r as { id: unknown }).id) : String(r);
-      const gs = await store.listGatesByRun(runId);
-      const g = (gs as Array<{ id: string; run_id: string }>).find(x => x.id === id);
-      if (g) { found = { id: g.id, run_id: g.run_id }; break; }
+    for (const run of runs) {
+      const runId = String(run.id);
+      const gateRows = await store.listGatesByRun(runId);
+      const gateMatch = gateRows.find((g) => g.id === id);
+      if (gateMatch) {
+        found = { id: gateMatch.id, run_id: gateMatch.run_id };
+        break;
+      }
     }
     if (!found) return res.status(404).json({ error: 'not found' });
     await store.updateGate(id, { status: 'waived', run_id: found.run_id, approved_by: approvedBy });

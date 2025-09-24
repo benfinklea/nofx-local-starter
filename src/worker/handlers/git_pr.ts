@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { enqueue, STEP_READY_TOPIC } from "../../lib/queue";
 import { buildMinimalEnv, getSecret } from "../../lib/secrets";
+import { toJsonObject } from "../../lib/json";
 
 type CommitItem = {
   path: string;               // repo-relative file path
@@ -170,7 +171,12 @@ const handler: StepHandler = {
       log.warn({ err: e?.message }, 'PR creation failed; commit pushed');
     }
 
-    const outputs = { branch, base, prUrl, files: inputs.commits.map(c=>c.path) };
+    const outputs = toJsonObject({
+      branch,
+      base,
+      prUrl,
+      files: inputs.commits.map((c) => c.path),
+    });
     await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs });
     await recordEvent(runId, 'step.finished', outputs, stepId);
   }

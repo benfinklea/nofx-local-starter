@@ -6,6 +6,7 @@ import { codegenReadme } from "../../tools/codegen";
 import { getSettings } from "../../lib/settings";
 import { getModelByName } from "../../lib/models";
 import { log } from "../../lib/logger";
+import { toJsonObject } from "../../lib/json";
 
 const handler: StepHandler = {
   match: (tool) => tool === 'codegen',
@@ -53,8 +54,16 @@ const handler: StepHandler = {
     const pth = await saveArtifact(runId, stepId, artifactName, result.content, 'text/markdown');
     log.info({ runId, stepId, artifact: pth }, 'codegen.step.artifact.saved');
 
-    await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs: { artifact: pth, provider: result.provider, model: result.model, usage: result.usage } });
-    await recordEvent(runId, "step.finished", { artifact: pth, provider: result.provider, model: result.model, costUSD }, stepId);
+    const outputs = toJsonObject({
+      artifact: pth,
+      provider: result.provider,
+      model: result.model,
+      usage: result.usage,
+      costUSD,
+    });
+
+    await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs });
+    await recordEvent(runId, "step.finished", outputs, stepId);
   }
 };
 export default handler;

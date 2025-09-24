@@ -21,11 +21,14 @@ import { initTracing } from '../lib/tracing';
 import { getProject, updateProject } from '../lib/projects';
 import { retryStep, StepNotFoundError, StepNotRetryableError } from '../lib/runRecovery';
 import { isAdmin } from '../lib/auth';
+import { toJsonObject } from '../lib/json';
+import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 
 dotenv.config();
 export const app = express();
 // Optional tracing (OpenTelemetry) if enabled via env
 initTracing('nofx-api').catch(()=>{});
+const devRestartWatch = shouldEnableDevRestartWatch();
 
 // Enable CORS for frontend development
 app.use(cors({
@@ -151,10 +154,7 @@ app.post("/runs", async (req, res) => {
   const { plan, projectId = 'default' } = parsed.data;
 
   const run = await store.createRun(plan, projectId);
-  type WithId = { id: string };
-  const runId: string = (typeof run === 'object' && run !== null && 'id' in (run as Record<string, unknown>) && typeof (run as WithId).id === 'string')
-    ? (run as WithId).id
-    : String(run);
+  const runId = String(run.id);
   try { setContext({ runId, projectId }); } catch {}
   await recordEvent(runId, "run.created", { plan });
 
@@ -165,27 +165,29 @@ app.post("/runs", async (req, res) => {
   void (async () => {
     for (const s of plan.steps) {
       // Preserve optional per-step security policy by embedding into inputs
-      const policy = {
+      const baseInputs = toJsonObject(s.inputs ?? {});
+      const policy = toJsonObject({
         tools_allowed: s.tools_allowed,
         env_allowed: s.env_allowed,
-        secrets_scope: s.secrets_scope
+        secrets_scope: s.secrets_scope,
+      });
+      const inputsWithPolicy = {
+        ...baseInputs,
+        ...(Object.keys(policy).length ? { _policy: policy } : {}),
       };
-      const inputsWithPolicy = { ...(s.inputs || {}), _policy: policy };
       // Idempotency key: `${runId}:${stepName}:${hash(inputs)}`
       const hash = crypto.createHash('sha256').update(JSON.stringify(inputsWithPolicy)).digest('hex').slice(0, 12);
       const idemKey = `${runId}:${s.name}:${hash}`;
       const created = await store.createStep(runId, s.name, s.tool, inputsWithPolicy, idemKey);
-      type WithId2 = { id: string };
-      let stepId: string | undefined;
-      if (typeof created === 'object' && created !== null && 'id' in (created as Record<string, unknown>) && typeof (created as WithId2).id === 'string') {
-        stepId = (created as WithId2).id;
-      } else if (typeof created === 'string') {
-        stepId = created;
+      let stepId = created?.id;
+      let existing = created;
+      if (!existing) {
+        existing = await store.getStepByIdempotencyKey(runId, idemKey);
+        if (!stepId) stepId = existing?.id;
       }
-      // If no row created (conflict), fetch existing by key
-      let existing = await store.getStepByIdempotencyKey(runId, idemKey);
-      if (!stepId) stepId = existing?.id;
-      if (!existing && stepId) existing = await store.getStep(stepId);
+      if (!existing && stepId) {
+        existing = await store.getStep(stepId);
+      }
       if (!stepId || !existing) continue; // safety: skip if we couldn't resolve step id
       try { setContext({ stepId }); } catch {}
       await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool, idempotency_key: idemKey }, stepId);
@@ -289,7 +291,7 @@ function listenWithRetry(attempt = 0) {
         setTimeout(() => listenWithRetry(attempt+1), delay);
       } else {
         log.warn('Port still in use after retries');
-        if (process.env.DEV_RESTART_WATCH === '1') {
+        if (devRestartWatch) {
           log.warn('Dev mode: exiting to allow clean restart');
           process.exit(0);
         }
@@ -326,7 +328,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Dev-only restart watcher: if flag file changes, exit to let ts-node-dev respawn
-if (process.env.NODE_ENV !== 'test' && process.env.DEV_RESTART_WATCH === '1') {
+if (process.env.NODE_ENV !== 'test' && devRestartWatch) {
   const flagPath = path.join(process.cwd(), '.dev-restart-api');
   const startedAt = Date.now();
   let last = 0;

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { ChatCompletion } from 'openai/resources/chat/completions';
+import type { ResponseCreateParamsNonStreaming } from 'openai/resources/responses/responses';
 import {
   validateResponsesRequest,
   validateResponsesResult,
@@ -38,10 +39,15 @@ export async function openaiChat(
   }
 
   const payload = validateResponsesRequest(requestBase);
+  const requestPayload = {
+    ...payload,
+    input: payload.input ?? prompt,
+    stream: false as const,
+  };
 
   let rawResponse: unknown;
   try {
-    rawResponse = await client.responses.create(payload);
+    rawResponse = await client.responses.create(requestPayload as unknown as ResponseCreateParamsNonStreaming);
   } catch (error) {
     const fallback = await maybeChatCompletionsFallback({
       client,
@@ -123,9 +129,19 @@ function buildCompletionUsage(usage: ChatCompletion['usage'] | undefined, starte
 }
 
 function extractText(parsed: ResponsesResult, raw: unknown): string | undefined {
-  const assistantMessage = parsed.output?.find((item): item is Extract<ResponsesResult['output'][number], { type: 'message' }> => item.type === 'message');
-  const textPart = assistantMessage?.content?.find((part): part is { type: 'output_text'; text: string } => part?.type === 'output_text');
-  if (textPart?.text) return textPart.text;
+  if (Array.isArray(parsed.output)) {
+    for (const item of parsed.output) {
+      if (!item || typeof item !== 'object') continue;
+      if ('type' in item && item.type === 'message' && Array.isArray(item.content)) {
+        for (const part of item.content) {
+          if (!part || typeof part !== 'object') continue;
+          if ('type' in part && part.type === 'output_text' && typeof part.text === 'string') {
+            return part.text;
+          }
+        }
+      }
+    }
+  }
 
   const legacy = extractLegacyText(raw);
   if (legacy) return legacy;

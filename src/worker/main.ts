@@ -11,9 +11,11 @@ import { store } from "../lib/store";
 import crypto from 'node:crypto';
 import { startOutboxRelay } from './relay';
 import { initTracing } from '../lib/tracing';
+import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 
 const STEP_TIMEOUT_MS = Number(process.env.STEP_TIMEOUT_MS || 30000);
 initTracing('nofx-worker').catch(()=>{});
+const devRestartWatch = shouldEnableDevRestartWatch();
 function hashInputs(val: any) {
   return crypto.createHash('sha256').update(JSON.stringify(val || {})).digest('hex').slice(0, 12);
 }
@@ -84,7 +86,7 @@ if (shouldHeartbeat) {
 }
 
 // Dev-only restart watcher to exit when flag changes
-if (process.env.DEV_RESTART_WATCH === '1') {
+if (devRestartWatch) {
   const flagPath = path.join(process.cwd(), '.dev-restart-worker');
   const startedAt = Date.now();
   let last = 0;

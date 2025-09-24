@@ -17,6 +17,11 @@ require_cmd() {
   fi
 }
 
+if [ "${DEV_RESTART_WATCH:-0}" = "1" ]; then
+  log 'DEV_RESTART_WATCH=1 detected; resetting to 0 for background launch safety'
+fi
+export DEV_RESTART_WATCH=0
+
 require_cmd node
 require_cmd npm
 require_cmd curl
