@@ -1,0 +1,74 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { z } from 'zod';
+import { isAdmin } from '../../src/lib/auth';
+import { getProject, updateProject, deleteProject } from '../../src/lib/projects';
+import type { Project } from '../../src/lib/projects';
+
+const UpsertSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  repo_url: z.string().url().optional().or(z.literal('')).transform(v => v || undefined),
+  local_path: z.string().optional(),
+  workspace_mode: z.enum(['local_path', 'clone', 'worktree']).optional(),
+  default_branch: z.string().optional()
+});
+
+type UpsertInput = z.infer<typeof UpsertSchema>;
+
+function normalizeProjectInput(input: Partial<UpsertInput>): Partial<Project> {
+  const result: Partial<Project> = {};
+  if (input.id !== undefined) result.id = input.id;
+  if (input.name !== undefined) result.name = input.name;
+  if (input.repo_url !== undefined) result.repo_url = input.repo_url ?? null;
+  if (input.local_path !== undefined) result.local_path = input.local_path ?? null;
+  if (input.workspace_mode !== undefined) result.workspace_mode = input.workspace_mode;
+  if (input.default_branch !== undefined) result.default_branch = input.default_branch ?? null;
+  return result;
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Check authentication
+  if (!isAdmin(req as any)) {
+    return res.status(401).json({ error: 'auth required' });
+  }
+
+  const projectId = req.query.id as string;
+
+  if (req.method === 'GET') {
+    // Get a specific project
+    try {
+      const row = await getProject(projectId);
+      if (!row) {
+        return res.status(404).json({ error: 'not found' });
+      }
+      return res.json(row);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to get project';
+      return res.status(500).json({ error: message });
+    }
+  } else if (req.method === 'PATCH') {
+    // Update a project
+    try {
+      const parsed = UpsertSchema.partial().safeParse(req.body || {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const row = await updateProject(projectId, normalizeProjectInput(parsed.data));
+      return res.json(row);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to update project';
+      return res.status(500).json({ error: message });
+    }
+  } else if (req.method === 'DELETE') {
+    // Delete a project
+    try {
+      await deleteProject(projectId);
+      return res.status(204).send('');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to delete project';
+      return res.status(500).json({ error: message });
+    }
+  } else {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+}
