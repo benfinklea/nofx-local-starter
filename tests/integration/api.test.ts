@@ -104,8 +104,7 @@ describe('API Integration Tests - Bulletproof', () => {
         [{ plan: { goal: '' } }, 'empty goal'],
         [{ plan: { goal: 'test', steps: 'not-array' } }, 'invalid steps type'],
         [{ plan: { goal: 'test', steps: [{ invalid: true }] } }, 'invalid step structure'],
-        ['not-json', 'malformed JSON'],
-        [{ plan: { goal: 'x'.repeat(1000000) } }, 'extremely large goal']
+        ['not-json', 'malformed JSON']
       ])('rejects %j - %s', async (payload, scenario) => {
         const response = await request(app)
           .post('/runs')
@@ -114,6 +113,19 @@ describe('API Integration Tests - Bulletproof', () => {
             // Expect common validation or payload errors
             expect([200, 400, 413, 422]).toContain(res.status);
           });
+      });
+    });
+
+    describe('Large Payload Handling', () => {
+      test('rejects extremely large goal with PayloadTooLargeError', async () => {
+        const largeGoal = 'x'.repeat(1000000);
+        // The Express body parser will throw an error for payloads this large
+        // So we need to catch the error that happens during the request
+        await expect(async () => {
+          await request(app)
+            .post('/runs')
+            .send({ plan: { goal: largeGoal } });
+        }).rejects.toThrow('request entity too large');
       });
     });
 
