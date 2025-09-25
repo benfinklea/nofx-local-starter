@@ -94,7 +94,7 @@ test('DB + Redis drivers persist events and enqueue reliably', async () => {
   await retryStep(run.id, step.id);
 
   // Verify queue received job via Redis adapter
-  const counts = await queue.getCounts(queue.STEP_READY_TOPIC);
+  const counts = await queue.getCounts(queue.STEP_READY_TOPIC) as { waiting: number; delayed: number };
   expect(counts.waiting + counts.delayed).toBeGreaterThan(0);
 
   // Verify DB reflects new status and inbox has been cleared/reset
