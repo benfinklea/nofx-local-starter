@@ -1,0 +1,32 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { isAdmin } from '../../src/lib/auth';
+import { listModels, upsertModel } from '../../src/lib/models';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Check authentication
+  if (!isAdmin(req as any)) {
+    return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+  }
+
+  if (req.method === 'GET') {
+    // List all models
+    try {
+      const rows = await listModels();
+      return res.json({ models: rows });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to list models';
+      return res.status(500).json({ error: message });
+    }
+  } else if (req.method === 'POST') {
+    // Create/update a model
+    try {
+      const m = await upsertModel(req.body || {});
+      return res.status(201).json(m);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(400).json({ error: msg });
+    }
+  } else {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+}

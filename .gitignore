@@ -103,3 +103,13 @@ Thumbs.db
 .temp/
 tmp/
 temp/
+.vercel
+
+# Vercel
+.vercel
+.vercel_build_output
+.now
+
+# Vercel Environment
+.env.production.local
+.env.staging.local
