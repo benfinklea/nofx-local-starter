@@ -6,7 +6,8 @@ import {
   Button,
   Typography,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Link
 } from '@mui/material';
 
 export default function ResetPassword() {
@@ -15,11 +16,14 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
+  const [requestingNew, setRequestingNew] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   useEffect(() => {
     // Check for error or token in URL
     const fullUrl = window.location.href;
-    console.log('[ResetPassword] Full URL:', fullUrl);
 
     // Extract query parameters from the URL
     // The URL might be: /#/reset-password?access_token=...
@@ -32,18 +36,15 @@ export default function ResetPassword() {
       params = new URLSearchParams('');
     }
 
-    // Log all params for debugging
-    console.log('[ResetPassword] Params found:');
-    params.forEach((value, key) => {
-      console.log(`  ${key}: ${value.substring(0, 20)}...`);
-    });
+    // Check params without logging sensitive data
 
     if (params.get('error')) {
       const errorCode = params.get('error_code');
       const errorDesc = params.get('error_description');
 
       if (errorCode === 'otp_expired') {
-        setError('This password reset link has expired. Please request a new one.');
+        setError('This password reset link has expired. Please request a new one below.');
+        setIsExpired(true);
       } else {
         setError(errorDesc || 'An error occurred with the reset link.');
       }
@@ -54,7 +55,7 @@ export default function ResetPassword() {
     const refreshToken = params.get('refresh_token');
 
     if (accessToken) {
-      console.log('[ResetPassword] Access token found in URL');
+      // Access token found in URL
       // Store both tokens for later use
       sessionStorage.setItem('reset_access_token', accessToken);
       if (refreshToken) {
@@ -62,6 +63,39 @@ export default function ResetPassword() {
       }
     }
   }, []);
+
+  const requestNewResetLink = async () => {
+    if (!resetEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    setRequestingNew(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: resetEmail })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResetEmailSent(true);
+        setError('');
+      } else {
+        setError(data.error || 'Failed to send reset email');
+      }
+    } catch (err) {
+      setError('Failed to send reset email. Please try again.');
+    } finally {
+      setRequestingNew(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +120,6 @@ export default function ResetPassword() {
       if (!accessToken) {
         // Try to get it from URL one more time
         const hash = window.location.hash;
-        console.log('[ResetPassword Submit] Checking hash again:', hash);
 
         // Parse various possible formats
         if (hash.includes('access_token=')) {
@@ -100,7 +133,7 @@ export default function ResetPassword() {
         sessionStorage.setItem('reset_access_token', accessToken);
       }
 
-      console.log('[ResetPassword Submit] Using access token:', accessToken.substring(0, 20) + '...');
+      // Using access token for password update
 
       // Get refresh token if available
       const refreshToken = sessionStorage.getItem('reset_refresh_token');
@@ -157,6 +190,103 @@ export default function ResetPassword() {
     );
   }
 
+  // Show request new link form if expired
+  if (isExpired || resetEmailSent) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: 2
+        }}
+      >
+        <Card
+          sx={{
+            maxWidth: 400,
+            width: '100%',
+            padding: 4,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.1)'
+          }}
+        >
+          <Typography
+            variant="h4"
+            component="h1"
+            gutterBottom
+            align="center"
+            sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}
+          >
+            Reset Password
+          </Typography>
+
+          {resetEmailSent ? (
+            <>
+              <Alert severity="success" sx={{ mt: 2, mb: 2 }}>
+                Password reset email sent! Check your inbox for the reset link.
+              </Alert>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => window.location.href = '/'}
+              >
+                Return to Login
+              </Button>
+            </>
+          ) : (
+            <>
+              <Alert severity="warning" sx={{ mt: 2, mb: 3 }}>
+                Your password reset link has expired. Please request a new one.
+              </Alert>
+
+              <TextField
+                label="Email Address"
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                fullWidth
+                required
+                margin="normal"
+                autoComplete="email"
+                autoFocus
+                disabled={requestingNew}
+              />
+
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                onClick={requestNewResetLink}
+                disabled={requestingNew}
+                sx={{
+                  mt: 2,
+                  mb: 2,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5a67d8 0%, #6b4199 100%)',
+                  }
+                }}
+              >
+                {requestingNew ? <CircularProgress size={24} color="inherit" /> : 'Send New Reset Link'}
+              </Button>
+
+              <Box sx={{ textAlign: 'center' }}>
+                <Link
+                  component="button"
+                  variant="body2"
+                  onClick={() => window.location.href = '/'}
+                >
+                  Return to Login
+                </Link>
+              </Box>
+            </>
+          )}
+        </Card>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -195,7 +325,7 @@ export default function ResetPassword() {
           Enter your new password below
         </Typography>
 
-        {error && (
+        {error && !isExpired && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
@@ -233,7 +363,7 @@ export default function ResetPassword() {
             fullWidth
             variant="contained"
             size="large"
-            disabled={loading || !!error.includes('expired')}
+            disabled={loading}
             sx={{
               mt: 3,
               mb: 2,
@@ -246,17 +376,6 @@ export default function ResetPassword() {
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Update Password'}
           </Button>
         </form>
-
-        {error.includes('expired') && (
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <Button
-              variant="text"
-              onClick={() => window.location.href = '/'}
-            >
-              Return to Login
-            </Button>
-          </Box>
-        )}
       </Card>
     </Box>
   );

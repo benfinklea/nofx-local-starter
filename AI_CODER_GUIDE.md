@@ -42,6 +42,14 @@ This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly und
 
 **Never work directly in the main repository directory when using AI assistance!**
 
+## AI Guardrails — Tooling & Automation
+
+- **Package manager**: This repo is pinned to `npm` (see `package-lock.json`). Do not swap scripts to `pnpm`/`yarn`, do not add new lockfiles, and prefer `npx` over global installs when you need CLIs.
+- **Bootstrap expectations**: Use `npm run bootstrap:dev` for local setup. If you touch `scripts/bootstrap-dev.sh`, keep the Supabase start/reset, `.env` hydration, bucket creation, and Jest health check intact, and continue forcing `DEV_RESTART_WATCH=0` for non-interactive runs.
+- **Start launchers**: `Start NOFX.command` and `Start DB + NOFX.command` intentionally avoid background restarts. Do not reintroduce chokidar-style watchers or flip `DEV_RESTART_WATCH` to `1` unless the user asks for interactive reloads.
+- **Testing standard**: Add new specs with **Jest** under `tests/**`. Keep Vitest limited to the existing `.unit.test.ts` files in `src/` and do not create new Vitest suites unless a maintainer explicitly requests it.
+- **Static analysis config**: When touching `knip.json`, point entries at real TypeScript entrypoints (`src/api/main.ts`, `src/worker/main.ts`, etc.). Never create placeholder files just to satisfy Knip.
+
 ## Quick Start - Cloud Deployment
 
 **The NOFX Control Plane is now fully deployed to the cloud!**

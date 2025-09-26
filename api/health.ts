@@ -1,12 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
+type DatabaseStatus =
+  | { status: 'ok'; error?: string }
+  | { status: 'error'; error: string };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let databaseStatus = { status: 'error', error: 'Not configured' };
+  let databaseStatus: DatabaseStatus = { status: 'error', error: 'Not configured' };
 
   // Check database connection
   if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {

@@ -39,6 +39,10 @@ supabase_cmd() {
   "${SUPABASE_CMD[@]}" "$@"
 }
 
+if ! supabase_cmd --help >/dev/null 2>&1; then
+  fail 'Supabase CLI is unavailable. Install the Supabase CLI before running bootstrap.'
+fi
+
 log 'Checking Supabase local stack'
 if ! supabase_cmd status >/dev/null 2>&1; then
   log 'Starting Supabase stack (this may take a minute)'
@@ -126,17 +130,17 @@ else
 fi
 
 log 'Installing backend dependencies (npm install)'
-npm install >/dev/null
+npm install
 
 if [[ -f apps/frontend/package.json ]]; then
   log 'Installing frontend dependencies (apps/frontend)'
-  (cd apps/frontend && npm install >/dev/null)
+  (cd apps/frontend && npm install)
 fi
 
 log 'Ensuring Supabase storage bucket exists'
-npm run create:bucket >/dev/null
+npm run create:bucket
 
 log 'Running Jest API smoke test (tests/api/health.test.ts)'
-npm run test:api -- --runTestsByPath tests/api/health.test.ts >/dev/null
+npm run test:api -- --runTestsByPath tests/api/health.test.ts
 
 log 'Bootstrap complete! Your local stack is ready.'
