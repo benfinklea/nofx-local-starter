@@ -16,13 +16,14 @@ export default function AuthCheck({ children }: AuthCheckProps) {
       const supabaseAuth = localStorage.getItem('supabase.auth.token');
       const sbAccessToken = localStorage.getItem('sb-access-token');
       const apiToken = localStorage.getItem('token');
+      const authenticated = localStorage.getItem('authenticated');
 
       // Also check for any Supabase-specific session keys
       const hasSupabaseSession = Object.keys(localStorage).some(key =>
         key.includes('supabase.auth') || key.includes('sb-') && key.includes('auth-token')
       );
 
-      if (!supabaseAuth && !sbAccessToken && !apiToken && !hasSupabaseSession) {
+      if (!supabaseAuth && !sbAccessToken && !apiToken && !hasSupabaseSession && !authenticated) {
         // No authentication tokens found, redirect to login immediately
         window.location.href = '/login';
         return;
