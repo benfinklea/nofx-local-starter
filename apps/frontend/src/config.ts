@@ -3,4 +3,4 @@ export const uiFlags = {
   storybookBrand: import.meta.env.VITE_STORYBOOK_BRAND ?? 'NOFX',
 };
 
-export const apiBase = import.meta.env.VITE_API_BASE ?? '';
+export const apiBase = import.meta.env.VITE_API_BASE ?? 'https://redis-worker-fix.vercel.app';

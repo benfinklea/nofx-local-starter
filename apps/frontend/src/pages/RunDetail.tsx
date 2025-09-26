@@ -12,6 +12,8 @@ import ListItemText from '@mui/material/ListItemText';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import { getRun, getTimeline, type Event } from '../lib/api';
 import StatusChip from '../components/StatusChip';
+import StepOutput from '../components/StepOutput';
+import { apiBase } from '../config';
 
 export default function RunDetail(){
   const { id } = useParams();
@@ -28,8 +30,8 @@ export default function RunDetail(){
         setLoading(true);
         setError(null);
         const [runData, timelineData] = await Promise.all([
-          getRun(id),
-          getTimeline(id)
+          getRun(id!),
+          getTimeline(id!)
         ]);
         setRun(runData);
         setTimeline(timelineData);
@@ -43,7 +45,7 @@ export default function RunDetail(){
     loadData();
 
     // Set up Server-Sent Events for real-time updates
-    const es = new EventSource(`/runs/${id}/stream`);
+    const es = new EventSource(`${apiBase}/api/runs/${id}/stream`);
     es.addEventListener('init', (e: MessageEvent) => {
       try {
         setTimeline(JSON.parse((e as any).data || '[]'));
@@ -169,6 +171,13 @@ export default function RunDetail(){
               </List>
             </Paper>
           )}
+
+          {run?.steps && run.steps.filter((s: any) => s.outputs || s.output || s.result).map((step: any) => (
+            <Paper key={`output-${step.id}`} variant="outlined" sx={{ p: 2, mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>Output: {step.name}</Typography>
+              <StepOutput step={step} />
+            </Paper>
+          ))}
 
           {run?.artifacts && run.artifacts.length > 0 && (
             <Paper variant="outlined" sx={{ p: 2 }}>
