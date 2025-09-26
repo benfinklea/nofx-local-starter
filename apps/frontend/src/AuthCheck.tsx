@@ -25,7 +25,7 @@ export default function AuthCheck({ children }: AuthCheckProps) {
 
         if (response.status === 401) {
           // Not authenticated, redirect to login
-          window.location.href = '/login';
+          window.location.href = '/login.html';
           return;
         }
 
@@ -33,14 +33,14 @@ export default function AuthCheck({ children }: AuthCheckProps) {
           setIsAuthenticated(true);
         } else {
           // Some other error, redirect to login
-          window.location.href = '/login';
+          window.location.href = '/login.html';
         }
       } catch (err) {
         console.error('Auth check failed:', err);
         // On network error, redirect to login after showing error briefly
         setError('Unable to connect to server');
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/login.html';
         }, 1500);
       }
     };
