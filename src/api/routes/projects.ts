@@ -10,7 +10,9 @@ const UpsertSchema = z.object({
   repo_url: z.string().url().optional().or(z.literal('')).transform(v => v || undefined),
   local_path: z.string().optional(),
   workspace_mode: z.enum(['local_path','clone','worktree']).optional(),
-  default_branch: z.string().optional()
+  default_branch: z.string().optional(),
+  git_mode: z.enum(['hidden','basic','advanced']).optional(),
+  initialized: z.boolean().optional()
 });
 
 type UpsertInput = z.infer<typeof UpsertSchema>;
@@ -23,6 +25,8 @@ function normalizeProjectInput(input: Partial<UpsertInput>): Partial<Project> {
   if (input.local_path !== undefined) result.local_path = input.local_path ?? null;
   if (input.workspace_mode !== undefined) result.workspace_mode = input.workspace_mode;
   if (input.default_branch !== undefined) result.default_branch = input.default_branch ?? null;
+  if (input.git_mode !== undefined) result.git_mode = input.git_mode;
+  if (input.initialized !== undefined) result.initialized = input.initialized;
   return result;
 }
 

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Projects - NOFX Control Plane</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/cdn/themes/light.css" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/cdn/shoelace-autoloader.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; display: flex; align-items: center; gap: 10px; }
+    .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 30px; }
+    .project-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .project-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
+    .project-title { font-size: 1.2em; font-weight: 600; color: #333; }
+    .git-mode-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; }
+    .git-mode-hidden { background: #f0f0f0; color: #666; }
+    .git-mode-basic { background: #e3f2fd; color: #1976d2; }
+    .git-mode-advanced { background: #f3e5f5; color: #7b1fa2; }
+    .project-info { margin: 10px 0; }
+    .project-info-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.9em; }
+    .project-actions { display: flex; gap: 10px; margin-top: 15px; }
+    .nav { margin-bottom: 30px; }
+    .create-section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-weight: 500; font-size: 0.9em; color: #555; }
+    .git-mode-selector { display: flex; gap: 10px; margin-top: 10px; }
+    .mode-option { flex: 1; padding: 15px; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .mode-option:hover { border-color: #2196f3; }
+    .mode-option.selected { border-color: #2196f3; background: #e3f2fd; }
+    .mode-option h4 { margin: 0 0 5px 0; }
+    .mode-option p { margin: 0; font-size: 0.85em; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <sl-breadcrumb>
+      <sl-breadcrumb-item href="/ui/settings">Settings</sl-breadcrumb-item>
+      <sl-breadcrumb-item>Projects</sl-breadcrumb-item>
+    </sl-breadcrumb>
+  </div>
+
+  <h1>
+    <sl-icon name="folder-git-2"></sl-icon>
+    Projects
+  </h1>
+
+  <!-- Create New Project -->
+  <div class="create-section">
+    <h3>Create New Project</h3>
+    <form id="createProjectForm">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="name">Project Name</label>
+          <sl-input id="name" placeholder="My Awesome Project" required></sl-input>
+        </div>
+        <div class="form-group">
+          <label for="workspace_mode">Workspace Mode</label>
+          <sl-select id="workspace_mode" value="clone">
+            <sl-option value="local_path">Local Path (existing directory)</sl-option>
+            <sl-option value="clone">Git Repository (recommended)</sl-option>
+          </sl-select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 20px;">
+        <label for="repo_url">Repository URL (optional - leave empty to create new)</label>
+        <sl-input id="repo_url" placeholder="https://github.com/username/repo.git"></sl-input>
+        <small style="color: #666;">Leave empty to create a new repository for this project</small>
+      </div>
+
+      <div class="form-group" style="margin-top: 20px;">
+        <label>Git Experience Level</label>
+        <div class="git-mode-selector">
+          <div class="mode-option selected" data-mode="hidden">
+            <h4>🎯 Simple</h4>
+            <p>Hide all technical details. Perfect for entrepreneurs and beginners.</p>
+          </div>
+          <div class="mode-option" data-mode="basic">
+            <h4>📊 Basic</h4>
+            <p>Show version control basics. Good for learning.</p>
+          </div>
+          <div class="mode-option" data-mode="advanced">
+            <h4>🚀 Advanced</h4>
+            <p>Full git access. For developers who want complete control.</p>
+          </div>
+        </div>
+        <input type="hidden" id="git_mode" value="hidden">
+      </div>
+
+      <sl-button type="submit" variant="primary" style="margin-top: 20px;">
+        <sl-icon slot="prefix" name="plus-circle"></sl-icon>
+        Create Project
+      </sl-button>
+    </form>
+  </div>
+
+  <!-- Projects Grid -->
+  <div class="projects-grid">
+    <% projects.forEach(project => { %>
+    <div class="project-card">
+      <div class="project-header">
+        <div class="project-title"><%= project.name %></div>
+        <span class="git-mode-badge git-mode-<%= project.git_mode || 'hidden' %>">
+          <%= project.git_mode || 'hidden' %> mode
+        </span>
+      </div>
+
+      <div class="project-info">
+        <div class="project-info-row">
+          <span>ID:</span>
+          <span style="font-family: monospace;"><%= project.id %></span>
+        </div>
+        <div class="project-info-row">
+          <span>Workspace:</span>
+          <span><%= project.workspace_mode %></span>
+        </div>
+        <% if (project.repo_url) { %>
+        <div class="project-info-row">
+          <span>Repository:</span>
+          <span style="font-size: 0.8em;"><%= project.repo_url %></span>
+        </div>
+        <% } %>
+        <div class="project-info-row">
+          <span>Initialized:</span>
+          <span>
+            <% if (project.initialized) { %>
+              <sl-icon name="check-circle" style="color: green;"></sl-icon> Yes
+            <% } else { %>
+              <sl-icon name="x-circle" style="color: orange;"></sl-icon> No
+            <% } %>
+          </span>
+        </div>
+      </div>
+
+      <div class="project-actions">
+        <sl-button size="small" href="/ui/projects/<%= project.id %>" variant="primary">
+          <sl-icon slot="prefix" name="gear"></sl-icon>
+          Settings
+        </sl-button>
+        <sl-button size="small" onclick="initProject('<%= project.id %>')" <% if (project.initialized) { %>disabled<% } %>>
+          <sl-icon slot="prefix" name="play-circle"></sl-icon>
+          Initialize
+        </sl-button>
+        <sl-dropdown>
+          <sl-button slot="trigger" size="small" caret>More</sl-button>
+          <sl-menu>
+            <sl-menu-item onclick="openProject('<%= project.id %>')">
+              <sl-icon slot="prefix" name="folder-open"></sl-icon>
+              Open in New Run
+            </sl-menu-item>
+            <sl-menu-item onclick="syncProject('<%= project.id %>')">
+              <sl-icon slot="prefix" name="arrow-repeat"></sl-icon>
+              Sync with Remote
+            </sl-menu-item>
+            <sl-divider></sl-divider>
+            <sl-menu-item onclick="deleteProject('<%= project.id %>')" style="color: red;">
+              <sl-icon slot="prefix" name="trash"></sl-icon>
+              Delete Project
+            </sl-menu-item>
+          </sl-menu>
+        </sl-dropdown>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <script>
+    // Git mode selector
+    document.querySelectorAll('.mode-option').forEach(option => {
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
+        option.classList.add('selected');
+        document.getElementById('git_mode').value = option.dataset.mode;
+      });
+    });
+
+    // Create project form
+    document.getElementById('createProjectForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        name: document.getElementById('name').value,
+        workspace_mode: document.getElementById('workspace_mode').value,
+        git_mode: document.getElementById('git_mode').value,
+        repo_url: document.getElementById('repo_url').value || undefined
+      };
+
+      try {
+        const response = await fetch('/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          const project = await response.json();
+          alert(`Project "${project.name}" created successfully!`);
+          location.reload();
+        } else {
+          const error = await response.json();
+          alert('Failed to create project: ' + JSON.stringify(error));
+        }
+      } catch (error) {
+        alert('Error creating project: ' + error.message);
+      }
+    });
+
+    // Project actions
+    async function initProject(projectId) {
+      if (!confirm('Initialize this project workspace?')) return;
+
+      try {
+        const response = await fetch('/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan: {
+              goal: 'Initialize project workspace',
+              steps: [{
+                name: 'init',
+                tool: 'project_init',
+                inputs: { project_id: projectId }
+              }]
+            }
+          })
+        });
+
+        if (response.ok) {
+          alert('Project initialization started!');
+          location.reload();
+        } else {
+          alert('Failed to initialize project');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function openProject(projectId) {
+      // Navigate to project workspace or run creation with project context
+      window.location.href = `/ui/new_run?project_id=${projectId}`;
+    }
+
+    async function syncProject(projectId) {
+      if (!confirm('Sync project with remote repository?')) return;
+
+      try {
+        const response = await fetch('/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan: {
+              goal: 'Sync project',
+              steps: [{
+                name: 'sync',
+                tool: 'git_ops',
+                inputs: {
+                  project_id: projectId,
+                  operation: 'sync'
+                }
+              }]
+            }
+          })
+        });
+
+        if (response.ok) {
+          alert('Project sync started!');
+        } else {
+          alert('Failed to sync project');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+
+    async function deleteProject(projectId) {
+      if (!confirm('Are you sure you want to delete this project?')) return;
+      if (!confirm('This will delete the project configuration. The workspace files will remain. Continue?')) return;
+
+      try {
+        const response = await fetch(`/projects/${projectId}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          alert('Project deleted!');
+          location.reload();
+        } else {
+          alert('Failed to delete project');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

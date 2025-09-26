@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Project Settings - NOFX Control Plane</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/cdn/themes/light.css" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/cdn/shoelace-autoloader.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; display: flex; align-items: center; gap: 10px; }
+    .settings-card { background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 30px; }
+    .setting-section { margin-bottom: 40px; }
+    .setting-title { font-size: 1.1em; font-weight: 600; margin-bottom: 10px; color: #333; }
+    .setting-description { color: #666; margin-bottom: 20px; font-size: 0.95em; }
+    .git-mode-selector { display: flex; gap: 15px; }
+    .mode-card {
+      flex: 1;
+      padding: 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+    .mode-card:hover {
+      border-color: #2196f3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .mode-card.selected {
+      border-color: #2196f3;
+      background: linear-gradient(to bottom, #e3f2fd, #ffffff);
+    }
+    .mode-icon { font-size: 2em; margin-bottom: 10px; }
+    .mode-title { font-weight: 600; margin-bottom: 5px; font-size: 1.1em; }
+    .mode-description { font-size: 0.85em; color: #666; line-height: 1.4; }
+    .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 15px; margin-top: 20px; }
+    .info-label { font-weight: 500; color: #555; }
+    .info-value { color: #333; }
+    .nav { margin-bottom: 30px; }
+    .actions { margin-top: 30px; display: flex; gap: 10px; }
+    .current-mode-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: 500;
+      margin-left: 10px;
+    }
+    .mode-hidden { background: #f0f0f0; color: #666; }
+    .mode-basic { background: #e3f2fd; color: #1976d2; }
+    .mode-advanced { background: #f3e5f5; color: #7b1fa2; }
+    .feature-list { margin-top: 15px; padding-left: 20px; }
+    .feature-list li { margin: 5px 0; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <sl-breadcrumb>
+      <sl-breadcrumb-item href="/ui/settings">Settings</sl-breadcrumb-item>
+      <sl-breadcrumb-item href="/ui/projects">Projects</sl-breadcrumb-item>
+      <sl-breadcrumb-item><%= project.name %></sl-breadcrumb-item>
+    </sl-breadcrumb>
+  </div>
+
+  <h1>
+    <sl-icon name="gear-fill"></sl-icon>
+    <%= project.name %> Settings
+    <span class="current-mode-badge mode-<%= project.git_mode || 'hidden' %>">
+      Current: <%= project.git_mode || 'hidden' %> mode
+    </span>
+  </h1>
+
+  <div class="settings-card">
+    <!-- Project Info -->
+    <div class="setting-section">
+      <div class="setting-title">Project Information</div>
+      <div class="info-grid">
+        <div class="info-label">Project ID:</div>
+        <div class="info-value" style="font-family: monospace;"><%= project.id %></div>
+
+        <div class="info-label">Workspace Mode:</div>
+        <div class="info-value"><%= project.workspace_mode %></div>
+
+        <% if (project.repo_url) { %>
+        <div class="info-label">Repository:</div>
+        <div class="info-value" style="font-size: 0.9em;"><%= project.repo_url %></div>
+        <% } %>
+
+        <div class="info-label">Initialized:</div>
+        <div class="info-value">
+          <% if (project.initialized) { %>
+            <sl-icon name="check-circle" style="color: green;"></sl-icon> Yes
+          <% } else { %>
+            <sl-icon name="x-circle" style="color: orange;"></sl-icon> No
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Git Mode Selection -->
+    <div class="setting-section">
+      <div class="setting-title">Git Experience Level</div>
+      <div class="setting-description">
+        Choose how much of git's complexity you want to see. You can change this anytime.
+      </div>
+
+      <div class="git-mode-selector">
+        <div class="mode-card <%= project.git_mode === 'hidden' || !project.git_mode ? 'selected' : '' %>" data-mode="hidden">
+          <div class="mode-icon">🎯</div>
+          <div class="mode-title">Simple Mode</div>
+          <div class="mode-description">
+            Perfect for entrepreneurs and beginners. All version control happens automatically behind the scenes.
+          </div>
+          <ul class="feature-list">
+            <li>"Save Progress" instead of commit</li>
+            <li>"Restore Previous Version" instead of revert</li>
+            <li>No technical terminology</li>
+            <li>Automatic backups of all work</li>
+          </ul>
+        </div>
+
+        <div class="mode-card <%= project.git_mode === 'basic' ? 'selected' : '' %>" data-mode="basic">
+          <div class="mode-icon">📊</div>
+          <div class="mode-title">Basic Mode</div>
+          <div class="mode-description">
+            Learn version control concepts gradually with simplified git features.
+          </div>
+          <ul class="feature-list">
+            <li>See version history</li>
+            <li>Name your saves</li>
+            <li>Create and switch branches</li>
+            <li>Sync with GitHub (simplified)</li>
+          </ul>
+        </div>
+
+        <div class="mode-card <%= project.git_mode === 'advanced' ? 'selected' : '' %>" data-mode="advanced">
+          <div class="mode-icon">🚀</div>
+          <div class="mode-title">Advanced Mode</div>
+          <div class="mode-description">
+            Full git access for developers who want complete control.
+          </div>
+          <ul class="feature-list">
+            <li>All git commands available</li>
+            <li>Branch visualization</li>
+            <li>Merge conflict resolution</li>
+            <li>Advanced commit options</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <sl-button id="saveBtn" variant="primary" size="large">
+        <sl-icon slot="prefix" name="check-circle"></sl-icon>
+        Save Changes
+      </sl-button>
+      <sl-button href="/ui/projects" variant="default" size="large">
+        <sl-icon slot="prefix" name="arrow-left"></sl-icon>
+        Back to Projects
+      </sl-button>
+    </div>
+  </div>
+
+  <script>
+    let selectedMode = '<%= project.git_mode || "hidden" %>';
+
+    // Mode selection
+    document.querySelectorAll('.mode-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedMode = card.dataset.mode;
+      });
+    });
+
+    // Save changes
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const currentMode = '<%= project.git_mode || "hidden" %>';
+
+      if (selectedMode === currentMode) {
+        alert('No changes to save');
+        return;
+      }
+
+      if (!confirm(`Change git mode from "${currentMode}" to "${selectedMode}"?\n\nThis will affect how git operations are displayed but won't affect your code.`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/projects/<%= project.id %>', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ git_mode: selectedMode })
+        });
+
+        if (response.ok) {
+          alert(`Git mode updated to ${selectedMode}!`);
+          location.reload();
+        } else {
+          const error = await response.json();
+          alert('Failed to update git mode: ' + JSON.stringify(error));
+        }
+      } catch (error) {
+        alert('Error updating git mode: ' + error.message);
+      }
+    });
+  </script>
+</body>
+</html>

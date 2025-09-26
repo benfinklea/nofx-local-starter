@@ -13,28 +13,56 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/runs",
+      "destination": "/api/runs"
+    },
+    {
       "source": "/runs/(.*)",
       "destination": "/api/runs/$1"
+    },
+    {
+      "source": "/projects",
+      "destination": "/api/projects"
     },
     {
       "source": "/projects/(.*)",
       "destination": "/api/projects/$1"
     },
     {
+      "source": "/models",
+      "destination": "/api/models"
+    },
+    {
       "source": "/models/(.*)",
       "destination": "/api/models/$1"
+    },
+    {
+      "source": "/settings",
+      "destination": "/api/settings"
     },
     {
       "source": "/settings/(.*)",
       "destination": "/api/settings/$1"
     },
     {
+      "source": "/gates",
+      "destination": "/api/gates"
+    },
+    {
       "source": "/gates/(.*)",
       "destination": "/api/gates/$1"
     },
     {
+      "source": "/builder",
+      "destination": "/api/builder"
+    },
+    {
       "source": "/builder/(.*)",
       "destination": "/api/builder/$1"
+    },
+    {
+      "source": "/backups",
+      "destination": "/api/backups"
     },
     {
       "source": "/backups/(.*)",

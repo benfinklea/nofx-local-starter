@@ -7,6 +7,7 @@ import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
+import { apiFetch } from '../lib/api';
 
 type SettingsDoc = {
   approvals: { dbWrites: 'none'|'dangerous'|'all'; allowWaive?: boolean };
@@ -18,14 +19,35 @@ type SettingsDoc = {
 export default function Settings(){
   const [settings, setSettings] = React.useState<SettingsDoc | null>(null);
   const [status, setStatus] = React.useState('');
-  React.useEffect(() => { fetch('/settings').then(r=>r.json()).then(d=>setSettings(d.settings)).catch(()=>{}); }, []);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    apiFetch('/settings')
+      .then(r => r.json())
+      .then(d => setSettings(d.settings))
+      .catch((err) => {
+        console.error('Failed to load settings:', err);
+        setError('Failed to load settings. Please check your connection.');
+      });
+  }, []);
+
+  if (error) return <Container sx={{ mt: 2 }}><Typography color="error">{error}</Typography></Container>;
   if (!settings) return <Container sx={{ mt: 2 }}><Typography>Loading…</Typography></Container>;
 
   const save = async () => {
     setStatus('Saving…');
     const body = { settings };
-    const rsp = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    setStatus(rsp.ok ? 'Saved' : 'Save failed');
+    try {
+      const rsp = await apiFetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      setStatus(rsp.ok ? 'Saved' : 'Save failed');
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      setStatus('Save failed - connection error');
+    }
   };
 
   return (

@@ -2,6 +2,8 @@ import type { StepHandler } from "./types";
 import { store } from "../../lib/store";
 import { recordEvent } from "../../lib/events";
 import { spawn } from "node:child_process";
+import { getProject } from "../../lib/projects";
+import { workspaceManager } from "../../lib/workspaces";
 
 const handler: StepHandler = {
   match: (tool) => tool === 'bash',
@@ -12,8 +14,29 @@ const handler: StepHandler = {
 
     try {
       const command = step.inputs?.command || 'echo "No command provided"';
-      const cwd = step.inputs?.cwd || process.cwd();
       const timeout = step.inputs?.timeout || 30000; // 30 second default timeout
+
+      // Determine working directory
+      let cwd = step.inputs?.cwd || process.cwd();
+
+      // If project_id is provided, use project workspace
+      if (step.inputs?.project_id) {
+        const project = await getProject(step.inputs.project_id);
+        if (project) {
+          // Ensure workspace exists and get path
+          cwd = await workspaceManager.ensureWorkspace(project);
+        }
+      }
+      // Also support workspace parameter for backward compatibility
+      else if (step.inputs?.workspace) {
+        // workspace can be a project_id or a direct path
+        const project = await getProject(step.inputs.workspace);
+        if (project) {
+          cwd = await workspaceManager.ensureWorkspace(project);
+        } else {
+          cwd = step.inputs.workspace;
+        }
+      }
 
       const result = await runBashCommand(command, { cwd, timeout });
 

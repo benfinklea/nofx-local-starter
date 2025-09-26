@@ -2,6 +2,15 @@
 
 Fast path to a functional control plane on your Mac. Single-tenant, but schema keeps `tenant_id` so we can migrate cleanly.
 
+## 🎉 New: Git-Backed Projects with Progressive Disclosure
+
+NOFX now supports git-backed projects with three experience levels:
+- **Hidden Mode** (default) - No git terminology, automatic versioning
+- **Basic Mode** - Gentle introduction to version control
+- **Advanced Mode** - Full git power for developers
+
+See [Git Projects Guide](docs/GIT_PROJECTS_GUIDE.md) for complete documentation.
+
 ## AI Contributor Note
 - Any automation or AI assistant (including Codex) must read `AI_CODER_GUIDE.md` before making changes in this repository.
 

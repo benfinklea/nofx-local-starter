@@ -10,6 +10,8 @@ export type Project = {
   local_path?: string | null;
   workspace_mode?: 'local_path'|'clone'|'worktree';
   default_branch?: string | null;
+  git_mode?: 'hidden' | 'basic' | 'advanced';
+  initialized?: boolean;
 };
 
 function driver() { return (process.env.DATA_DRIVER || (process.env.QUEUE_DRIVER === 'memory' ? 'fs' : 'db')).toLowerCase(); }
@@ -26,7 +28,7 @@ async function fsWrite(rows: Project[]): Promise<void> { ensureDirSync(ROOT); aw
 
 export async function listProjects(): Promise<Project[]> {
   if (driver() === 'db') {
-    const r = await pgQuery<Project>(`select id, name, repo_url, local_path, workspace_mode, default_branch from nofx.project order by created_at desc`);
+    const r = await pgQuery<Project>(`select id, name, repo_url, local_path, workspace_mode, default_branch, git_mode, initialized from nofx.project order by created_at desc`);
     return r.rows as any;
   }
   return fsRead();
@@ -38,17 +40,19 @@ export async function getProject(id: string): Promise<Project | undefined> {
 export async function createProject(p: Partial<Project>): Promise<Project> {
   if (driver() === 'db') {
     const id = p.id || `p_${Math.random().toString(36).slice(2,10)}`;
-    await pgQuery(`insert into nofx.project (id, name, repo_url, local_path, workspace_mode, default_branch) values ($1,$2,$3,$4,coalesce($5,'local_path'),coalesce($6,'main'))`, [id, p.name || 'Untitled', p.repo_url || null, p.local_path || null, p.workspace_mode || 'local_path', p.default_branch || 'main']);
+    await pgQuery(`insert into nofx.project (id, name, repo_url, local_path, workspace_mode, default_branch, git_mode, initialized) values ($1,$2,$3,$4,coalesce($5,'local_path'),coalesce($6,'main'),coalesce($7,'hidden'),$8)`,
+      [id, p.name || 'Untitled', p.repo_url || null, p.local_path || null, p.workspace_mode || 'local_path', p.default_branch || 'main', p.git_mode || 'hidden', p.initialized || false]);
     return (await getProject(id))!;
   }
   const rows = await fsRead();
   const id = p.id || `p_${Math.random().toString(36).slice(2,10)}`;
-  const row: Project = { id, name: p.name || 'Untitled', repo_url: p.repo_url || null, local_path: p.local_path || null, workspace_mode: (p.workspace_mode as any) || 'local_path', default_branch: p.default_branch || 'main' };
+  const row: Project = { id, name: p.name || 'Untitled', repo_url: p.repo_url || null, local_path: p.local_path || null, workspace_mode: (p.workspace_mode as any) || 'local_path', default_branch: p.default_branch || 'main', git_mode: p.git_mode || 'hidden', initialized: p.initialized || false };
   rows.push(row); await fsWrite(rows); return row;
 }
 export async function updateProject(id: string, patch: Partial<Project>): Promise<Project | undefined> {
   if (driver() === 'db') {
-    await pgQuery(`update nofx.project set name=coalesce($2,name), repo_url=coalesce($3,repo_url), local_path=coalesce($4,local_path), workspace_mode=coalesce($5,workspace_mode), default_branch=coalesce($6,default_branch) where id=$1`, [id, patch.name || null, patch.repo_url || null, patch.local_path || null, patch.workspace_mode || null, patch.default_branch || null]);
+    await pgQuery(`update nofx.project set name=coalesce($2,name), repo_url=coalesce($3,repo_url), local_path=coalesce($4,local_path), workspace_mode=coalesce($5,workspace_mode), default_branch=coalesce($6,default_branch), git_mode=coalesce($7,git_mode), initialized=coalesce($8,initialized) where id=$1`,
+      [id, patch.name || null, patch.repo_url || null, patch.local_path || null, patch.workspace_mode || null, patch.default_branch || null, patch.git_mode || null, patch.initialized ?? null]);
     return (await getProject(id));
   }
   const rows = await fsRead();
@@ -64,6 +68,7 @@ export async function deleteProject(id: string): Promise<boolean> {
 export function resolveWorkspacePath(p?: Project | null): string {
   if (!p) return process.cwd();
   if (p.workspace_mode === 'local_path' && p.local_path) return p.local_path;
-  // For clone/worktree modes, fallback for now to cwd; future phases will materialize workspaces
-  return process.cwd();
+  // For clone/worktree modes, use the workspace manager
+  const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || path.join(process.cwd(), 'local_data', 'workspaces');
+  return path.join(WORKSPACE_ROOT, p.id);
 }
