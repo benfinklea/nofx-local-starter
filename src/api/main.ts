@@ -29,6 +29,7 @@ import { trackUsage } from '../auth/supabase';
 import authV2Routes from './routes/auth_v2';
 import billingRoutes from './routes/billing';
 import webhookRoutes from './routes/webhooks';
+import teamsRoutes from './routes/teams';
 
 dotenv.config();
 export const app = express();
@@ -324,6 +325,7 @@ app.get('/runs',
 authV2Routes(app);
 billingRoutes(app);
 webhookRoutes(app);
+teamsRoutes(app);
 
 // ADD at the end of file, after existing routes:
 mountRouters(app);

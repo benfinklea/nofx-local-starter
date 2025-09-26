@@ -1,0 +1,30 @@
+{
+  "scripts": {
+    "test:teams": "npm run test:teams:unit && npm run test:teams:integration && npm run test:teams:e2e",
+    "test:teams:unit": "jest --config=jest.config.teams.js --testPathPattern=teams.test.ts",
+    "test:teams:integration": "jest --config=jest.config.teams.js --testPathPattern=teams.integration.test.ts",
+    "test:teams:e2e": "playwright test --config=playwright.config.teams.ts",
+    "test:teams:coverage": "jest --config=jest.config.teams.js --coverage",
+    "test:teams:watch": "jest --config=jest.config.teams.js --watch",
+    "test:teams:debug": "node --inspect-brk node_modules/.bin/jest --config=jest.config.teams.js --runInBand",
+    "test:teams:security": "npm audit && npm run test:teams:unit -- --testNamePattern='Security'",
+    "test:teams:performance": "npm run test:teams:unit -- --testNamePattern='Performance'",
+    "test:teams:chaos": "npm run test:teams:unit -- --testNamePattern='Chaos'",
+    "test:teams:bulletproof": "npm run test:teams:coverage && npm run test:teams:security && npm run test:teams:e2e",
+    "test:teams:ci": "npm run test:teams:bulletproof -- --ci --reporters=default --reporters=jest-junit"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.test.{ts,tsx}",
+      "!src/**/__tests__/**"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html",
+      "json-summary"
+    ],
+    "coverageDirectory": "coverage/teams"
+  }
+}

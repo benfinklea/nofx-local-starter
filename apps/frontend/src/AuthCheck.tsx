@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CircularProgress, Box, Typography } from '@mui/material';
+import LoginForm from './components/LoginForm';
 
 interface AuthCheckProps {
   children: React.ReactNode;
@@ -24,24 +25,23 @@ export default function AuthCheck({ children }: AuthCheckProps) {
         });
 
         if (response.status === 401) {
-          // Not authenticated, redirect to login
-          window.location.href = '/login.html';
+          // Not authenticated, show login form
+          setIsAuthenticated(false);
           return;
         }
 
         if (response.ok) {
           setIsAuthenticated(true);
         } else {
-          // Some other error, redirect to login
-          window.location.href = '/login.html';
+          // Some other error, show login form
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error('Auth check failed:', err);
         // On network error, redirect to login after showing error briefly
         setError('Unable to connect to server');
-        setTimeout(() => {
-          window.location.href = '/login.html';
-        }, 1500);
+        // Show login form on error
+        setIsAuthenticated(false);
       }
     };
 
@@ -67,28 +67,9 @@ export default function AuthCheck({ children }: AuthCheckProps) {
     );
   }
 
-  // Show error if auth check failed
-  if (error) {
-    return (
-      <Box
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        minHeight="100vh"
-        bgcolor="background.default"
-      >
-        <Typography variant="h6" color="error" gutterBottom>
-          Authentication Error
-        </Typography>
-        <Typography variant="body1" color="textSecondary">
-          {error}
-        </Typography>
-        <Typography variant="body2" color="textSecondary" mt={2}>
-          Redirecting to login...
-        </Typography>
-      </Box>
-    );
+  // Show login form if not authenticated
+  if (isAuthenticated === false) {
+    return <LoginForm />;
   }
 
   // Render children only if authenticated
