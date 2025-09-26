@@ -14,6 +14,10 @@ import {
   deleteProduct,
   deletePrice
 } from '../../billing/stripe';
+import {
+  sendSubscriptionConfirmationEmail,
+  sendPaymentFailedEmail
+} from '../../services/email/emailService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-12-18.acacia'
@@ -132,6 +136,41 @@ export default function mount(app: Express) {
                     currency: checkoutSession.currency
                   }
                 );
+
+                // Send subscription confirmation email
+                const { createServiceClient } = require('../../auth/supabase');
+                const supabase = createServiceClient();
+                if (supabase && userId) {
+                  const { data: user } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                  if (user?.email) {
+                    // Get subscription details
+                    const subscription = await stripe.subscriptions.retrieve(
+                      subscriptionId,
+                      { expand: ['items.data.price.product'] }
+                    );
+
+                    const product = subscription.items.data[0]?.price.product as Stripe.Product;
+                    const price = subscription.items.data[0]?.price;
+
+                    const nextBillingDate = new Date(subscription.current_period_end * 1000)
+                      .toLocaleDateString();
+
+                    sendSubscriptionConfirmationEmail(userId, user.email, {
+                      planName: product?.name || 'Subscription',
+                      amount: `$${(price?.unit_amount || 0) / 100}`,
+                      interval: price?.recurring?.interval === 'year' ? 'yearly' : 'monthly',
+                      nextBillingDate,
+                      features: (product?.metadata?.features || '').split(',').filter(Boolean),
+                    }).catch(err => {
+                      log.error({ err, userId }, 'Failed to send subscription confirmation email');
+                    });
+                  }
+                }
               }
             }
             break;
@@ -214,7 +253,42 @@ export default function mount(app: Express) {
               amount: failedInvoice.amount_due
             }, 'Invoice payment failed');
 
-            // Could trigger an email notification here
+            // Send payment failed email
+            const { createServiceClient: getFailedSvc } = require('../../auth/supabase');
+            const failedSvc = getFailedSvc();
+            if (failedSvc) {
+              const { data: customer } = await failedSvc
+                .from('customers')
+                .select('id')
+                .eq('stripe_customer_id', failedInvoice.customer)
+                .single();
+
+              if (customer) {
+                const { data: user } = await failedSvc
+                  .from('users')
+                  .select('*')
+                  .eq('id', customer.id)
+                  .single();
+
+                if (user?.email) {
+                  // Calculate retry date (3 days from now)
+                  const retryDate = new Date();
+                  retryDate.setDate(retryDate.getDate() + 3);
+
+                  sendPaymentFailedEmail(customer.id, user.email, {
+                    amount: `$${failedInvoice.amount_due / 100}`,
+                    lastFourDigits: failedInvoice.payment_intent
+                      ? (await stripe.paymentIntents.retrieve(failedInvoice.payment_intent as string))
+                          .payment_method?.card?.last4
+                      : undefined,
+                    failureReason: failedInvoice.last_finalization_error?.message,
+                    retryDate: retryDate.toLocaleDateString(),
+                  }).catch(err => {
+                    log.error({ err, userId: customer.id }, 'Failed to send payment failed email');
+                  });
+                }
+              }
+            }
             break;
 
           // Customer updated (billing info changes)

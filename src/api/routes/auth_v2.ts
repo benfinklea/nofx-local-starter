@@ -9,6 +9,7 @@ import { requireAuth } from '../../auth/middleware';
 import { log } from '../../lib/logger';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { sendWelcomeEmail } from '../../services/email/emailService';
 
 // Validation schemas
 const SignUpSchema = z.object({
@@ -85,6 +86,11 @@ export default function mount(app: Express) {
 
       // Create audit log
       await createAuditLog(data.user.id, 'auth.signup', 'user', data.user.id, { email }, req);
+
+      // Send welcome email (async, don't block response)
+      sendWelcomeEmail(data.user.id, email, fullName).catch(err => {
+        log.error({ err, userId: data.user.id }, 'Failed to send welcome email');
+      });
 
       // Set session cookies
       if (data.session) {

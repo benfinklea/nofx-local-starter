@@ -1,10 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@3/schema.json",
   "entry": [
-    "src/index.ts",
-    "src/main.ts",
     "src/api/main.ts",
     "src/worker/main.ts",
+    "src/simple.ts",
     "scripts/**/*.ts",
     "scripts/**/*.js"
   ],
@@ -33,7 +32,10 @@
   ],
   "workspaces": {
     ".": {
-      "entry": "src/index.ts"
+      "entry": [
+        "src/api/main.ts",
+        "src/worker/main.ts"
+      ]
     }
   }
 }

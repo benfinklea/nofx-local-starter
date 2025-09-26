@@ -11,45 +11,38 @@ export default function AuthCheck({ children }: AuthCheckProps) {
 
   useEffect(() => {
     // Check if user has authentication credentials
-    const checkAuth = () => {
-      // Check for Supabase session in localStorage
-      const supabaseAuth = localStorage.getItem('supabase.auth.token');
-      const sbAccessToken = localStorage.getItem('sb-access-token');
-      const apiToken = localStorage.getItem('token');
-      const authenticated = localStorage.getItem('authenticated');
+    const checkAuth = async () => {
+      try {
+        // Check the protected auth endpoint
+        const response = await fetch('/api/auth/check', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            // Include auth token from localStorage if available
+            'Authorization': `Bearer ${localStorage.getItem('sb-access-token') || localStorage.getItem('token') || ''}`
+          }
+        });
 
-      // Also check for any Supabase-specific session keys
-      const hasSupabaseSession = Object.keys(localStorage).some(key =>
-        key.includes('supabase.auth') || key.includes('sb-') && key.includes('auth-token')
-      );
-
-      if (!supabaseAuth && !sbAccessToken && !apiToken && !hasSupabaseSession && !authenticated) {
-        // No authentication tokens found, redirect to login immediately
-        window.location.href = '/login';
-        return;
-      }
-
-      // If we have some form of auth token, verify it's still valid
-      fetch('/api/health', {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
+        if (response.status === 401) {
+          // Not authenticated, redirect to login
+          window.location.href = '/login';
+          return;
         }
-      }).then(response => {
+
         if (response.ok) {
           setIsAuthenticated(true);
         } else {
-          // Token might be expired, redirect to login
+          // Some other error, redirect to login
           window.location.href = '/login';
         }
-      }).catch(err => {
+      } catch (err) {
         console.error('Auth check failed:', err);
+        // On network error, redirect to login after showing error briefly
         setError('Unable to connect to server');
-        // In case of network error, redirect to login after a delay
         setTimeout(() => {
           window.location.href = '/login';
-        }, 2000);
-      });
+        }, 1500);
+      }
     };
 
     checkAuth();
