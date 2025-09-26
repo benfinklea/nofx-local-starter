@@ -577,4 +577,48 @@ export const store = {
       await pgQuery(`update nofx.run set status='queued', ended_at=null where id=$1`, [runId]);
     }
   },
+  // User-related methods for SaaS
+  getUserRole: async (userId: string): Promise<string | null> => {
+    if (dataDriver() !== 'db') return null;
+    const result = await pgQuery<{ role: string }>(`select role from users where id=$1`, [userId]);
+    return result.rows[0]?.role || null;
+  },
+  listRunsByUser: async (userId: string, limit = 50, projectId?: string): Promise<RunRow[]> => {
+    if (dataDriver() !== 'db') {
+      // Fallback to regular listRuns if not using database
+      return store.listRuns(limit, projectId);
+    }
+    const conds = ['user_id=$1'];
+    const params: (string | number)[] = [userId];
+    if (projectId) {
+      conds.push(`project_id=$${params.length + 1}`);
+      params.push(projectId);
+    }
+    const result = await pgQuery<RunRow>(
+      `select * from nofx.run where ${conds.join(' and ')} order by created_at desc limit $${params.length + 1}`,
+      [...params, limit]
+    );
+    return result.rows;
+  },
+  createRunWithUser: async (plan: any, projectId: string, userId: string): Promise<RunRow> => {
+    if (dataDriver() !== 'db') {
+      // Fallback to regular createRun if not using database
+      return store.createRun(plan, projectId);
+    }
+    const runId = randomUUID();
+    const runData = {
+      id: runId,
+      plan,
+      status: 'queued',
+      project_id: projectId,
+      user_id: userId,
+      metadata: plan.metadata || {}
+    };
+    await pgQuery(
+      `insert into nofx.run (id, plan, status, project_id, user_id, metadata) values ($1,$2,$3,$4,$5,$6)`,
+      [runData.id, runData.plan, runData.status, runData.project_id, runData.user_id, runData.metadata]
+    );
+    const result = await pgQuery<RunRow>(`select * from nofx.run where id=$1`, [runId]);
+    return result.rows[0];
+  }
 };

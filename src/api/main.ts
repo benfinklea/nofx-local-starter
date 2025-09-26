@@ -23,6 +23,12 @@ import { retryStep, StepNotFoundError, StepNotRetryableError } from '../lib/runR
 import { isAdmin } from '../lib/auth';
 import { toJsonObject } from '../lib/json';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
+// New SaaS auth imports
+import { requireAuth, optionalAuth, checkUsage, rateLimit, trackApiUsage } from '../auth/middleware';
+import { trackUsage } from '../auth/supabase';
+import authV2Routes from './routes/auth_v2';
+import billingRoutes from './routes/billing';
+import webhookRoutes from './routes/webhooks';
 
 dotenv.config();
 export const app = express();
@@ -47,8 +53,12 @@ app.use(cors({
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+// Cookie parser for auth
+app.use(require('cookie-parser')());
 // Observability middleware: request ID + latency logging + correlation
 app.use(requestObservability);
+// Add optional auth to all requests (populates req.user if authenticated)
+app.use(optionalAuth);
 
 // ADD view engine + static for future UI
 app.set('view engine', 'ejs');
@@ -137,7 +147,13 @@ app.post('/runs/preview', async (req, res) => {
   }
 });
 
-app.post("/runs", async (req, res) => {
+// PROTECTED: Create run - requires authentication and checks usage limits
+app.post("/runs",
+  requireAuth,
+  checkUsage('runs'),
+  rateLimit(60000, 100), // 100 requests per minute max
+  trackApiUsage('runs', 1),
+  async (req, res) => {
   // Standard mode: build a plan from plain-language prompt and settings
   if (req.body && req.body.standard) {
     try {
@@ -153,7 +169,17 @@ app.post("/runs", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { plan, projectId = 'default' } = parsed.data;
 
-  const run = await store.createRun(plan, projectId);
+  // Add user context to the run
+  const runData = {
+    ...plan,
+    user_id: req.userId,
+    metadata: {
+      ...plan.metadata,
+      created_by: req.userId,
+      tier: req.userTier
+    }
+  };
+  const run = await store.createRun(runData, projectId);
   const runId = String(run.id);
   try { setContext({ runId, projectId }); } catch {}
   await recordEvent(runId, "run.created", { plan });
@@ -217,10 +243,21 @@ app.post("/runs", async (req, res) => {
   })().catch(() => {});
 });
 
-app.get("/runs/:id", async (req, res) => {
+// PROTECTED: Get run details - requires auth and ownership
+app.get("/runs/:id",
+  requireAuth,
+  async (req, res) => {
   const runId = req.params.id;
   const run = await store.getRun(runId);
   if (!run) return res.status(404).json({ error: "not found" });
+
+  // Check ownership (unless admin)
+  if (run.user_id && run.user_id !== req.userId) {
+    const isUserAdmin = req.user && (await store.getUserRole(req.userId)) === 'admin';
+    if (!isUserAdmin) {
+      return res.status(403).json({ error: "access denied" });
+    }
+  }
   const steps = await store.listStepsByRun(runId);
   const artifacts = await store.listArtifactsByRun(runId);
   res.json({ run, steps, artifacts });
@@ -263,18 +300,30 @@ app.get('/runs/:id/stream', async (req, res) => {
   }, 1000);
 });
 
-// JSON: list recent runs (additive; used by FE dev app)
-app.get('/runs', async (req, res) => {
+// PROTECTED: List user's runs - requires auth, shows only user's runs
+app.get('/runs',
+  requireAuth,
+  rateLimit(60000, 200),
+  async (req, res) => {
   const lim = Math.max(1, Math.min(200, Number(req.query.limit || 50)));
   const projectId = String(req.query.projectId || '');
   try {
-    const rows = await store.listRuns(lim, projectId || undefined);
+    // Filter runs by user (unless admin)
+    const isUserAdmin = req.user && (await store.getUserRole(req.userId)) === 'admin';
+    const rows = isUserAdmin
+      ? await store.listRuns(lim, projectId || undefined)
+      : await store.listRunsByUser(req.userId!, lim, projectId || undefined);
     res.json({ runs: rows });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'failed to list runs';
     res.status(500).json({ error: msg });
   }
 });
+
+// Mount auth and billing routes BEFORE other routes
+authV2Routes(app);
+billingRoutes(app);
+webhookRoutes(app);
 
 // ADD at the end of file, after existing routes:
 mountRouters(app);
