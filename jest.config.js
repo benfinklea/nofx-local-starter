@@ -25,6 +25,10 @@ module.exports = {
   testTimeout: 30000,
   maxWorkers: '50%',
   verbose: true,
+  // Test hardening configurations
+  bail: 1, // Stop after first test failure
+  detectOpenHandles: true, // Detect handles keeping Jest from exiting
+  forceExit: true, // Force exit after tests complete
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', {
       tsconfig: {
