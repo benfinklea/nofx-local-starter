@@ -42,6 +42,16 @@ This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly und
 
 **Never work directly in the main repository directory when using AI assistance!**
 
+## Quick Start - Cloud Deployment
+
+**The NOFX Control Plane is now fully deployed to the cloud!**
+
+- **Production URL**: https://nofx-control-plane.vercel.app
+- **API Base**: https://nofx-control-plane.vercel.app/api
+- **Stack**: Vercel (Frontend + Functions) + Supabase (Database)
+
+**No local setup required for production use!** Everything runs in the cloud.
+
 ## System Overview
 
 NOFX Control Plane is an orchestration system that turns requests into durable, auditable execution runs. It manages AI-powered code generation, quality gates, manual approvals, and deployment workflows.
@@ -50,18 +60,26 @@ NOFX Control Plane is an orchestration system that turns requests into durable, 
 
 ## Architecture Summary
 
+### Cloud Architecture (Production)
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   API       │────▶│   Queue     │────▶│   Worker    │
-│ (Express)   │     │  (Redis)    │     │  (Runner)   │
+│  Frontend   │────▶│     API     │────▶│   Queue     │
+│  (Vercel)   │     │  (Vercel    │     │ (PostgreSQL)│
+│             │     │  Functions) │     │             │
 └─────────────┘     └─────────────┘     └─────────────┘
-       │                                        │
-       ▼                                        ▼
-┌─────────────┐                        ┌─────────────┐
-│  Database   │                        │   Handlers  │
-│ (Postgres)  │                        │  (Tools)    │
-└─────────────┘                        └─────────────┘
+                            │                   │
+                            ▼                   ▼
+                    ┌─────────────┐     ┌─────────────┐
+                    │  Database   │     │   Worker    │
+                    │  (Supabase  │     │  (Vercel)   │
+                    │  PostgreSQL)│     │             │
+                    └─────────────┘     └─────────────┘
 ```
+
+**Production URLs:**
+- Frontend: https://nofx-control-plane.vercel.app
+- API: https://nofx-control-plane.vercel.app/api/*
+- Database: Supabase PostgreSQL (managed)
 
 ## Key Files and Directories
 
@@ -104,52 +122,77 @@ NOFX Control Plane is an orchestration system that turns requests into durable, 
 
 ## Environment Configuration
 
-Key environment variables (see `.env.example`):
+### Production (Vercel)
+
+Environment variables are set in Vercel Dashboard:
 
 ```bash
 # Core
-PORT=3000
-NODE_ENV=development
+NODE_ENV=production
+VERCEL_ENV=production
 
-# Database (Postgres or Supabase)
+# Database (Supabase)
 DATABASE_URL=postgresql://...
-SUPABASE_URL=http://localhost:54321
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 
 # Queue
-QUEUE_DRIVER=redis  # or 'memory', 'sqs'
-REDIS_URL=redis://localhost:6379
+QUEUE_DRIVER=postgres  # Using PostgreSQL-based queue
 
 # Storage
-DATA_DRIVER=postgres  # or 'filesystem'
+DATA_DRIVER=postgres  # All data in Supabase
 
 # AI Models
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Auth
-ADMIN_PASSWORD=admin
+ADMIN_PASSWORD=<secure-password>
 ```
 
-### Local Ports Reference
+### Local Development
 
-| Service | Port(s) | Notes |
-| --- | --- | --- |
-| API (Express) | 3000 | Primary control-plane API; driven by `PORT`. |
-| Frontend (Vite dev server) | 5173 | `npm run fe:dev` default; override via `VITE_PORT`. |
-| Redis | 6379 | Queue backend when `QUEUE_DRIVER=redis`; container `nofx-redis`. |
-| Supabase Postgres | 50000 | Local database exposed by Supabase (`supabase/config.toml`). |
-| Supabase API Gateway (Kong) | 50002 | REST and GraphQL surface for Supabase; matches `SUPABASE_URL`. |
-| Supabase Analytics | 50001 | Logflare/analytics dashboards (optional). |
-| Supabase Inbucket | 50003 | Dev email inbox UI. |
-| Supabase Studio | 50004 | Web UI for Supabase project administration. |
-| Prometheus | 9090 | Metrics endpoint (if `nofx_prometheus` container is running). |
-| OpenTelemetry Collector | 4317 (gRPC), 4318 (HTTP), 8889 (metrics) | Local OTLP ingestion endpoints. |
+For local development, copy `.env.example` to `.env`:
 
-Ports are defined in `supabase/config.toml`, `.env`, and the Docker compose overlays; update those sources if you change a binding and keep this table in sync.
+```bash
+cp .env.example .env
+# Edit .env with your local settings
+```
 
-> ⚠️ **Dev restart watch**: keep `DEV_RESTART_WATCH=0` for all non-interactive launches (nohup, scripts, CI). Turning it on in headless mode causes infinite respawns. Only enable it temporarily in a foreground terminal; set `DEV_RESTART_ALLOW_HEADLESS=1` if you truly need headless behaviour.
+### Cloud Services
+
+**Production Stack:**
+- **Frontend & API**: Vercel (serverless functions)
+- **Database**: Supabase PostgreSQL
+- **Queue**: PostgreSQL-based (no Redis required)
+- **File Storage**: Supabase Storage
+- **Authentication**: Supabase Auth
+
+**No local services required in production!** Everything runs in the cloud.
+
+### Local Development Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Set up environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Supabase credentials
+   ```
+
+3. **Run locally:**
+   ```bash
+   npm run dev        # Start API server
+   npm run fe:dev     # Start frontend (separate terminal)
+   ```
+
+**Local ports (development only):**
+- API: http://localhost:3000
+- Frontend: http://localhost:5173
 
 ## Core Concepts
 
@@ -185,6 +228,44 @@ Audit trail of all state changes:
 - `run.created`, `step.started`, `step.finished`, etc.
 - Stored in `event` table with timestamps and payloads
 - Streamable via SSE endpoint
+
+## Cloud Deployment
+
+### Database Setup (Supabase)
+
+1. **Create a Supabase project** at https://supabase.com
+2. **Run migrations**:
+   - Go to SQL Editor in Supabase Dashboard
+   - Run the SQL from `run-supabase-migrations.sql`
+   - This creates all required tables and views
+
+### Deploying to Vercel
+
+1. **Initial deployment:**
+   ```bash
+   vercel --prod
+   ```
+
+2. **Set environment variables in Vercel Dashboard:**
+   - Go to Project Settings → Environment Variables
+   - Add all required variables (see Environment Configuration above)
+   - Redeploy to apply changes
+
+3. **Automatic deployments:**
+   - Pushing to `main` branch triggers automatic deployment
+   - Preview deployments created for pull requests
+
+### API Endpoints (Vercel Functions)
+
+All API files in `/api` directory become serverless functions:
+- `/api/health.ts` → `https://your-app.vercel.app/api/health`
+- `/api/runs/index.ts` → `https://your-app.vercel.app/api/runs`
+
+### Monitoring
+
+- **Frontend Status**: Check https://your-app.vercel.app
+- **API Health**: `curl https://your-app.vercel.app/api/health`
+- **Logs**: View in Vercel Dashboard → Functions → Logs
 
 ## Common Development Tasks
 
@@ -903,25 +984,44 @@ function isRetryable(error: Error): boolean {
 
 ## Troubleshooting Decision Tree
 
-### "The run isn't starting"
-1. Check API health: `curl http://localhost:3000/health`
-2. Check worker health: `curl http://localhost:3000/dev/worker/health`
-3. Check queue depth: `curl http://localhost:3000/dev/queue`
-4. Check Redis connection: `redis-cli ping`
+### Production (Cloud)
+
+#### "The run isn't starting"
+1. Check API health: `curl https://nofx-control-plane.vercel.app/api/health`
+2. Check Vercel Functions logs in dashboard
+3. Verify database connection in health endpoint response
+4. Check Supabase for queue entries: SQL Editor → `SELECT * FROM nofx.queue_jobs WHERE status = 'pending'`
 5. Look for idempotency conflicts in database
 
-### "The step is stuck"
-1. Check step status in database: `SELECT * FROM step WHERE id = ?`
-2. Check for manual gates blocking: `SELECT * FROM gate WHERE step_id = ?`
-3. Look for handler errors in logs
-4. Check if handler has timeout set
-5. Verify worker is processing queue
+#### "The step is stuck"
+1. Check step status in Supabase: `SELECT * FROM nofx.step WHERE id = ?`
+2. Check for manual gates blocking: `SELECT * FROM nofx.gate WHERE step_id = ?`
+3. Look for handler errors in Vercel logs
+4. Check if handler has timeout set (Vercel Functions max: 60s)
+5. Verify worker function is deployed
 
-### "Getting 500 errors"
-1. Check API logs for stack traces
-2. Verify database connection
-3. Check for validation errors in request
-4. Ensure environment variables are set
+#### "Getting 500 errors"
+1. Check Vercel Functions logs for stack traces
+2. Verify Supabase connection (check health endpoint)
+3. Ensure all environment variables are set in Vercel
+4. Check for CORS issues if calling from different domain
+
+#### "Database offline error"
+1. Run migrations: Execute `run-supabase-migrations.sql` in Supabase SQL Editor
+2. Verify environment variables in Vercel:
+   - SUPABASE_URL
+   - SUPABASE_ANON_KEY
+   - DATABASE_URL
+3. Check Supabase project is active and not paused
+
+### Local Development
+
+#### "The run isn't starting"
+1. Check API health: `curl http://localhost:3000/health`
+2. Check worker health: `curl http://localhost:3000/dev/worker/health`
+3. Ensure `.env` file exists with correct values
+4. Verify database connection
+5. Check queue driver setting in `.env`
 5. Look for unhandled promise rejections
 
 ### "AI generation not working"
