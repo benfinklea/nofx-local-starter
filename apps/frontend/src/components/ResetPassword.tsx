@@ -17,9 +17,33 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Check for error in URL hash
+    // Check for error or token in URL hash
     const hash = window.location.hash;
-    const params = new URLSearchParams(hash.substring(1));
+    console.log('[ResetPassword] Full hash:', hash);
+
+    // Supabase may include the route first, then parameters
+    // Format: #/reset-password#access_token=... or #access_token=...
+    let paramString = hash;
+    if (hash.includes('#access_token=') || hash.includes('&access_token=')) {
+      // Extract the parameters part
+      const tokenIndex = hash.indexOf('access_token=');
+      if (tokenIndex > 0) {
+        paramString = hash.substring(tokenIndex - 1); // Include the # or &
+      }
+    } else if (hash.includes('?')) {
+      // Sometimes it's with query params
+      paramString = hash.substring(hash.indexOf('?'));
+    }
+
+    console.log('[ResetPassword] Param string:', paramString);
+
+    const params = new URLSearchParams(paramString.replace('#', '').replace(/^\/reset-password[#?]?/, ''));
+
+    // Log all params for debugging
+    console.log('[ResetPassword] Params found:');
+    params.forEach((value, key) => {
+      console.log(`  ${key}: ${value.substring(0, 20)}...`);
+    });
 
     if (params.get('error')) {
       const errorCode = params.get('error_code');
@@ -30,6 +54,14 @@ export default function ResetPassword() {
       } else {
         setError(errorDesc || 'An error occurred with the reset link.');
       }
+    }
+
+    // Check if we have an access token
+    const accessToken = params.get('access_token');
+    if (accessToken) {
+      console.log('[ResetPassword] Access token found in URL');
+      // Store it for later use
+      sessionStorage.setItem('reset_access_token', accessToken);
     }
   }, []);
 
@@ -50,14 +82,27 @@ export default function ResetPassword() {
     setError('');
 
     try {
-      // Get the access token from URL hash
-      const hash = window.location.hash;
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
+      // Get the access token from sessionStorage (stored when page loaded)
+      let accessToken = sessionStorage.getItem('reset_access_token');
 
       if (!accessToken) {
-        throw new Error('No access token found. The reset link may be invalid.');
+        // Try to get it from URL one more time
+        const hash = window.location.hash;
+        console.log('[ResetPassword Submit] Checking hash again:', hash);
+
+        // Parse various possible formats
+        if (hash.includes('access_token=')) {
+          const match = hash.match(/access_token=([^&#]+)/);
+          accessToken = match ? match[1] : null;
+        }
+
+        if (!accessToken) {
+          throw new Error('No access token found. The reset link may be invalid or expired. Please request a new password reset.');
+        }
+        sessionStorage.setItem('reset_access_token', accessToken);
       }
+
+      console.log('[ResetPassword Submit] Using access token:', accessToken.substring(0, 20) + '...');
 
       const response = await fetch('/api/auth/update-password', {
         method: 'POST',
