@@ -34,7 +34,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     // Handle authentication errors
     if (response.status === 401) {
       console.error('[API] Authentication error - redirecting to login');
-      window.location.href = '/dev/login?next=' + encodeURIComponent(window.location.pathname + window.location.hash);
+      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.hash);
       throw new Error('Authentication required');
     }
 

@@ -191,7 +191,8 @@ cp .env.example .env
    ```
 
 **Local ports (development only):**
-- API: http://localhost:3000
+- API (Local): http://localhost:3000
+- API (Production): https://nofx-control-plane.vercel.app/api
 - Frontend: http://localhost:5173
 
 ## Core Concepts
@@ -405,15 +406,15 @@ npm run test:e2e        # Playwright tests
 ### Manual Testing
 ```bash
 # Create a test run
-curl -X POST http://localhost:3000/runs \
+curl -X POST https://nofx-control-plane.vercel.app/runs \
   -H "Content-Type: application/json" \
   -d '{"plan":{"goal":"test","steps":[{"name":"test","tool":"codegen","inputs":{"prompt":"test"}}]}}'
 
 # Check status
-curl http://localhost:3000/runs/{RUN_ID}
+curl https://nofx-control-plane.vercel.app/runs/{RUN_ID}
 
 # View API docs
-open http://localhost:3000/api-docs
+open https://nofx-control-plane.vercel.app/api-docs
 ```
 
 ## Best Practices & Code Standards
@@ -828,8 +829,8 @@ async function withRetry<T>(
 1. **Enable debug logging**: `DEBUG=nofx:* npm run dev`
 2. **Check Redis**: `redis-cli MONITOR`
 3. **Database queries**: `psql $DATABASE_URL`
-4. **Queue status**: `curl http://localhost:3000/dev/queue`
-5. **Worker health**: `curl http://localhost:3000/dev/worker/health`
+4. **Queue status**: `curl https://nofx-control-plane.vercel.app/dev/queue`
+5. **Worker health**: `curl https://nofx-control-plane.vercel.app/dev/worker/health`
 6. **View logs**: Check `local_data/logs/` or console output
 7. **Inspect artifacts**: Check Supabase Storage or `local_data/artifacts/`
 
@@ -858,7 +859,7 @@ npm run backup       # Create backup
 npm run restore      # Restore backup
 
 # Documentation
-open http://localhost:3000/api-docs  # Swagger UI
+open https://nofx-control-plane.vercel.app/api-docs  # Swagger UI
 ```
 
 ## Important Security Notes
@@ -1017,8 +1018,8 @@ function isRetryable(error: Error): boolean {
 ### Local Development
 
 #### "The run isn't starting"
-1. Check API health: `curl http://localhost:3000/health`
-2. Check worker health: `curl http://localhost:3000/dev/worker/health`
+1. Check API health: `curl https://nofx-control-plane.vercel.app/health`
+2. Check worker health: `curl https://nofx-control-plane.vercel.app/dev/worker/health`
 3. Ensure `.env` file exists with correct values
 4. Verify database connection
 5. Check queue driver setting in `.env`
