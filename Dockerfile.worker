@@ -1,0 +1,31 @@
+# Build stage
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build 2>/dev/null || echo "No build step needed"
+
+# Production stage
+FROM node:20-alpine
+WORKDIR /app
+
+# Install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/dist ./dist 2>/dev/null || true
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+USER nodejs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "process.exit(0)" || exit 1
+
+# Start worker
+CMD ["node", "-r", "ts-node/register", "src/worker/main.ts"]

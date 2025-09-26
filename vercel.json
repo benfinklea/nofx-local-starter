@@ -2,10 +2,6 @@
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60
-    },
-    "api/runs/[id]/stream.ts": {
-      "maxDuration": 60,
-      "runtime": "nodejs20.x"
     }
   },
   "rewrites": [
@@ -35,15 +31,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "build": {
-    "env": {
-      "DATABASE_URL": "@database_url",
-      "REDIS_URL": "@redis_url",
-      "JWT_SECRET": "@jwt_secret",
-      "OPENAI_API_KEY": "@openai_api_key",
-      "ANTHROPIC_API_KEY": "@anthropic_api_key",
-      "GEMINI_API_KEY": "@gemini_api_key"
-    }
   }
 }

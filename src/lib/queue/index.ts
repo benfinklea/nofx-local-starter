@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import { MemoryQueueAdapter } from "./MemoryAdapter";
 import { RedisQueueAdapter } from "./RedisAdapter";
+import { PostgresQueueAdapter } from "./PostgresAdapter";
 import { OUTBOX_TOPIC, STEP_DLQ_TOPIC, STEP_READY_TOPIC } from "./constants";
 import type { JobPayload, JobResult, KnownJobName } from "./jobMap";
 
@@ -19,6 +20,8 @@ interface QueueImplementation {
 let impl: QueueImplementation;
 if (DRIVER === "redis") {
   impl = new RedisQueueAdapter();
+} else if (DRIVER === "postgres" || DRIVER === "supabase") {
+  impl = new PostgresQueueAdapter();
 } else {
   impl = new MemoryQueueAdapter();
 }
