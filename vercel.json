@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npm install --production=false && npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm install --production=false && npm run fe:build",
+  "outputDirectory": "apps/frontend/dist",
   "framework": null,
   "functions": {
     "api/**/*.ts": {
