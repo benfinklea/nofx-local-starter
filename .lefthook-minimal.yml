@@ -1,0 +1,16 @@
+# Lefthook MINIMAL Configuration - Almost no hooks, maximum speed
+# Use this when you need to commit frequently and run tests separately
+
+pre-commit:
+  commands:
+    # Just check for obvious secrets
+    secrets-check:
+      run: |
+        git diff --cached --name-only | xargs grep -l "sk-[a-zA-Z0-9]\{48\}\|AKID\|ghp_" 2>/dev/null && echo "⚠️ Potential secret detected!" && exit 1 || exit 0
+
+# No pre-push hooks - you handle testing manually
+
+post-commit:
+  commands:
+    celebrate:
+      run: echo "✅ Committed!"
