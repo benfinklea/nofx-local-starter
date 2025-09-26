@@ -110,7 +110,10 @@ export default function ResetPassword() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({
+          newPassword: password,
+          accessToken: accessToken
+        })
       });
 
       const data = await response.json();
