@@ -20,6 +20,13 @@ See [Git Projects Guide](docs/GIT_PROJECTS_GUIDE.md) for complete documentation.
 - Supabase CLI: `brew install supabase/tap/supabase`
 - Redis: `docker run -d --name redis -p 6379:6379 redis:7`
 
+## Quick bootstrap (recommended)
+Run the automated setup to start Supabase, reset schema, copy env vars, install dependencies, create the artifacts bucket, and execute a Jest health check:
+```bash
+npm run bootstrap:dev
+```
+If the script reports a missing dependency, resolve it and re-run or fall back to the manual steps below.
+
 ## First run
 ```bash
 # 1) Start Supabase Local in this repo (uses ./supabase/)

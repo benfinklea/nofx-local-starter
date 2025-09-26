@@ -12,6 +12,13 @@ Fast path to run a single-tenant control plane + worker locally with **Supabase 
 - Redis (Docker is fine)
 - Optional: Python 3.11 (for future py worker)
 
+## Quick bootstrap (recommended)
+Run once after cloning to set up Supabase, hydrate `.env`, create the storage bucket, install deps, and run a Jest health check:
+```bash
+npm run bootstrap:dev
+```
+If any step fails (e.g., Supabase CLI missing), the script will stop with instructions so you can finish the manual steps below.
+
 ## 1) Start Supabase locally
 ```bash
 supabase init   # if first time in this repo
