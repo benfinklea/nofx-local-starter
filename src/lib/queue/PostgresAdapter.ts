@@ -29,7 +29,7 @@ export class PostgresQueueAdapter {
   private supabase: any;
   private workerId: string;
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private handlers: Map<string, Function> = new Map();
+  private handlers: Map<string, (payload: unknown) => Promise<unknown>> = new Map();
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -181,7 +181,8 @@ export class PostgresQueueAdapter {
     };
 
     data?.forEach((row: any) => {
-      counts[row.status] = (counts[row.status] || 0) + 1;
+      const status = row.status as keyof typeof counts;
+      counts[status] = (counts[status] || 0) + 1;
     });
 
     return counts;
@@ -229,7 +230,7 @@ export class PostgresQueueAdapter {
     return data?.length || 0;
   }
 
-  getOldestAgeMs(topic: string): number | null {
+  getOldestAgeMs(_topic: string): number | null {
     // This would require an async operation, so we'd need to refactor the interface
     // For now, return null
     return null;
