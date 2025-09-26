@@ -91,7 +91,10 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
-APP_URL=http://localhost:3000
+# For local development:
+# APP_URL=http://localhost:3000
+# For production (Vercel):
+APP_URL=https://nofx-control-plane.vercel.app
 ```
 
 ### 5. Local Development
@@ -103,8 +106,8 @@ npm install
 # Run locally
 npm run dev
 
-# Test auth
-curl -X POST http://localhost:3000/auth/signup \
+# Test auth (production)
+curl -X POST https://nofx-control-plane.vercel.app/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"password123"}'
 ```
@@ -282,18 +285,18 @@ After setup, test the full flow:
 
 ```bash
 # 1. Sign up
-curl -X POST http://localhost:3000/auth/signup \
+curl -X POST https://nofx-control-plane.vercel.app/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"Test123456!"}'
 
 # 2. Login (get token)
-TOKEN=$(curl -X POST http://localhost:3000/auth/login \
+TOKEN=$(curl -X POST https://nofx-control-plane.vercel.app/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"Test123456!"}' \
   | jq -r '.session.accessToken')
 
 # 3. Create a run (NOW REQUIRES AUTH!)
-curl -X POST http://localhost:3000/runs \
+curl -X POST https://nofx-control-plane.vercel.app/runs \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -308,7 +311,7 @@ curl -X POST http://localhost:3000/runs \
   }'
 
 # 4. Check usage
-curl http://localhost:3000/billing/usage \
+curl https://nofx-control-plane.vercel.app/billing/usage \
   -H "Authorization: Bearer $TOKEN"
 ```
 
