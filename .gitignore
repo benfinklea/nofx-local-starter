@@ -127,3 +127,4 @@ archive/
 # Vercel Environment
 .env.production.local
 .env.staging.local
+reference-starter/
