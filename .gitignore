@@ -92,6 +92,7 @@ lint.json
 # Local helper state
 .api_pid
 .login_headers.txt
+.run_api.log
 
 # OS Files
 .DS_Store
@@ -104,7 +105,19 @@ Thumbs.db
 .temp/
 tmp/
 temp/
-.vercel
+
+# Git worktrees
+worktrees/
+
+# Test logs
+jest-openhandles*.log
+
+# Turbo cache
+.turbo/
+
+# Trash/archive directories
+trash/
+archive/
 
 # Vercel
 .vercel
