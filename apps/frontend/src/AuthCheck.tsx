@@ -13,6 +13,7 @@ export default function AuthCheck({ children }: AuthCheckProps) {
   useEffect(() => {
     // Check if user has authentication credentials
     const checkAuth = async () => {
+      console.log('[AuthCheck] Starting authentication check...');
       try {
         // Check the protected auth endpoint
         const response = await fetch('/api/auth/check', {
@@ -24,21 +25,26 @@ export default function AuthCheck({ children }: AuthCheckProps) {
           }
         });
 
+        console.log('[AuthCheck] Response status:', response.status);
+
         if (response.status === 401) {
           // Not authenticated, show login form
+          console.log('[AuthCheck] User not authenticated, showing login form');
           setIsAuthenticated(false);
           return;
         }
 
         if (response.ok) {
+          console.log('[AuthCheck] User authenticated');
           setIsAuthenticated(true);
         } else {
           // Some other error, show login form
+          console.log('[AuthCheck] Auth check failed with status:', response.status);
           setIsAuthenticated(false);
         }
       } catch (err) {
-        console.error('Auth check failed:', err);
-        // On network error, redirect to login after showing error briefly
+        console.error('[AuthCheck] Auth check failed with error:', err);
+        // On network error, show login form
         setError('Unable to connect to server');
         // Show login form on error
         setIsAuthenticated(false);
