@@ -5,9 +5,16 @@
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60
+    },
+    "middleware.ts": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
+    {
+      "source": "/login",
+      "destination": "/public/login.html"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
@@ -71,6 +78,10 @@
     {
       "source": "/health",
       "destination": "/api/health"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

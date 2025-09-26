@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AppTheme } from './theme';
+import AuthCheck from './AuthCheck';
 import Shell from './components/Shell';
 import Dashboard from './pages/Dashboard';
 import Runs from './pages/Runs';
@@ -21,8 +22,9 @@ export default function App(){
   // Use hash router to avoid server config; base path is set by Vite
   return (
     <AppTheme>
-      <HashRouter>
-        <Shell>
+      <AuthCheck>
+        <HashRouter>
+          <Shell>
           <Routes>
             <Route path="/" element={<Dashboard/>} />
             <Route path="/runs" element={<Runs/>} />
@@ -44,6 +46,7 @@ export default function App(){
           </Routes>
         </Shell>
       </HashRouter>
+      </AuthCheck>
     </AppTheme>
   );
 }
