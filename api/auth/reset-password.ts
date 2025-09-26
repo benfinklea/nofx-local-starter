@@ -45,7 +45,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[Reset Password] APP_URL:', process.env.APP_URL);
     console.log('[Reset Password] VERCEL_URL:', process.env.VERCEL_URL);
 
-    const resetRedirectTo = redirectTo || `${baseUrl}/#/reset-password`;
+    // Don't use hash routing for reset password to avoid conflicts with Supabase's hash parameters
+    const resetRedirectTo = redirectTo || `${baseUrl}/reset-password`;
 
     // Send password reset email via Supabase Auth
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {

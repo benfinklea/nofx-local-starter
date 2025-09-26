@@ -17,27 +17,20 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Check for error or token in URL hash
-    const hash = window.location.hash;
-    console.log('[ResetPassword] Full hash:', hash);
+    // Check for error or token in URL
+    const fullUrl = window.location.href;
+    console.log('[ResetPassword] Full URL:', fullUrl);
 
-    // Supabase may include the route first, then parameters
-    // Format: #/reset-password#access_token=... or #access_token=...
-    let paramString = hash;
-    if (hash.includes('#access_token=') || hash.includes('&access_token=')) {
-      // Extract the parameters part
-      const tokenIndex = hash.indexOf('access_token=');
-      if (tokenIndex > 0) {
-        paramString = hash.substring(tokenIndex - 1); // Include the # or &
-      }
-    } else if (hash.includes('?')) {
-      // Sometimes it's with query params
-      paramString = hash.substring(hash.indexOf('?'));
+    // Extract query parameters from the URL
+    // The URL might be: /#/reset-password?access_token=...
+    let params: URLSearchParams;
+
+    if (fullUrl.includes('?')) {
+      const queryString = fullUrl.substring(fullUrl.indexOf('?') + 1);
+      params = new URLSearchParams(queryString);
+    } else {
+      params = new URLSearchParams('');
     }
-
-    console.log('[ResetPassword] Param string:', paramString);
-
-    const params = new URLSearchParams(paramString.replace('#', '').replace(/^\/reset-password[#?]?/, ''));
 
     // Log all params for debugging
     console.log('[ResetPassword] Params found:');
@@ -58,10 +51,15 @@ export default function ResetPassword() {
 
     // Check if we have an access token
     const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
     if (accessToken) {
       console.log('[ResetPassword] Access token found in URL');
-      // Store it for later use
+      // Store both tokens for later use
       sessionStorage.setItem('reset_access_token', accessToken);
+      if (refreshToken) {
+        sessionStorage.setItem('reset_refresh_token', refreshToken);
+      }
     }
   }, []);
 
@@ -104,6 +102,9 @@ export default function ResetPassword() {
 
       console.log('[ResetPassword Submit] Using access token:', accessToken.substring(0, 20) + '...');
 
+      // Get refresh token if available
+      const refreshToken = sessionStorage.getItem('reset_refresh_token');
+
       const response = await fetch('/api/auth/update-password', {
         method: 'POST',
         headers: {
@@ -112,7 +113,8 @@ export default function ResetPassword() {
         },
         body: JSON.stringify({
           newPassword: password,
-          accessToken: accessToken
+          accessToken: accessToken,
+          refreshToken: refreshToken || undefined
         })
       });
 
