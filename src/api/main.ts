@@ -24,7 +24,7 @@ import { isAdmin } from '../lib/auth';
 import { toJsonObject } from '../lib/json';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 // New SaaS auth imports
-import { requireAuth, optionalAuth, checkUsage, rateLimit, trackApiUsage } from '../auth/middleware';
+import { requireAuth, optionalAuth, checkUsage, rateLimit, trackApiUsage, requireAdmin } from '../auth/middleware';
 import { trackUsage } from '../auth/supabase';
 import authV2Routes from './routes/auth_v2';
 import billingRoutes from './routes/billing';
@@ -133,7 +133,10 @@ void (async () => {
 const CreateRunSchema = z.object({ plan: PlanSchema, projectId: z.string().optional() });
 
 // Preview a plan built from standard (plain-language) input
-app.post('/runs/preview', async (req, res) => {
+app.post('/runs/preview',
+  requireAuth,
+  rateLimit(60000, 50),
+  async (req, res) => {
   try {
     if (req.body && req.body.standard) {
       const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
@@ -263,14 +266,18 @@ app.get("/runs/:id",
   res.json({ run, steps, artifacts });
 });
 
-app.get("/runs/:id/timeline", async (req, res) => {
+app.get("/runs/:id/timeline",
+  requireAuth,
+  async (req, res) => {
   const runId = req.params.id;
   const ev = await store.listEvents(runId);
   res.json(ev);
 });
 
 // SSE stream of timeline events (naive polling -> push)
-app.get('/runs/:id/stream', async (req, res) => {
+app.get('/runs/:id/stream',
+  requireAuth,
+  async (req, res) => {
   const runId = req.params.id;
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -353,10 +360,10 @@ function listenWithRetry(attempt = 0) {
   server.listen(port, () => log.info(`API listening on :${port}`));
 }
 
-app.post('/runs/:runId/steps/:stepId/retry', async (req, res) => {
-  if (!isAdmin(req)) {
-    return res.status(401).json({ error: 'auth required', login: '/ui/login' });
-  }
+app.post('/runs/:runId/steps/:stepId/retry',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
   const { runId, stepId } = req.params;
   try {
     await retryStep(runId, stepId);

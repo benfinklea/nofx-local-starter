@@ -11,9 +11,13 @@ export const pool = new Pool({
 });
 
 if (process.env.NODE_ENV === 'test') {
-  const registry = (globalThis as any).__NOFX_TEST_POOLS__ || new Set<Pool>();
+  interface GlobalWithPools {
+    __NOFX_TEST_POOLS__?: Set<Pool>;
+  }
+  const globalWithPools = globalThis as GlobalWithPools;
+  const registry = globalWithPools.__NOFX_TEST_POOLS__ || new Set<Pool>();
   registry.add(pool);
-  (globalThis as any).__NOFX_TEST_POOLS__ = registry;
+  globalWithPools.__NOFX_TEST_POOLS__ = registry;
 }
 
 const txContext = new AsyncLocalStorage<PoolClient>();
@@ -23,7 +27,7 @@ function getRunner(): Pool | PoolClient {
   return client || pool;
 }
 
-async function runQuery<T extends QueryResultRow = QueryResultRow>(client: Pool | PoolClient, text: string, params?: any[]): Promise<QueryResult<T>> {
+async function runQuery<T extends QueryResultRow = QueryResultRow>(client: Pool | PoolClient, text: string, params?: unknown[]): Promise<QueryResult<T>> {
   if ('query' in client) {
     return client.query<T>(text, params);
   }
@@ -31,7 +35,7 @@ async function runQuery<T extends QueryResultRow = QueryResultRow>(client: Pool 
   return (client as Pool).query<T>(text, params);
 }
 
-export async function query<T extends QueryResultRow = QueryResultRow>(text: string, params?: any[]): Promise<{ rows: T[] }> {
+export async function query<T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<{ rows: T[] }> {
   const runner = getRunner();
   const start = Date.now();
   try {
