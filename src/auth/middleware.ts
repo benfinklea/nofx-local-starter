@@ -246,7 +246,7 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 /**
  * Track API usage for billing
  */
-export async function trackApiUsage(metric: string = 'api_calls', quantity: number = 1) {
+export function trackApiUsage(metric: string = 'api_calls', quantity: number = 1) {
   return async (req: Request, res: Response, next: NextFunction) => {
     // Track usage after successful response
     res.on('finish', async () => {

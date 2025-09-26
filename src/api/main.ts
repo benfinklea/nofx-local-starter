@@ -26,7 +26,7 @@ import { toJsonObject } from '../lib/json';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 // New SaaS auth imports
 import { requireAuth, optionalAuth, checkUsage, rateLimit, trackApiUsage } from '../auth/middleware';
-import { trackUsage } from '../auth/supabase';
+// import { trackUsage } from '../auth/supabase';
 import authV2Routes from './routes/auth_v2';
 import billingRoutes from './routes/billing';
 import webhookRoutes from './routes/webhooks';
@@ -90,7 +90,7 @@ app.get("/health", async (_req, res) => {
     const { query } = await import('../lib/db');
     await query('SELECT 1');
     res.json({ ok: true, database: { status: 'ok' } });
-  } catch (error) {
+  } catch (_error) {
     res.json({ ok: true, database: { status: 'error', error: 'Database connection failed' } });
   }
 });
@@ -167,14 +167,13 @@ app.post("/runs",
   // Add user context to the run
   const runData = {
     ...plan,
-    user_id: req.userId,
+    user_id: req.userId || '',
     metadata: {
-      ...plan.metadata,
-      created_by: req.userId,
-      tier: req.userTier
+      created_by: req.userId || '',
+      tier: req.userTier || 'free'
     }
   };
-  const run = await store.createRun(runData, projectId);
+  const run = await store.createRun(runData as any, projectId);
   const runId = String(run.id);
   try { setContext({ runId, projectId }); } catch {}
   await recordEvent(runId, "run.created", { plan });
@@ -247,8 +246,9 @@ app.get("/runs/:id",
   if (!run) return res.status(404).json({ error: "not found" });
 
   // Check ownership (unless admin)
-  if (run.user_id && run.user_id !== req.userId) {
-    const isUserAdmin = req.user && (await store.getUserRole(req.userId)) === 'admin';
+  const runUserId = (run.metadata as any)?.created_by || (run.plan as any)?.user_id;
+  if (runUserId && runUserId !== req.userId) {
+    const isUserAdmin = req.user && (await store.getUserRole(req.userId || '')) === 'admin';
     if (!isUserAdmin) {
       return res.status(403).json({ error: "access denied" });
     }
@@ -304,7 +304,7 @@ app.get('/runs',
   const projectId = String(req.query.projectId || '');
   try {
     // Filter runs by user (unless admin)
-    const isUserAdmin = req.user && (await store.getUserRole(req.userId)) === 'admin';
+    const isUserAdmin = req.user && (await store.getUserRole(req.userId || '')) === 'admin';
     const rows = isUserAdmin
       ? await store.listRuns(lim, projectId || undefined)
       : await store.listRunsByUser(req.userId!, lim, projectId || undefined);

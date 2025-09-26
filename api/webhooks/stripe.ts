@@ -16,7 +16,7 @@ import {
 import { createAuditLog, createServiceClient } from '../../src/auth/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia'
+  apiVersion: '2025-08-27.basil'
 });
 
 // Disable body parser to get raw body for signature verification
@@ -178,11 +178,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const successInvoice = event.data.object as Stripe.Invoice;
 
         // Update subscription if this is a subscription invoice
-        if (successInvoice.subscription) {
-          await manageSubscriptionStatusChange(
-            successInvoice.subscription as string,
-            successInvoice.customer as string
-          );
+        const subscriptionId = (successInvoice as any).subscription;
+
+        if (subscriptionId) {
+          const subId = typeof subscriptionId === 'string' ? subscriptionId : subscriptionId?.id;
+          if (subId) {
+            await manageSubscriptionStatusChange(
+              subId,
+              successInvoice.customer as string
+            );
+          }
         }
         break;
 
