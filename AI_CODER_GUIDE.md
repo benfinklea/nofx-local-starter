@@ -2,6 +2,42 @@
 
 This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly understand and work with the NOFX Control Plane codebase.
 
+## IMPORTANT: Worktree Usage for AI Development
+
+**ALWAYS use Git worktrees when working on this codebase with AI assistance.** This prevents conflicts and keeps the main repository clean.
+
+### Required Worktree Workflow:
+
+1. **Before starting ANY work**, create a new worktree:
+   ```bash
+   # From the main repository (/Volumes/Development/nofx-local-starter)
+   git worktree add ../feature-name feature/feature-name -b
+   cd ../feature-name
+   ```
+
+2. **During development**, work exclusively in the worktree directory
+
+3. **After completing work**, merge and clean up:
+   ```bash
+   # From main repository
+   git checkout main
+   git merge feature/feature-name
+   git push origin main
+
+   # Clean up
+   git worktree remove ../feature-name
+   git branch -d feature/feature-name
+   ```
+
+### Why Worktrees Are Required:
+- Prevents AI from accidentally modifying the wrong branch
+- Allows parallel development without conflicts
+- Makes it clear what work is AI-assisted (in worktrees) vs manual (in main repo)
+- Easy rollback if AI-generated code has issues
+- Clean separation of concerns
+
+**Never work directly in the main repository directory when using AI assistance!**
+
 ## System Overview
 
 NOFX Control Plane is an orchestration system that turns requests into durable, auditable execution runs. It manages AI-powered code generation, quality gates, manual approvals, and deployment workflows.

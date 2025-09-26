@@ -12,6 +12,7 @@ import crypto from 'node:crypto';
 import { startOutboxRelay } from './relay';
 import { initTracing } from '../lib/tracing';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
+import { startHealthServer, incrementProcessed, incrementErrors } from './health';
 
 const STEP_TIMEOUT_MS = Number(process.env.STEP_TIMEOUT_MS || 30000);
 initTracing('nofx-worker').catch(()=>{});
@@ -44,7 +45,9 @@ subscribe(STEP_READY_TOPIC, async ({ runId, stepId, idempotencyKey, __attempt })
     try {
       await Promise.race([ runStep(runId, stepId), timeout ]);
       await store.outboxAdd(OUTBOX_TOPIC, { type: 'step.succeeded', runId, stepId }).catch(() => {});
+      incrementProcessed(); // Track successful job
     } catch (err: any) {
+      incrementErrors(); // Track errors
       if (err && typeof err.message === 'string' && err.message.toLowerCase() === 'step timeout') {
         await markStepTimedOut(runId, stepId, STEP_TIMEOUT_MS);
       }
@@ -69,6 +72,13 @@ subscribe(STEP_READY_TOPIC, async ({ runId, stepId, idempotencyKey, __attempt })
 log.info("Worker up");
 // Start outbox relay daemon
 startOutboxRelay();
+
+// Start health check server
+if (process.env.HEALTH_CHECK_ENABLED !== 'false') {
+  startHealthServer().catch(err => {
+    log.error({ error: err }, 'Failed to start health check server');
+  });
+}
 
 const shouldHeartbeat =
   (process.env.QUEUE_DRIVER || '').toLowerCase() !== 'memory' &&
