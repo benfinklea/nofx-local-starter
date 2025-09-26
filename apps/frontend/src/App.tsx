@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppTheme } from './theme';
 import AuthCheck from './AuthCheck';
 import Shell from './components/Shell';
@@ -16,37 +16,54 @@ import DevTools from './pages/DevTools';
 import ResponsesDashboard from './pages/responses/ResponsesDashboard';
 import ResponsesRunDetail from './pages/responses/ResponsesRunDetail';
 import Builder from './pages/Builder';
+import ResetPassword from './components/ResetPassword';
 import { uiFlags } from './config';
+
+function AppRoutes() {
+  const location = useLocation();
+
+  // Don't require auth for reset password page
+  if (location.pathname === '/reset-password') {
+    return <ResetPassword />;
+  }
+
+  return (
+    <AuthCheck>
+      <Shell>
+        <Routes>
+          <Route path="/" element={<Dashboard/>} />
+          <Route path="/runs" element={<Runs/>} />
+          <Route path="/runs/new" element={<NewRun/>} />
+          <Route path="/runs/:id" element={<RunDetail/>} />
+          {uiFlags.responses && (
+            <>
+              <Route path="/responses" element={<ResponsesDashboard />} />
+              <Route path="/responses/:id" element={<ResponsesRunDetail />} />
+            </>
+          )}
+          <Route path="/models" element={<Models/>} />
+          <Route path="/projects" element={<Projects/>} />
+          <Route path="/settings" element={<Settings/>} />
+          <Route path="/dlq" element={<DLQ/>} />
+          <Route path="/builder" element={<Builder/>} />
+          <Route path="/dev" element={<DevLinks/>} />
+          <Route path="/dev/tools" element={<DevTools/>} />
+        </Routes>
+      </Shell>
+    </AuthCheck>
+  );
+}
 
 export default function App(){
   // Use hash router to avoid server config; base path is set by Vite
   return (
     <AppTheme>
-      <AuthCheck>
-        <HashRouter>
-          <Shell>
-          <Routes>
-            <Route path="/" element={<Dashboard/>} />
-            <Route path="/runs" element={<Runs/>} />
-            <Route path="/runs/new" element={<NewRun/>} />
-            <Route path="/runs/:id" element={<RunDetail/>} />
-            {uiFlags.responses && (
-              <>
-                <Route path="/responses" element={<ResponsesDashboard />} />
-                <Route path="/responses/:id" element={<ResponsesRunDetail />} />
-              </>
-            )}
-            <Route path="/models" element={<Models/>} />
-            <Route path="/projects" element={<Projects/>} />
-            <Route path="/settings" element={<Settings/>} />
-            <Route path="/dlq" element={<DLQ/>} />
-            <Route path="/builder" element={<Builder/>} />
-            <Route path="/dev" element={<DevLinks/>} />
-            <Route path="/dev/tools" element={<DevTools/>} />
-          </Routes>
-        </Shell>
+      <HashRouter>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/*" element={<AppRoutes />} />
+        </Routes>
       </HashRouter>
-      </AuthCheck>
     </AppTheme>
   );
 }

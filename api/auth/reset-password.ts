@@ -38,11 +38,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Use the app URL as default redirect if not provided
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-                    'http://localhost:3000';
+    const baseUrl = process.env.APP_URL ||
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+                    'https://nofx-control-plane.vercel.app');
 
-    const resetRedirectTo = redirectTo || `${baseUrl}/reset-password-confirm`;
+    const resetRedirectTo = redirectTo || `${baseUrl}/#/reset-password`;
 
     // Send password reset email via Supabase Auth
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
