@@ -45,7 +45,8 @@ export default function RunDetail(){
     loadData();
 
     // Set up Server-Sent Events for real-time updates
-    const es = new EventSource(`${apiBase}/api/runs/${id}/stream`);
+    const sseUrl = apiBase ? `${apiBase}/runs/${id}/stream` : `/runs/${id}/stream`;
+    const es = new EventSource(sseUrl);
     es.addEventListener('init', (e: MessageEvent) => {
       try {
         setTimeline(JSON.parse((e as any).data || '[]'));

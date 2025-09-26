@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run fe:build",
+  "outputDirectory": "apps/frontend/dist",
+  "framework": null,
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60
@@ -6,8 +9,52 @@
   },
   "rewrites": [
     {
-      "source": "/",
+      "source": "/ui/app/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ui/app",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/runs/(.*)",
+      "destination": "/api/runs/$1"
+    },
+    {
+      "source": "/projects/(.*)",
+      "destination": "/api/projects/$1"
+    },
+    {
+      "source": "/models/(.*)",
+      "destination": "/api/models/$1"
+    },
+    {
+      "source": "/settings/(.*)",
+      "destination": "/api/settings/$1"
+    },
+    {
+      "source": "/gates/(.*)",
+      "destination": "/api/gates/$1"
+    },
+    {
+      "source": "/builder/(.*)",
+      "destination": "/api/builder/$1"
+    },
+    {
+      "source": "/backups/(.*)",
+      "destination": "/api/backups/$1"
+    },
+    {
+      "source": "/health",
       "destination": "/api/health"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
     }
   ],
   "headers": [

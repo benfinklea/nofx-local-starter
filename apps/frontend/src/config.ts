@@ -3,4 +3,6 @@ export const uiFlags = {
   storybookBrand: import.meta.env.VITE_STORYBOOK_BRAND ?? 'NOFX',
 };
 
-export const apiBase = import.meta.env.VITE_API_BASE ?? 'https://redis-worker-fix.vercel.app';
+// In production (Vercel), use relative paths
+// In development, can set VITE_API_BASE to point to local or remote API
+export const apiBase = import.meta.env.VITE_API_BASE ?? '';
