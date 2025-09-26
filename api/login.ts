@@ -1,6 +1,7 @@
 /**
  * Login Page - Vercel API Route
  * Simple HTML login form for production
+ * Serves the login UI at /api/login
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
