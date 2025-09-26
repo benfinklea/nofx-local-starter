@@ -17,6 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       // Simple query to check database connectivity
+      // Try the public view first, then fall back to nofx schema
       const { error } = await supabase
         .from('runs')
         .select('id')
