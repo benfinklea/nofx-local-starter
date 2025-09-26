@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run fe:build",
+  "buildCommand": "cd apps/frontend && npm install && npm run build",
   "outputDirectory": "apps/frontend/dist",
   "framework": null,
   "functions": {
@@ -8,14 +8,6 @@
     }
   },
   "rewrites": [
-    {
-      "source": "/ui/app/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/ui/app",
-      "destination": "/index.html"
-    },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
@@ -51,10 +43,6 @@
     {
       "source": "/health",
       "destination": "/api/health"
-    },
-    {
-      "source": "/",
-      "destination": "/index.html"
     }
   ],
   "headers": [

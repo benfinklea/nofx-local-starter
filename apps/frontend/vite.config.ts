@@ -79,5 +79,5 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true
   },
-  base: '/ui/app/'
+  base: '/'
 });
