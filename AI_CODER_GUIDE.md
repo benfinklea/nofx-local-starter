@@ -8,24 +8,28 @@ This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly und
 
 ### Required Worktree Workflow:
 
+**IMPORTANT**: Worktrees should be created as subdirectories within the main repository, NOT in the parent directory!
+
 1. **Before starting ANY work**, create a new worktree:
    ```bash
    # From the main repository (/Volumes/Development/nofx-local-starter)
-   git worktree add ../feature-name feature/feature-name -b
-   cd ../feature-name
+   git worktree add -b feature/feature-name worktrees/feature-name
+   cd worktrees/feature-name
+   # You should now be in /Volumes/Development/nofx-local-starter/worktrees/feature-name
    ```
 
 2. **During development**, work exclusively in the worktree directory
 
 3. **After completing work**, merge and clean up:
    ```bash
-   # From main repository
+   # From the worktree directory
+   cd /Volumes/Development/nofx-local-starter
    git checkout main
    git merge feature/feature-name
    git push origin main
 
    # Clean up
-   git worktree remove ../feature-name
+   git worktree remove worktrees/feature-name
    git branch -d feature/feature-name
    ```
 
