@@ -54,21 +54,13 @@ export default defineConfig({
     open: '/ui/app/',
     proxy: {
       // Proxy API, auth, metrics, and UI endpoints to the backend
-      '/runs': 'http://localhost:3000',
-      '/projects': 'http://localhost:3000',
-      '/models': 'http://localhost:3000',
-      '/settings': 'http://localhost:3000',
-      '/gates': 'http://localhost:3000',
-      '/builder': 'http://localhost:3000',
-      '/backups': 'http://localhost:3000',
-      '/dev': 'http://localhost:3000',
-      '/health': 'http://localhost:3000',
-      '/metrics': 'http://localhost:3000',
-      '/login': 'http://localhost:3000',
-      '/logout': 'http://localhost:3000',
-      '/ui/login': 'http://localhost:3000',
-      '/ui/static': 'http://localhost:3000',
-      '/ui/builder': 'http://localhost:3000'
+      // Use environment variable or auto-detect deployment URL
+      '^/(runs|projects|models|settings|gates|builder|backups|dev|health|metrics|login|logout|auth|billing|ui/login|ui/static|ui/builder)': {
+        target: process.env.VITE_API_URL ||
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
+        changeOrigin: true,
+        secure: true
+      }
     },
     fs: {
       // Allow reading project root and shared types from the monorepo path

@@ -4,6 +4,7 @@ import cors from "cors";
 import path from 'node:path';
 import { z } from "zod";
 import { PlanSchema } from "../shared/types";
+import { CORS_ORIGINS } from '../config';
 import { store } from "../lib/store";
 import { log } from "../lib/logger";
 import { enqueue, STEP_READY_TOPIC, hasSubscribers, getOldestAgeMs } from "../lib/queue";
@@ -39,14 +40,7 @@ const devRestartWatch = shouldEnableDevRestartWatch();
 
 // Enable CORS for frontend development
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:3000'
-  ],
+  origin: CORS_ORIGINS,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
