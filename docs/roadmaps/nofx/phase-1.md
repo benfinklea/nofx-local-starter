@@ -1,61 +1,57 @@
-# 🛠️ NOFX Control Plane · Phase 1 — Self-Configuring Registries
+# 🛠️ NOFX Control Plane · Phase 1 — Cloud-Native Registries
 
-> Goal: let NOFX discover agents and templates from the repo without code changes, while giving contributors linting/validation so broken definitions never reach production.
+> Goal: run self-configuring registries entirely in the cloud so Vercel Functions and Supabase stay in sync without relying on local filesystem watchers.
 
 ---
 
-## Track A — Agent Registry
-- Filesystem contract: `packages/shared/agents/<agentId>/agent.json` plus optional `prompts/*.md`, `mcp.json`, `assets/`.
-- Validation: Zod schema with semantic checks (unique skills, valid MCP URLs, resource profile limits). Failing entries go to a validation queue.
-- Watcher: chokidar with debounce, `.draft` support, `__bulk_update.lock` to pause reloads during mass edits.
-- Persistence: `agent_registry` table (id, metadata JSONB, prompt hash, state, version, updated_at).
-- Integration: planBuilder accepts `agentId` or chooses by skills; worker injects prompts/MCP settings automatically.
-- API & events: `GET /agents`, `GET /agents/:id`, `POST /agents/:id/rollback`; emit `agent.added/updated/removed/validation_failed`.
-- Tests: schema validation, debounce watcher, rollback, and an integration fixture that asserts API output.
+## Track A — Cloud Agent Registry
+- Repository contract remains `packages/shared/agents/<agentId>/agent.json` plus optional `prompts/*.md`, `mcp.json`, `assets/`.
+- Create `npm run registry:publish agents` that bundles definitions and uploads them to Supabase storage, tagging each revision with commit SHA.
+- Add Supabase edge function `registry_agents_sync` that validates payloads with Zod (unique skills, MCP URLs, resource profile limits) and writes to `agent_registry` table (state, version, metadata, prompt hash, updated_at).
+- Provide Vercel API layer (`GET /api/agents`, `GET /api/agents/:id`, `POST /api/agents/:id/rollback`) backed by Supabase Row Level Security and caching headers.
+- Worker polls Supabase `agent_registry` changes via realtime subscriptions; inject prompts/MCP settings during execution.
+- Emit `agent.added/updated/removed/validation_failed` as Supabase events forwarded to Vercel Edge Middleware.
 
-## Track B — Template Catalog
-- Filesystem contract: `packages/shared/templates/<templateId>/template.json`, optional `prompts/*.md`, `assets/`, `docs.md`.
-- Validation: requires `defaultPlan.steps[]`, `expectedOutputs`, `rollbackAdvice`, `supportedAgents`, `resourceProfile`.
-- Registry: `template_registry` table with versioning/rollback mirroring agent behaviour.
-- API: `GET /templates`, `POST /templates/:id/instantiate`, `POST /templates/validate`.
-- Docs/tooling: update AI_CODER_GUIDE, add `npm run validate:templates` script.
-- Tests: loader coverage + instantiation integration tests.
+## Track B — Cloud Template Catalog
+- Definitions stay in `packages/shared/templates/<templateId>/template.json` with optional `prompts/*.md`, `assets/`, `docs.md`.
+- Introduce `npm run registry:publish templates` mirroring Track A; versions land in `template_registry` with rollback metadata.
+- Supabase edge validation ensures `defaultPlan.steps[]`, `expectedOutputs`, `rollbackAdvice`, `supportedAgents`, `resourceProfile`.
+- Add `POST /api/templates/:id/instantiate` and `POST /api/templates/validate` routes that operate against Supabase transactions to keep Vercel Function invocations idempotent.
+- Document generated artifacts location in Supabase storage (e.g., `registry/templates/<templateId>/<version>`).
 
-## Track C — Contributor Tooling
-- `npm run validate:agents` / `npm run validate:templates` plus CI guard.
-- Example agents/templates with source attribution.
-- Documentation describing `.draft` workflow, lock file usage, and rollback commands.
+## Track C — Contributor & CI Tooling
+- `npm run validate:agents` / `npm run validate:templates` run locally but also upload draft manifests to Supabase `registry_validation_reports` for collaborators.
+- GitHub Action publishes registries on `main` merges and seeds preview environments on PRs using temporary Supabase schemas.
+- Documentation describes draft workflow (`status=draft` flag) and how to promote to production via Vercel deploy hooks.
 
 ---
 
 ## Deliverables
-- Populated registries exposed over REST/events.
-- Validation queue/quarantine so malformed definitions never auto-load.
-- Contributor docs + scripts to keep AI coders aligned.
+- Cloud-backed agent and template registries with Supabase as the single source of truth.
+- Publish/rollback APIs exposed via Vercel Functions, cached for edge delivery.
+- Contributor workflow that pushes definitions to the cloud with validation gates.
 
 ## Exit Checklist
-- [ ] Agent registry hot-loads from filesystem with rollback + validation events.
-- [ ] Template registry mirrors agent behaviour and instantiates plans.
-- [ ] Validation scripts documented and wired into CI.
-- [ ] Example definitions committed (with licensing notes) to serve as templates.
+- [ ] `registry:publish` scripts upload agents/templates with commit metadata and validation artifacts.
+- [ ] Supabase edge functions enforce schemas and populate registry tables with realtime change feeds.
+- [ ] Vercel API routes serve registries with rollback + caching; events reach clients via Supabase realtime.
+- [ ] Contributor docs cover draft publishing, CI previews, and rollback procedures.
 
 ## Solo Workflow & Tests
-1. **Track A** – build the agent loader/registry. When complete, run:
+1. **Track A** – build agent registry pipeline. Run:
    ```bash
    npm run validate:agents
-   npm run lint
-   npm run typecheck
-   npm run test -- --runInBand
+   npm run registry:publish agents -- --dry-run
+   npm run test -- --runInBand tests/integration/agentRegistry.cloud.test.ts
    ```
-2. **Track B** – implement the template catalog. Then run:
+2. **Track B** – ship template catalog. Run:
    ```bash
    npm run validate:templates
-   npm run lint
-   npm run typecheck
-   npm run test -- --runInBand
+   npm run registry:publish templates -- --dry-run
+   npm run test -- --runInBand tests/integration/templateCatalog.cloud.test.ts
    ```
-3. **Track C** – update docs/scripts. Finish with:
+3. **Track C** – wire CI + docs. Finish with:
    ```bash
    npm run gates
    ```
-Only check the exit list when all three steps succeed.
+Only check the exit list when all three tracks succeed end-to-end in Supabase + Vercel.

@@ -1,55 +1,55 @@
-# 🔐 NOFX Control Plane · Phase 2 — Safety & Sandbox Foundations
+# 🔐 NOFX Control Plane · Phase 2 — Cloud Safety & Sandbox Foundations
 
-> Goal: harden runtime execution so every step is observable, rate limited, recoverable, and sandboxed when needed.
+> Goal: harden the cloud runtime so every Vercel invocation and worker container step is observable, rate limited, recoverable, and sandboxed when needed across multiple regions.
 
 ---
 
-## Track A — Typed Event Bus & Hooks
-- Implement src/lib/eventBus.ts with typed emit/subscribe/waitFor helpers.
-- Refactor src/lib/events.ts and src/worker/runner.ts to publish step lifecycle events through the bus.
-- Add pre/post/error hook manager so policies, metrics, and transforms can run outside handlers.
-- Emit Prometheus counters for hook executions, event types, validation failures, exposed via /metrics.
-- Tests: schema enforcement, hook ordering, waitFor timeouts.
+## Track A — Distributed Event Bus & Hooks
+- Build `src/lib/eventBus.ts` backed by Supabase realtime channels + Redis-compatible fallback for local dev.
+- Refactor `src/lib/events.ts` and `src/worker/runner.ts` to emit step lifecycle events through the bus with tenant + region metadata.
+- Add hook manager that runs inside Vercel Functions (pre/post/error) and worker container (background hooks) with idempotency tokens.
+- Export Prometheus-compatible metrics via worker `/metrics` and expose lightweight metrics snapshot from Vercel Edge Config (`/api/metrics/summary`).
 
 ## Track B — Runtime Guardrails
-- Enforce NON_INTERACTIVE_MODE defaults, disable restart watchers in headless contexts, log conflicts once.
-- Secure admin routes with INTERNAL_API_KEY + RBAC and attach correlation IDs to every log entry.
-- Add rate limiting/body-size checks to /runs and automation endpoints.
-- Expand audit trail to capture who invoked gated tools or mutated registries.
+- Enforce `NON_INTERACTIVE_MODE` defaults in production deployments; disable chokidar/watchers in cloud runtimes.
+- Secure admin routes with `INTERNAL_API_KEY` + Supabase RLS, attach correlation IDs sourced from Vercel request IDs.
+- Add API Gateway rate limiting using Upstash or Supabase functions; enforce body-size + schema checks on `/api/runs`.
+- Audit trail writes to Supabase `audit_log` with encrypted payloads for sensitive rows.
 
 ## Track C — Failure Containment
-- Add per-handler circuit breakers, retry backoff, and step_dlq for poison messages (with CLI/API to inspect and requeue).
-- Monitor queue depth with backpressure triggers and alerts.
-- Nightly smoke tests to ensure validation queue survives bulk updates.
+- Create per-handler circuit breakers stored in Supabase `handler_health` and consumed by both worker and API (shared cache via Edge Config).
+- Add retry backoff, `step_dlq` tables, and action CLI `/commands/dlq:inspect` to requeue jobs.
+- Monitor queue depth with Supabase cron tasks that publish alerts to Slack/Webhook when latency crosses thresholds.
 
 ## Track D — Execution Drivers & Sandboxes
-- Define execution drivers (local | container | e2b | modal) configurable per step.
-- Containerized driver handles lifecycle, resource caps, and cleanup cron (patterned after Async-Code + VibeKit connectors).
-- Update bash/heavy handlers to honor execution driver choice and report usage metrics.
+- Define execution drivers (vercel-function | worker-container | modal | e2b) configurable per step with Supabase-managed secrets.
+- Containerized driver tracks lifecycle, resource caps, cleanup cron, and publishes metrics.
+- Heavy bash/tooling handlers respect driver selection; worker enforces resource quotas from Supabase config.
 
-## Track E — Zero-Config Bootstrap
-- Create scripts/bootstrap-dev.sh that prepares .env, registers default MCP servers, installs hooks, and runs validation.
-- Document the rapid onboarding flow in README_LOCAL and AI_CODER_GUIDE.
+## Track E — Zero-Config Cloud Bootstrap
+- `scripts/bootstrap-dev.sh` provisions `.env`, registers default MCP servers, checks Supabase connectivity, seeds preview schema.
+- Document onboarding in `README_LOCAL` + `AI_CODER_GUIDE` highlighting how to request temp Supabase keys.
+- Add smoke test workflow `npm run smoke:cloud` hitting production endpoints with read-only checks.
 
 ---
 
 ## Deliverables
-- Typed event bus with hook pipeline around each step.
-- Rate limiting, DLQ/circuit breakers, and audit logs to contain failures.
-- Sandbox execution drivers enabling isolated environments.
-- Zero-config bootstrap for new contributors.
+- Cloud-aware event bus and hook pipeline spanning Vercel Functions and worker containers.
+- Guardrails for authentication, rate limiting, and audit logging that assume internet-facing APIs.
+- Failure containment via circuit breakers, DLQs, and queue monitoring stored in Supabase.
+- Execution drivers and bootstrap tooling tuned for cloud deployments.
 
 ## Exit Checklist
-- [ ] Event bus + hooks wired through runner, emitting metrics and structured events.
-- [ ] Rate limits, audit logging, and DLQ/circuit breaker flows active.
-- [ ] Sandbox execution drivers available with cleanup + monitoring.
-- [ ] Bootstrap script documented; CI verifies validations still pass.
+- [ ] Event bus + hooks emit structured events with region + tenant metadata and surface metrics.
+- [ ] Rate limits, audit logging, and DLQ/circuit breaker flows active in production Supabase + Vercel.
+- [ ] Execution drivers isolated with cleanup + monitoring; heavy handlers honour driver choice.
+- [ ] Bootstrap scripts/docs verified on fresh cloud-linked environment.
 
 ## Solo Workflow & Tests
-1. **Track A** – implement the event bus/hooks. Run: npm run lint, npm run typecheck, npm run test -- --runInBand src/lib/eventBus.spec.ts
-2. **Track B** – add guardrails. Run: npm run lint, npm run test -- --runInBand tests/unit/guardrails.test.ts
-3. **Track C** – add DLQ/circuit breaker. Run: npm run test -- --runInBand tests/unit/dlq.test.ts, then npm run gates
-4. **Track D** – wire execution drivers. After manual sandbox smoke test, run: npm run test -- --runInBand tests/integration/executionDrivers.test.ts
-5. **Track E** – finish bootstrap docs/script. Final sweep: npm run lint, npm run typecheck, npm run test -- --runInBand
+1. **Track A** – implement event bus/hooks. Run: `npm run lint`, `npm run typecheck`, `npm run test -- --runInBand tests/unit/eventBus.cloud.test.ts`.
+2. **Track B** – add guardrails. Run: `npm run test -- --runInBand tests/integration/cloudGuardrails.test.ts`.
+3. **Track C** – add DLQ/circuit breaker. Run: `npm run test -- --runInBand tests/unit/dlq.cloud.test.ts`, then `npm run gates`.
+4. **Track D** – wire execution drivers. After manual sandbox smoke test, run: `npm run test -- --runInBand tests/integration/executionDrivers.cloud.test.ts`.
+5. **Track E** – finish bootstrap docs/script. Final sweep: `npm run smoke:cloud` followed by `npm run lint` and `npm run typecheck`.
 
-Check the exit list only when all steps pass.
+Check the exit list only when all steps pass against Supabase + Vercel environments.
