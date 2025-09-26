@@ -77,7 +77,7 @@
       "destination": "/api/health"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!login\\.html).*)",
       "destination": "/index.html"
     }
   ],
