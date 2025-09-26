@@ -37,10 +37,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Use the app URL as default redirect if not provided
-    const baseUrl = process.env.APP_URL ||
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-                    'https://nofx-control-plane.vercel.app');
+    // Use the production URL for password reset
+    // APP_URL should be set in Vercel environment variables
+    const baseUrl = process.env.APP_URL || 'https://nofx-control-plane.vercel.app';
+
+    console.log('[Reset Password] Using base URL:', baseUrl);
+    console.log('[Reset Password] APP_URL:', process.env.APP_URL);
+    console.log('[Reset Password] VERCEL_URL:', process.env.VERCEL_URL);
 
     const resetRedirectTo = redirectTo || `${baseUrl}/#/reset-password`;
 
