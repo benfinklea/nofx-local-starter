@@ -72,14 +72,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 <head>
   <meta charset="UTF-8">
   <title>Completing sign in...</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f9fc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08); text-align: center; max-width: 400px; }
+    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; color: #1a202c; }
+    p { color: #4a5568; font-size: 0.95rem; }
+    .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <div class="card">
+    <h1>Completing sign in...</h1>
+    <div class="spinner"></div>
+    <p id="status">Processing authentication...</p>
+  </div>
   <script>
     // Extract hash parameters and convert to query string
     const hash = window.location.hash.substring(1);
+    const statusEl = document.getElementById('status');
+
+    console.log('OAuth callback - Hash detected:', hash ? 'Yes' : 'No');
+    console.log('Current search params:', window.location.search);
+
     if (hash) {
+      statusEl.textContent = 'Validating credentials...';
       const params = new URLSearchParams(hash);
-      const queryString = window.location.search || '?';
+      const queryString = window.location.search;
       const existingParams = new URLSearchParams(queryString);
 
       // Add hash params to query
@@ -88,9 +107,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Redirect with hash params as query params
-      window.location.replace(window.location.pathname + '?' + existingParams.toString());
+      const newUrl = window.location.pathname + '?' + existingParams.toString();
+      console.log('Redirecting to:', newUrl);
+      setTimeout(() => {
+        window.location.replace(newUrl);
+      }, 100); // Small delay to show status
     } else {
-      document.body.innerHTML = '<p>Missing authorization code.</p>';
+      // If no hash, it might already be in query params
+      if (window.location.search.includes('access_token')) {
+        statusEl.textContent = 'Finalizing sign in...';
+      } else {
+        statusEl.textContent = 'Missing authorization data. Please try signing in again.';
+        document.querySelector('.spinner').style.display = 'none';
+      }
     }
   </script>
 </body>

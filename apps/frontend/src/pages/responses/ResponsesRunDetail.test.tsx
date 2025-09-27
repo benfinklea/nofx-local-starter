@@ -58,7 +58,7 @@ function renderWithRouter(path: string) {
 
 describe('ResponsesRunDetail', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    jest.resetAllMocks();
     mockedResponsesApi.getResponsesRun.mockResolvedValue(sampleDetail as any);
     mockedResponsesApi.retryResponsesRun.mockResolvedValue({ runId: 'run-123' } as any);
     mockedResponsesApi.addModeratorNote.mockResolvedValue({} as any);
