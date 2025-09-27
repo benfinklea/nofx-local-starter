@@ -123,8 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (err) {
         console.warn('Unable to write auth token to localStorage', err);
       }
-      // TEMPORARILY DISABLED REDIRECT FOR DEBUGGING
-      // window.location.replace(data.next || '${DEFAULT_NEXT}');
+      window.location.replace(data.next || '${DEFAULT_NEXT}');
     })();
   </script>
 </body>
