@@ -23,7 +23,7 @@ export default function LoginForm() {
 
   const getNextUrl = () => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('next') || '/ui/app/#/runs';
+    return params.get('next') || '/#/runs';
   };
 
   const handleGoogleSignIn = () => {

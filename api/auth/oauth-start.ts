@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const DEFAULT_APP_URL = 'https://nofx-control-plane.vercel.app';
-const DEFAULT_NEXT = '/ui/app/#/runs';
+const DEFAULT_NEXT = '/#/runs';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

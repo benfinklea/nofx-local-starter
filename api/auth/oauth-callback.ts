@@ -8,7 +8,7 @@ import { createAuditLog } from '../../src/auth/supabase';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
-const DEFAULT_NEXT = '/ui/app/#/runs';
+const DEFAULT_NEXT = '/#/runs';
 
 const COOKIE_ACCESS_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 const COOKIE_REFRESH_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -205,13 +205,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       var data = ${scriptData};
       try {
         if (data.accessToken) {
+          // Store in the format the frontend auth service expects
+          const authSession = {
+            session: {
+              access_token: data.accessToken,
+              refresh_token: '${session.refresh_token || ''}',
+              expires_at: ${session.expires_at || 'null'}
+            },
+            user: ${JSON.stringify(user)}
+          };
+
+          // Store for auth service
+          localStorage.setItem('auth_session', JSON.stringify(authSession));
+
+          // Also store legacy format for compatibility
           localStorage.setItem('sb-access-token', data.accessToken);
           localStorage.setItem('authenticated', 'true');
+
+          console.log('OAuth complete - stored auth session');
         }
       } catch (err) {
-        console.warn('Unable to write auth token to localStorage', err);
+        console.warn('Unable to write auth session to localStorage', err);
       }
-      window.location.replace(data.next || '${DEFAULT_NEXT}');
+
+      // Redirect to the app
+      // Fix the redirect URL if it's the old format
+      let redirectUrl = data.next || '${DEFAULT_NEXT}';
+      if (redirectUrl.includes('/ui/app/#')) {
+        redirectUrl = redirectUrl.replace('/ui/app/#', '/#');
+      }
+      console.log('Redirecting to:', redirectUrl);
+      window.location.replace(redirectUrl);
     })();
   </script>
 </body>
