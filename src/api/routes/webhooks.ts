@@ -48,7 +48,7 @@ export default function mount(app: Express) {
       // Filter out events we don't care about
       if (!webhookValidationService.isRelevantEvent(event.type)) {
         log.debug({ eventType: event.type }, 'Ignoring irrelevant webhook event');
-        return res.json({ received: true });
+        return res.json({ received: true, event: event.type });
       }
 
       try {

@@ -41,7 +41,12 @@ function loadHandlersSafe(): ReturnType<typeof loadHandlers> {
       if (process.env.NODE_ENV === 'test') {
         try {
           return attemptLoadHandlers(true);
-        } catch {}
+        } catch (testError) {
+          log.debug({
+            error: testError,
+            context: { operation: 'attemptLoadHandlers', testMode: true }
+          }, 'Failed to load all handlers in test mode');
+        }
       }
       if (process.env.NODE_ENV !== 'test') {
         log.warn({ err }, 'handlers.load.skipped');
@@ -72,7 +77,12 @@ export async function runStep(runId: string, stepId: string) {
   const releaseExecutionKey = async () => {
     if (!executionMarked) return;
     executionMarked = false;
-    await store.inboxDelete(executionKey).catch(() => {});
+    await store.inboxDelete(executionKey).catch((error) => {
+      log.warn({
+        error,
+        context: { executionKey, runId, stepId, operation: 'inboxDelete' }
+      }, 'Failed to delete execution key from inbox');
+    });
   };
   try {
     const ok = await store.inboxMarkIfNew(executionKey);
@@ -81,7 +91,12 @@ export async function runStep(runId: string, stepId: string) {
       return;
     }
     executionMarked = true;
-  } catch {}
+  } catch (error) {
+    log.error({
+      error,
+      context: { executionKey, runId, stepId, operation: 'inboxMarkIfNew' }
+    }, 'Failed to mark execution key in inbox');
+  }
 
   // DAG dependency check (optional _dependsOn names)
   try {

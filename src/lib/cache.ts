@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { log } from './observability';
 
 const ROOT = path.join(process.cwd(), 'local_data', 'cache');
 
@@ -25,11 +26,24 @@ export async function getCacheJSON<T=unknown>(ns: string, key: string): Promise<
     const exp = Number(data?.expiresAt || 0);
     if (exp && Date.now() > exp) {
       // expired; best-effort unlink
-      try { await fsp.unlink(file); } catch {}
+      try {
+        await fsp.unlink(file);
+      } catch (error) {
+        log.warn({
+          error,
+          context: { ns, key, file, operation: 'deleteExpiredCache' }
+        }, 'Failed to delete expired cache file');
+      }
       return null;
     }
     return data?.value ?? null;
-  } catch { return null; }
+  } catch (error) {
+    log.debug({
+      error,
+      context: { ns, key, operation: 'getCacheJSON' }
+    }, 'Cache read failed - expected for cache misses');
+    return null;
+  }
 }
 
 export async function setCacheJSON(ns: string, key: string, value: unknown, ttlMs: number): Promise<void> {
@@ -45,8 +59,22 @@ export async function invalidateNamespace(ns: string): Promise<number> {
     const files = await fsp.readdir(dir);
     let n = 0;
     for (const f of files) {
-      try { await fsp.unlink(path.join(dir, f)); n++; } catch {}
+      try {
+        await fsp.unlink(path.join(dir, f));
+        n++;
+      } catch (error) {
+        log.warn({
+          error,
+          context: { ns, file: f, operation: 'invalidateNamespaceFile' }
+        }, 'Failed to delete cache file during namespace invalidation');
+      }
     }
     return n;
-  } catch { return 0; }
+  } catch (error) {
+    log.debug({
+      error,
+      context: { ns, dir, operation: 'invalidateNamespace' }
+    }, 'Failed to invalidate cache namespace - directory may not exist');
+    return 0;
+  }
 }

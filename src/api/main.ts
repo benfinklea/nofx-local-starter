@@ -12,7 +12,6 @@ import startOutboxRelay from '../worker/relay';
 import { initTracing } from '../lib/tracing';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 import { performanceMiddleware, performanceMonitor } from '../lib/performance-monitor';
-
 // Server configuration modules
 import { setupBasicMiddleware, setupViewEngine } from './server/middleware';
 import { mountCoreRoutes, mountSaasRoutes, mountDynamicRoutes } from './server/routes';
@@ -180,7 +179,6 @@ export function startServer() {
     }
   });
 }
-
 export function stopServer() {
   return new Promise<void>((resolve, reject) => {
     if (server) {

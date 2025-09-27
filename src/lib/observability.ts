@@ -2,17 +2,33 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import { metrics } from './metrics';
+import { log as pinoLogger } from './logger';
+import type { Logger } from 'pino';
 
 export type ObsContext = {
   requestId?: string;
+  correlationId?: string;
   runId?: string;
   stepId?: string;
   provider?: string;
   retryCount?: number;
   projectId?: string;
+  logger?: Logger;
 };
 
 const als = new AsyncLocalStorage<ObsContext>();
+
+// Export a log instance that automatically includes correlation ID
+export const log = new Proxy(pinoLogger, {
+  get(target, prop) {
+    const ctx = als.getStore();
+    if (ctx?.correlationId) {
+      // Return child logger with correlation ID
+      return target.child({ correlationId: ctx.correlationId })[prop];
+    }
+    return target[prop];
+  }
+});
 
 export function getContext(): ObsContext | undefined {
   return als.getStore();
@@ -36,23 +52,51 @@ export function newRequestId(): string {
 export function requestObservability(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
   const requestId = String((req.headers['x-request-id'] as string) || newRequestId());
+  const correlationId = String((req.headers['x-correlation-id'] as string) || requestId);
+
   // Try to correlate if known (URL params/headers/body)
   const runId = (req.params?.id as string) || (req.headers['x-run-id'] as string) || (req.body?.runId as string);
   const stepId = (req.headers['x-step-id'] as string) || (req.body?.stepId as string);
 
   res.setHeader('x-request-id', requestId);
+  res.setHeader('x-correlation-id', correlationId);
 
-  runWithContext({ requestId, runId, stepId, retryCount: 0 }, () => {
+  // Create child logger with all context
+  const logger = pinoLogger.child({
+    correlationId,
+    requestId,
+    runId,
+    stepId,
+    method: req.method,
+    path: req.path
+  });
+
+  runWithContext({ requestId, correlationId, runId, stepId, retryCount: 0, logger }, () => {
+    logger.info({ event: 'request.started' }, 'Request started');
+
     const finish = () => {
       const latencyMs = Date.now() - start;
       const status = res.statusCode;
-      // Record metrics when available
+
+      // Record metrics
       try {
-        metrics.httpRequestDuration.observe({ method: req.method, route: req.route?.path || req.path || 'unknown', status: String(status) }, latencyMs);
-      } catch {}
-      // Avoid circular imports with logger; rely on metrics and other logs
-      try { /* no-op structured request log omitted to avoid cycle */ } catch {}
+        metrics.httpRequestDuration.observe({
+          method: req.method,
+          route: req.route?.path || req.path || 'unknown',
+          status: String(status)
+        }, latencyMs);
+      } catch (error) {
+        logger.warn({ error }, 'Failed to record metrics');
+      }
+
+      // Log request completion with full context
+      logger.info({
+        event: 'request.completed',
+        statusCode: status,
+        latencyMs
+      }, 'Request completed');
     };
+
     res.once('finish', finish);
     res.once('close', finish);
     next();

@@ -91,11 +91,13 @@ export const APP_CONFIG = {
 
 // Log configuration in development for debugging
 if (process.env.NODE_ENV === 'development') {
-  console.log('🔧 App Configuration:', {
+  // Use proper logging instead of console.log
+  const { log } = require('../lib/observability');
+  log.info({
     API_URL: APP_CONFIG.API_URL,
     FRONTEND_URL: APP_CONFIG.FRONTEND_URL,
     IS_LOCAL: APP_CONFIG.IS_LOCAL,
     IS_VERCEL: APP_CONFIG.IS_VERCEL,
     CORS_ORIGINS: APP_CONFIG.CORS_ORIGINS,
-  });
+  }, '🔧 App Configuration initialized');
 }
