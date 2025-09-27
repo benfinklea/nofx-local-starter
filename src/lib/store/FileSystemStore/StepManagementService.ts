@@ -51,7 +51,7 @@ export class StepManagementService {
     this.fileOps.ensureDirSync(stepsDir);
 
     const stepPath = this.fileOps.getStepPath(runId, id, this.root);
-    await this.fileOps.writeJsonFile(stepPath, step);
+    await this.fileOps.writeJsonFile(stepPath, step as unknown as JsonValue);
 
     return step;
   }
@@ -73,7 +73,7 @@ export class StepManagementService {
       const stepData = await this.fileOps.readJsonFile(stepPath);
 
       if (stepData) {
-        return stepData as StepRow;
+        return stepData as unknown as StepRow;
       }
     }
 
@@ -103,8 +103,8 @@ export class StepManagementService {
       const stepData = await this.fileOps.readJsonFile(stepPath);
 
       if (stepData) {
-        const updatedStep = { ...stepData, ...patch };
-        await this.fileOps.writeJsonFile(stepPath, updatedStep);
+        const updatedStep = { ...(stepData as object), ...patch };
+        await this.fileOps.writeJsonFile(stepPath, updatedStep as unknown as JsonValue);
         return;
       }
     }
@@ -129,7 +129,7 @@ export class StepManagementService {
       const stepData = await this.fileOps.readJsonFile(stepPath);
 
       if (stepData) {
-        steps.push(stepData as StepRow);
+        steps.push(stepData as unknown as StepRow);
       }
     }
 
@@ -153,7 +153,7 @@ export class StepManagementService {
       const stepData = await this.fileOps.readJsonFile(stepPath);
 
       if (stepData) {
-        const step = stepData as StepRow;
+        const step = stepData as unknown as StepRow;
         if (step.idempotency_key === key) {
           return step;
         }

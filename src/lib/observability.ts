@@ -20,13 +20,13 @@ const als = new AsyncLocalStorage<ObsContext>();
 
 // Export a log instance that automatically includes correlation ID
 export const log = new Proxy(pinoLogger, {
-  get(target, prop) {
+  get(target, prop: string | symbol) {
     const ctx = als.getStore();
     if (ctx?.correlationId) {
       // Return child logger with correlation ID
-      return target.child({ correlationId: ctx.correlationId })[prop];
+      return (target.child({ correlationId: ctx.correlationId }) as any)[prop];
     }
-    return target[prop];
+    return (target as any)[prop];
   }
 });
 

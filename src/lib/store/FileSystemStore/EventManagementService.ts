@@ -30,7 +30,7 @@ export class EventManagementService {
       id,
       run_id: runId,
       type,
-      data: payload,
+      payload: payload,
       created_at,
       ...(stepId && { step_id: stepId }),
     };
@@ -39,7 +39,7 @@ export class EventManagementService {
     this.fileOps.ensureDirSync(eventsDir);
 
     const eventPath = this.fileOps.getEventPath(runId, id, this.root);
-    await this.fileOps.writeJsonFile(eventPath, event);
+    await this.fileOps.writeJsonFile(eventPath, event as unknown as JsonValue);
   }
 
   /**
@@ -59,7 +59,7 @@ export class EventManagementService {
       const eventData = await this.fileOps.readJsonFile(eventPath);
 
       if (eventData) {
-        events.push(eventData as EventRow);
+        events.push(eventData as unknown as EventRow);
       }
     }
 

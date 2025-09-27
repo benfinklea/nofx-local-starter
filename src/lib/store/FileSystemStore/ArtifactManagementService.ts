@@ -29,11 +29,10 @@ export class ArtifactManagementService {
 
     const artifact: ArtifactRow = {
       id,
-      run_id: runId,
       step_id: stepId,
-      name,
       type,
-      data,
+      path: `${stepId}/${name}`,
+      metadata: data,
       created_at,
     };
 
@@ -41,7 +40,7 @@ export class ArtifactManagementService {
     this.fileOps.ensureDirSync(artifactsDir);
 
     const artifactPath = this.fileOps.getArtifactPath(runId, id, this.root);
-    await this.fileOps.writeJsonFile(artifactPath, artifact);
+    await this.fileOps.writeJsonFile(artifactPath, artifact as unknown as JsonValue);
 
     return artifact;
   }
@@ -63,7 +62,7 @@ export class ArtifactManagementService {
       const artifactData = await this.fileOps.readJsonFile(artifactPath);
 
       if (artifactData) {
-        artifacts.push(artifactData as ArtifactRow);
+        artifacts.push(artifactData as unknown as ArtifactRow);
       }
     }
 

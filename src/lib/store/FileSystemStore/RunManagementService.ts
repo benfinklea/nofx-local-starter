@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { JsonValue, RunRow } from '../types';
+import type { JsonValue, RunRow, RunSummaryRow } from '../types';
 import { FileOperationService } from './FileOperationService';
 
 export class RunManagementService {
@@ -32,7 +32,7 @@ export class RunManagementService {
     this.fileOps.ensureDirSync(runDir);
 
     const runPath = this.fileOps.getRunPath(id, this.root);
-    await this.fileOps.writeJsonFile(runPath, run);
+    await this.fileOps.writeJsonFile(runPath, run as unknown as JsonValue);
 
     // Update index
     await this.updateRunsIndex();
@@ -60,8 +60,8 @@ export class RunManagementService {
       throw new Error(`Run ${id} not found`);
     }
 
-    const updatedRun = { ...existingRun, ...patch };
-    await this.fileOps.writeJsonFile(runPath, updatedRun);
+    const updatedRun = { ...(existingRun as object), ...patch };
+    await this.fileOps.writeJsonFile(runPath, updatedRun as unknown as JsonValue);
 
     // Update index
     await this.updateRunsIndex();
@@ -70,12 +70,12 @@ export class RunManagementService {
   /**
    * List runs with optional limit
    */
-  async listRuns(limit = 20): Promise<RunRow[]> {
+  async listRuns(limit = 20, projectId?: string): Promise<RunSummaryRow[]> {
     const runsDir = `${this.root}/runs`;
     this.fileOps.ensureDirSync(runsDir);
 
     const files = await this.fileOps.readDirectorySafe(runsDir);
-    const runs: RunRow[] = [];
+    const runs: RunSummaryRow[] = [];
 
     for (const f of files) {
       if (f === 'index.json') continue;
@@ -84,7 +84,20 @@ export class RunManagementService {
       const runData = await this.fileOps.readJsonFile(runPath);
 
       if (runData) {
-        runs.push(runData as RunRow);
+        const run = runData as unknown as RunRow;
+        // Filter by projectId if provided
+        if (projectId && run.project_id !== projectId) {
+          continue;
+        }
+
+        // Convert to RunSummaryRow
+        const summary: RunSummaryRow = {
+          id: run.id,
+          status: run.status,
+          created_at: run.created_at,
+          title: `Run ${run.id.slice(0, 8)}` // Generate a default title
+        };
+        runs.push(summary);
       }
     }
 
@@ -103,7 +116,7 @@ export class RunManagementService {
       const indexPath = this.fileOps.getRunsIndexPath(this.root);
       const runsDir = `${this.root}/runs`;
       this.fileOps.ensureDirSync(runsDir);
-      await this.fileOps.writeJsonFile(indexPath, runs);
+      await this.fileOps.writeJsonFile(indexPath, runs as unknown as JsonValue);
     } catch {
       // Ignore index update errors
     }

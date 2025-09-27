@@ -3,14 +3,20 @@
  */
 
 import path from 'node:path';
+import { promises as fsp } from 'node:fs';
+import { ensureDirSync } from 'fs-extra';
+import { randomUUID } from 'node:crypto';
 import type {
   JsonValue,
   RunRow,
+  RunSummaryRow,
   StepRow,
   EventRow,
   ArtifactRow,
   ArtifactWithStepName,
-  StoreDriver
+  StoreDriver,
+  GateRow,
+  OutboxRow
 } from './types';
 import { FileOperationService } from './FileSystemStore/FileOperationService';
 import { RunManagementService } from './FileSystemStore/RunManagementService';
@@ -62,8 +68,8 @@ export class FileSystemStore implements StoreDriver {
     await this.updateRun(id, resetPatch);
   }
 
-  async listRuns(limit = 100): Promise<RunRow[]> {
-    return this.runManager.listRuns(limit);
+  async listRuns(limit = 100, projectId?: string): Promise<RunSummaryRow[]> {
+    return this.runManager.listRuns(limit, projectId);
   }
 
   async createStep(runId: string, name: string, tool: string, inputs?: JsonValue, idempotencyKey?: string): Promise<StepRow | undefined> {
