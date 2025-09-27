@@ -9,14 +9,6 @@
   },
   "rewrites": [
     {
-      "source": "/login",
-      "destination": "/login.html"
-    },
-    {
-      "source": "/reset-password",
-      "destination": "/reset-password.html"
-    },
-    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -81,7 +73,15 @@
       "destination": "/api/health"
     },
     {
-      "source": "/((?!login\\.html|reset-password\\.html).*)",
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/reset-password",
+      "destination": "/reset-password.html"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
