@@ -7,19 +7,39 @@ import {
   Typography,
   Alert,
   Link,
-  CircularProgress
+  CircularProgress,
+  Divider
 } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const getNextUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('next') || '/ui/app/#/runs';
+  };
+
+  const handleGoogleSignIn = () => {
+    setError('');
+    setMessage('');
+    setSocialLoading(true);
+
+    const next = getNextUrl();
+    const url = `/api/auth/oauth-start?provider=google&next=${encodeURIComponent(next)}`;
+
+    window.location.href = url;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setSocialLoading(false);
     setError('');
     setMessage('');
 
@@ -174,7 +194,7 @@ export default function LoginForm() {
             fullWidth
             variant="contained"
             size="large"
-            disabled={loading}
+            disabled={loading || socialLoading}
             sx={{
               mt: 3,
               mb: 2,
@@ -188,12 +208,26 @@ export default function LoginForm() {
           </Button>
         </form>
 
+        <Divider sx={{ my: 2 }}>or</Divider>
+
+        <Button
+          fullWidth
+          variant="outlined"
+          size="large"
+          startIcon={<GoogleIcon />}
+          onClick={handleGoogleSignIn}
+          disabled={loading || socialLoading}
+          sx={{ mb: 2, fontWeight: 600 }}
+        >
+          {socialLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign in with Google'}
+        </Button>
+
         <Box sx={{ textAlign: 'center', mt: 2 }}>
           <Link
             component="button"
             variant="body2"
             onClick={handleForgotPassword}
-            disabled={loading}
+            disabled={loading || socialLoading}
             sx={{ cursor: 'pointer' }}
           >
             Forgot password?

@@ -1,6 +1,37 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><title>NOFX - Login</title>
 <link rel="stylesheet" href="/ui/static/style.css"/>
+<style>
+  .google-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #dadce0;
+    background: #fff;
+    color: #1f2933;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 1rem;
+  }
+  .google-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .google-icon {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dadce0;
+    color: #ea4335;
+    font-weight: 700;
+    font-size: 0.8rem;
+  }
+</style>
 </head><body>
 <h1>Sign in</h1>
 <% if (typeof error !== 'undefined' && error) { %>
@@ -11,7 +42,11 @@
   <button type="submit">Sign in</button>
   <input type="hidden" name="next" value="/ui/app/#/runs"/>
   <p style="margin-top:8px;color:#555">Set ADMIN_PASSWORD in your .env to change the default.</p>
-  <p><a href="/ui/app/#/runs">Back to runs</a></p>
 </form>
+<a class="google-btn" href="/api/auth/oauth-start?provider=google&next=%2Fui%2Fapp%2F%23%2Fruns">
+  <span class="google-icon">G</span>
+  Continue with Google
+</a>
+<p style="margin-top:12px;"><a href="/ui/app/#/runs">Back to runs</a></p>
 </body></html>
 
