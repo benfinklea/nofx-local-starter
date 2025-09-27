@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { enqueue, listDlq, rehydrateDlq, STEP_DLQ_TOPIC, STEP_READY_TOPIC, subscribe } from './lib/queue';
 import type { EventRow, RunRow, StepRow } from './lib/store';
 import { markStepTimedOut } from './worker/runner';
@@ -10,7 +10,7 @@ import { makeRun, makeStep, makeStepReadyPayload } from './testing/factories';
 let store: StoreApi;
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  jest.restoreAllMocks();
 });
 
 describe('Workstream 01 — Reliability', () => {
@@ -119,7 +119,7 @@ describe('Workstream 01 — Reliability', () => {
     await store.updateRun(run.id, { status: 'failed', ended_at: nowIso });
 
     const queueModule = await import('./lib/queue');
-    const spy = vi.spyOn(queueModule, 'enqueue');
+    const spy = jest.spyOn(queueModule, 'enqueue');
 
     await retryStep(run.id, step.id);
 

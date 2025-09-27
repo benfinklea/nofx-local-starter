@@ -58,22 +58,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // Check for Supabase hash fragments (they come as hash, not query params)
+  // In production, these are usually handled client-side
   const code = req.query.code as string | undefined;
-  if (!code) {
-    return res.status(400).send('<p>Missing authorization code.</p>');
+  const access_token = req.query.access_token as string | undefined;
+  const refresh_token = req.query.refresh_token as string | undefined;
+
+  if (!code && !access_token) {
+    // If we don't have a code or tokens, this might be the first redirect from oauth-start
+    // We should show a page that handles the hash fragments client-side
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Completing sign in...</title>
+</head>
+<body>
+  <script>
+    // Extract hash parameters and convert to query string
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      const params = new URLSearchParams(hash);
+      const queryString = window.location.search || '?';
+      const existingParams = new URLSearchParams(queryString);
+
+      // Add hash params to query
+      for (const [key, value] of params) {
+        existingParams.set(key, value);
+      }
+
+      // Redirect with hash params as query params
+      window.location.replace(window.location.pathname + '?' + existingParams.toString());
+    } else {
+      document.body.innerHTML = '<p>Missing authorization code.</p>';
+    }
+  </script>
+</body>
+</html>`;
+    return res.status(200).send(html);
   }
 
   const next = sanitizeNextParam(req.query.next);
 
   try {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    let session, user;
 
-    if (error || !data?.session || !data.user) {
-      console.error('OAuth exchange error:', error?.message || 'Unknown error');
-      return res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+    if (access_token && refresh_token) {
+      // Tokens were provided directly (from hash fragment conversion)
+      const { data: userData, error: userError } = await supabase.auth.getUser(access_token);
+
+      if (userError || !userData?.user) {
+        console.error('Failed to get user with token:', userError);
+        return res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+      }
+
+      session = {
+        access_token,
+        refresh_token,
+        // Set a default expiry (Supabase tokens typically last 1 hour)
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      };
+      user = userData.user;
+    } else if (code) {
+      // Exchange code for session (traditional OAuth flow)
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error || !data?.session || !data.user) {
+        console.error('OAuth exchange error:', error?.message || 'Unknown error');
+        return res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+      }
+
+      session = data.session;
+      user = data.user;
+    } else {
+      return res.status(400).send('<p>No authentication data provided.</p>');
     }
-
-    const { session, user } = data;
 
     res.setHeader('Set-Cookie', [
       `sb-access-token=${session.access_token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${COOKIE_ACCESS_MAX_AGE}`,

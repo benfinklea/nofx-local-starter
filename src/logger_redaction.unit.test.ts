@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from '@jest/globals';
 
 describe('Logger redaction', () => {
   it('masks common sensitive fields in output', async () => {

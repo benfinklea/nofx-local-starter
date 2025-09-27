@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from '@jest/globals';
 import type { Express, Request, Response } from 'express';
 import { accessSync } from 'node:fs';
 import path from 'node:path';

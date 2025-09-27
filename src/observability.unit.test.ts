@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from '@jest/globals';
 import { metrics } from './lib/metrics';
 import { getCounts, STEP_READY_TOPIC } from './lib/queue';
 

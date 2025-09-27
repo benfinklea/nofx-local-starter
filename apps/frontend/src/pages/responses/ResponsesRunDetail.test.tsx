@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ResponsesRunDetail from './ResponsesRunDetail';
 import { AppTheme } from '../../theme';
 import * as responsesApi from '../../lib/responses';
 
-vi.mock('../../lib/responses');
-const mockedResponsesApi = vi.mocked(responsesApi);
+jest.mock('../../lib/responses');
+const mockedResponsesApi = jest.mocked(responsesApi);
 
 const sampleDetail = {
   run: {

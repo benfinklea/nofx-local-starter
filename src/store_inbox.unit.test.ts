@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from '@jest/globals';
 
 describe('Store inbox idempotency (FS)', () => {
   let store: typeof import('./lib/store').store;

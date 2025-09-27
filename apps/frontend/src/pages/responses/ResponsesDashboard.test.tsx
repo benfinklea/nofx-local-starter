@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ResponsesDashboard from './ResponsesDashboard';
 import { AppTheme } from '../../theme';
 import * as responsesApi from '../../lib/responses';
 
-vi.mock('../../lib/responses');
-const mockedResponsesApi = vi.mocked(responsesApi);
+jest.mock('../../lib/responses');
+const mockedResponsesApi = jest.mocked(responsesApi);
 
 const runs = [
   {
@@ -124,7 +124,7 @@ function renderPage() {
 
 describe('ResponsesDashboard', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    jest.resetAllMocks();
     mockedResponsesApi.listResponsesRuns.mockResolvedValue(runs as any);
     mockedResponsesApi.getResponsesSummary.mockResolvedValue(summary as any);
     mockedResponsesApi.logUiEvent.mockResolvedValue(undefined);
