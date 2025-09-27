@@ -219,17 +219,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (response.ok && data.success) {
           messageDiv.innerHTML = '<div class="success">Account created successfully! Redirecting to login...</div>';
 
-          // If we got a session, store it and redirect to app
+          // TEMPORARILY DISABLED REDIRECT FOR DEBUGGING
           if (data.session?.accessToken) {
             localStorage.setItem('sb-access-token', data.session.accessToken);
-            setTimeout(() => {
-              window.location.href = '/ui/app/#/runs';
-            }, 1500);
+            // setTimeout(() => {
+            //   window.location.href = '/ui/app/#/runs';
+            // }, 1500);
           } else {
             // Otherwise redirect to login
-            setTimeout(() => {
-              window.location.href = '/api/login';
-            }, 1500);
+            // setTimeout(() => {
+            //   window.location.href = '/api/login';
+            // }, 1500);
           }
         } else {
           messageDiv.innerHTML = '<div class="error">' + (data.error || 'Signup failed') + '</div>';
