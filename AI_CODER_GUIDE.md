@@ -47,7 +47,7 @@ This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly und
 - **Package manager**: This repo is pinned to `npm` (see `package-lock.json`). Do not swap scripts to `pnpm`/`yarn`, do not add new lockfiles, and prefer `npx` over global installs when you need CLIs.
 - **Bootstrap expectations**: Use `npm run bootstrap:dev` for local setup. If you touch `scripts/bootstrap-dev.sh`, keep the Supabase start/reset, `.env` hydration, bucket creation, and Jest health check intact, and continue forcing `DEV_RESTART_WATCH=0` for non-interactive runs.
 - **Start launchers**: `Start NOFX.command` and `Start DB + NOFX.command` intentionally avoid background restarts. Do not reintroduce chokidar-style watchers or flip `DEV_RESTART_WATCH` to `1` unless the user asks for interactive reloads.
-- **Testing standard**: Add new specs with **Jest** under `tests/**`. Keep Vitest limited to the existing `.unit.test.ts` files in `src/` and do not create new Vitest suites unless a maintainer explicitly requests it.
+- **Testing standard**: Add new specs with **Jest** under `tests/**` for centralized test organization and easier maintenance. All test files should follow consistent naming: `*.test.ts` or `*.spec.ts`. This centralized approach improves test discovery, simplifies CI/CD configuration, and provides better separation of concerns. Do not co-locate test files in `src/` directories.
 - **Static analysis config**: When touching `knip.json`, point entries at real TypeScript entrypoints (`src/api/main.ts`, `src/worker/main.ts`, etc.). Never create placeholder files just to satisfy Knip.
 
 ## Quick Start - Cloud Deployment

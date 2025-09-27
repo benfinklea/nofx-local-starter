@@ -10,6 +10,7 @@ import { log } from '../../lib/logger';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { sendWelcomeEmail } from '../../services/email/emailService';
+import { ApiResponse } from '../../lib/apiResponse';
 
 // Validation schemas
 const SignUpSchema = z.object({
@@ -41,7 +42,10 @@ export default function mount(app: Express) {
     try {
       const parsed = SignUpSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+        const validationErrors = Object.entries(parsed.error.flatten().fieldErrors).map(([field, messages]) =>
+          ApiResponse.validationError(field, Array.isArray(messages) ? messages[0] : messages)
+        );
+        return ApiResponse.unprocessableEntity(res, validationErrors);
       }
 
       const { email, password, fullName, companyName, metadata } = parsed.data;
@@ -138,7 +142,10 @@ export default function mount(app: Express) {
     try {
       const parsed = LoginSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+        const validationErrors = Object.entries(parsed.error.flatten().fieldErrors).map(([field, messages]) =>
+          ApiResponse.validationError(field, Array.isArray(messages) ? messages[0] : messages)
+        );
+        return ApiResponse.unprocessableEntity(res, validationErrors);
       }
 
       const { email, password } = parsed.data;
@@ -285,7 +292,10 @@ export default function mount(app: Express) {
     try {
       const parsed = ResetPasswordSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+        const validationErrors = Object.entries(parsed.error.flatten().fieldErrors).map(([field, messages]) =>
+          ApiResponse.validationError(field, Array.isArray(messages) ? messages[0] : messages)
+        );
+        return ApiResponse.unprocessableEntity(res, validationErrors);
       }
 
       const { email } = parsed.data;
@@ -320,7 +330,10 @@ export default function mount(app: Express) {
     try {
       const parsed = UpdatePasswordSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+        const validationErrors = Object.entries(parsed.error.flatten().fieldErrors).map(([field, messages]) =>
+          ApiResponse.validationError(field, Array.isArray(messages) ? messages[0] : messages)
+        );
+        return ApiResponse.unprocessableEntity(res, validationErrors);
       }
 
       const { password } = parsed.data;

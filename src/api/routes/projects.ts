@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { isAdmin } from '../../lib/auth';
 import { listProjects, getProject, createProject, updateProject, deleteProject } from '../../lib/projects';
 import type { Project } from '../../lib/projects';
+import { ApiResponse } from '../../lib/apiResponse';
 
 const UpsertSchema = z.object({
   id: z.string().optional(),

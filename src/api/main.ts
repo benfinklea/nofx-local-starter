@@ -24,6 +24,7 @@ import { retryStep, StepNotFoundError, StepNotRetryableError } from '../lib/runR
 import { isAdmin } from '../lib/auth';
 import { toJsonObject } from '../lib/json';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
+import { ApiResponse } from '../lib/apiResponse';
 // New SaaS auth imports
 import { requireAuth, optionalAuth, checkUsage, rateLimit, trackApiUsage } from '../auth/middleware';
 // import { trackUsage } from '../auth/supabase';
@@ -31,6 +32,8 @@ import authV2Routes from './routes/auth_v2';
 import billingRoutes from './routes/billing';
 import webhookRoutes from './routes/webhooks';
 import teamsRoutes from './routes/teams';
+// Idempotency middleware
+import { idempotency, initializeIdempotencyCache } from '../lib/middleware/idempotency';
 
 dotenv.config();
 export const app = express();
@@ -43,7 +46,8 @@ app.use(cors({
   origin: CORS_ORIGINS,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id', 'x-idempotency-key'],
+  exposedHeaders: ['x-idempotency-replayed', 'x-idempotency-original-date']
 }));
 
 app.use(express.json({ limit: "2mb" }));
@@ -54,6 +58,8 @@ app.use(require('cookie-parser')());
 app.use(requestObservability);
 // Add optional auth to all requests (populates req.user if authenticated)
 app.use(optionalAuth);
+// Idempotency middleware for POST/PUT/PATCH endpoints
+app.use(idempotency());
 
 // ADD view engine + static for future UI
 app.set('view engine', 'ejs');
@@ -133,12 +139,12 @@ app.post('/runs/preview', async (req, res) => {
     if (req.body && req.body.standard) {
       const { prompt, quality = true, openPr = false, filePath, summarizeQuery, summarizeTarget } = req.body.standard || {};
       const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget });
-      return res.json({ steps: built.steps, plan: built });
+      return ApiResponse.success(res, { steps: built.steps, plan: built });
     }
-    return res.status(400).json({ error: 'missing standard' });
+    return ApiResponse.badRequest(res, 'Missing standard parameter');
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'failed to preview';
-    return res.status(400).json({ error: message });
+    const message = e instanceof Error ? e.message : 'Failed to preview';
+    return ApiResponse.badRequest(res, message);
   }
 });
 
@@ -156,12 +162,17 @@ app.post("/runs",
       const built = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, filePath, summarizeQuery, summarizeTarget });
       req.body = { plan: built };
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'bad standard request';
-      return res.status(400).json({ error: message });
+      const message = e instanceof Error ? e.message : 'Bad standard request';
+      return ApiResponse.badRequest(res, message);
     }
   }
   const parsed = CreateRunSchema.safeParse({ ...req.body, projectId: req.body?.projectId || (req.headers['x-project-id'] as string|undefined) });
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) {
+    const validationErrors = Object.entries(parsed.error.flatten().fieldErrors).map(([field, messages]) =>
+      ApiResponse.validationError(field, Array.isArray(messages) ? messages[0] : messages)
+    );
+    return ApiResponse.unprocessableEntity(res, validationErrors);
+  }
   const { plan, projectId = 'default' } = parsed.data;
 
   // Add user context to the run
@@ -179,7 +190,7 @@ app.post("/runs",
   await recordEvent(runId, "run.created", { plan });
 
   // Respond immediately to avoid request timeouts on large plans
-  res.status(201).json({ id: runId, status: "queued", projectId });
+  return ApiResponse.success(res, { id: runId, status: "queued", projectId }, 201);
 
   // Process steps asynchronously (fire-and-forget)
   void (async () => {
@@ -243,19 +254,19 @@ app.get("/runs/:id",
   async (req, res) => {
   const runId = req.params.id;
   const run = await store.getRun(runId);
-  if (!run) return res.status(404).json({ error: "not found" });
+  if (!run) return ApiResponse.notFound(res, 'Run');
 
   // Check ownership (unless admin)
   const runUserId = (run.metadata as any)?.created_by || (run.plan as any)?.user_id;
   if (runUserId && runUserId !== req.userId) {
     const isUserAdmin = req.user && (await store.getUserRole(req.userId || '')) === 'admin';
     if (!isUserAdmin) {
-      return res.status(403).json({ error: "access denied" });
+      return ApiResponse.forbidden(res, 'Access denied to this run');
     }
   }
   const steps = await store.listStepsByRun(runId);
   const artifacts = await store.listArtifactsByRun(runId);
-  res.json({ run, steps, artifacts });
+  return ApiResponse.success(res, { run, steps, artifacts });
 });
 
 app.get("/runs/:id/timeline", async (req, res) => {
@@ -308,10 +319,10 @@ app.get('/runs',
     const rows = isUserAdmin
       ? await store.listRuns(lim, projectId || undefined)
       : await store.listRunsByUser(req.userId!, lim, projectId || undefined);
-    res.json({ runs: rows });
+    return ApiResponse.success(res, { runs: rows });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'failed to list runs';
-    res.status(500).json({ error: msg });
+    const msg = e instanceof Error ? e.message : 'Failed to list runs';
+    return ApiResponse.internalError(res, msg);
   }
 });
 
@@ -325,6 +336,13 @@ teamsRoutes(app);
 mountRouters(app);
 
 const port = Number(process.env.PORT || 3000);
+
+// Initialize idempotency cache on startup
+initializeIdempotencyCache().catch(err => {
+  log.error({ error: err.message }, 'Failed to initialize idempotency cache');
+  process.exit(1);
+});
+
 function listenWithRetry(attempt = 0) {
   const server = http.createServer(app);
   server.once('error', (err: unknown) => {
@@ -351,21 +369,21 @@ function listenWithRetry(attempt = 0) {
 
 app.post('/runs/:runId/steps/:stepId/retry', async (req, res) => {
   if (!isAdmin(req)) {
-    return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    return ApiResponse.unauthorized(res, 'Admin authentication required');
   }
   const { runId, stepId } = req.params;
   try {
     await retryStep(runId, stepId);
-    res.status(202).json({ ok: true });
+    return ApiResponse.success(res, { ok: true }, 202);
   } catch (err) {
     if (err instanceof StepNotFoundError) {
-      return res.status(404).json({ error: 'step not found' });
+      return ApiResponse.notFound(res, 'Step');
     }
     if (err instanceof StepNotRetryableError) {
-      return res.status(409).json({ error: err.message });
+      return ApiResponse.conflict(res, err.message);
     }
     log.error({ err, runId, stepId }, 'step.retry.error');
-    return res.status(500).json({ error: 'retry failed' });
+    return ApiResponse.internalError(res, 'Step retry failed');
   }
 });
 if (process.env.NODE_ENV !== 'test') {

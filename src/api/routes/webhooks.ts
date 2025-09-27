@@ -7,6 +7,7 @@ import { Express, Request, Response } from 'express';
 import express from 'express';
 import Stripe from 'stripe';
 import { log } from '../../lib/logger';
+import { ApiResponse } from '../../lib/apiResponse';
 import {
   upsertProduct,
   upsertPrice,
@@ -63,13 +64,13 @@ export default function mount(app: Express) {
 
       if (!sig) {
         log.warn('Stripe webhook called without signature');
-        return res.status(400).json({ error: 'Missing signature' });
+        return ApiResponse.badRequest(res, 'Missing signature header');
       }
 
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
       if (!webhookSecret) {
         log.error('STRIPE_WEBHOOK_SECRET not configured');
-        return res.status(500).json({ error: 'Webhook secret not configured' });
+        return ApiResponse.internalError(res, 'Webhook secret not configured');
       }
 
       let event: Stripe.Event;
@@ -83,7 +84,7 @@ export default function mount(app: Express) {
       } catch (err) {
         const error = err as Error;
         log.error({ error: error.message }, 'Webhook signature verification failed');
-        return res.status(400).json({ error: `Webhook Error: ${error.message}` });
+        return ApiResponse.badRequest(res, `Webhook signature verification failed: ${error.message}`);
       }
 
       // Log the event
@@ -95,7 +96,7 @@ export default function mount(app: Express) {
       // Filter out events we don't care about
       if (!relevantEvents.has(event.type)) {
         log.debug({ eventType: event.type }, 'Ignoring irrelevant webhook event');
-        return res.json({ received: true });
+        return ApiResponse.success(res, { received: true, event: event.type });
       }
 
       try {
