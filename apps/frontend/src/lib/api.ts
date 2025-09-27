@@ -27,7 +27,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   }
 
   const url = typeof fetchUrl === 'string' ? fetchUrl : fetchUrl.url;
-  console.log(`[API] Making request to: ${url}`, { method: init?.method || 'GET', projectId });
+  // Debug: console.log(`[API] Making request to: ${url}`, { method: init?.method || 'GET', projectId });
 
   try {
     const response = await fetch(fetchUrl, {
@@ -36,11 +36,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
       credentials: 'include' // Include cookies for auth
     });
 
-    console.log(`[API] Response from ${url}:`, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    });
+    // Debug: console.log(`[API] Response from ${url}:`, { status: response.status });
 
     // Handle authentication errors
     if (response.status === 401) {
@@ -79,11 +75,11 @@ export type Event = { id?: string; type: string; created_at?: string; payload?: 
 export async function listRuns(limit = 50): Promise<Run[]> {
   const pid = currentProjectId();
   const url = `/runs?limit=${encodeURIComponent(String(limit))}${pid?`&projectId=${encodeURIComponent(pid)}`:''}`;
-  console.log('[API] listRuns: Fetching runs from:', url, { limit, projectId: pid });
+  // Debug: console.log('[API] listRuns: Fetching runs from:', url);
 
   try {
     const rsp = await apiFetch(url);
-    console.log('[API] listRuns: Response status:', rsp.status, rsp.statusText);
+    // Debug: console.log('[API] listRuns: Response status:', rsp.status);
 
     if (!rsp.ok) {
       const errorText = await rsp.text();
@@ -92,7 +88,7 @@ export async function listRuns(limit = 50): Promise<Run[]> {
     }
 
     const data = await rsp.json();
-    console.log('[API] listRuns: Response data:', data);
+    // Debug: console.log('[API] listRuns: Response data:', data);
 
     if (!data || typeof data !== 'object') {
       console.error('[API] listRuns: Invalid response format:', data);
@@ -100,7 +96,7 @@ export async function listRuns(limit = 50): Promise<Run[]> {
     }
 
     const runs = Array.isArray(data?.runs) ? data.runs : [];
-    console.log('[API] listRuns: Returning', runs.length, 'runs');
+    // Debug: console.log('[API] listRuns: Returning', runs.length, 'runs');
     return runs;
   } catch (error) {
     console.error('[API] listRuns: Error:', error);

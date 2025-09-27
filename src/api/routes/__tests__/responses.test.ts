@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import type { Express } from 'express';
 import request from 'supertest';
-import { createExpressApp } from '../../main';
+import { app } from '../../main';
 import * as auth from '../../../lib/auth';
 import * as responsesRuntime from '../../../services/responses/runtime';
 
@@ -114,7 +114,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
     mockRuntimeInstance.archive.listRuns.mockReturnValue([mockRunRecord]);
     mockRuntimeInstance.archive.getTimeline.mockReturnValue(mockTimeline);
 
-    app = createExpressApp();
+    // Use the imported app directly
   });
 
   afterEach(() => {
@@ -172,6 +172,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
         runId: 'run_123',
         type: 'retry',
         status: 'open',
+        sequence: 1,
         occurredAt: new Date('2024-01-01T10:00:00Z'),
         tenantId: 'tenant_123'
       }

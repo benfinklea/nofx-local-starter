@@ -178,7 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     <div class="links">
       Already have an account?
-      <a href="/api/login">Sign In</a>
+      <a href="/login.html">Sign In</a>
     </div>
   </div>
 

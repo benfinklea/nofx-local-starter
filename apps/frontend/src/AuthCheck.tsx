@@ -14,16 +14,16 @@ export default function AuthCheck({ children }: AuthCheckProps) {
   useEffect(() => {
     // Check if user has authentication credentials
     const checkAuth = async () => {
-      console.log('[AuthCheck] Starting authentication check...');
+      // Check if user has authentication credentials
       try {
         // Use the auth service to check current user
         const user = await auth.getCurrentUser();
 
         if (user) {
-          console.log('[AuthCheck] User authenticated:', user.id);
+          // User authenticated
           setIsAuthenticated(true);
         } else {
-          console.log('[AuthCheck] User not authenticated, showing login form');
+          // User not authenticated, show login form
           setIsAuthenticated(false);
         }
       } catch (err) {

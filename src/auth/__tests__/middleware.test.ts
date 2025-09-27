@@ -369,7 +369,7 @@ describe('Auth Middleware - Security Tests', () => {
     beforeEach(() => {
       mockReq.userId = 'user123';
       mockReq.userTier = 'free';
-      mockReq.path = '/api/test';
+      Object.defineProperty(mockReq, 'path', { value: '/api/test', writable: true });
     });
 
     it('allows requests within limit', async () => {
@@ -449,7 +449,7 @@ describe('Auth Middleware - Security Tests', () => {
 
     beforeEach(() => {
       mockReq.userId = 'user123';
-      mockReq.path = '/api/test';
+      Object.defineProperty(mockReq, 'path', { value: '/api/test', writable: true });
       mockReq.method = 'GET';
     });
 

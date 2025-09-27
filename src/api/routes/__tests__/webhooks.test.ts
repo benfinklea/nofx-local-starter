@@ -24,9 +24,10 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
     jest.clearAllMocks();
 
     // Mock Stripe
+    const mockConstructEvent = jest.fn();
     mockStripe = {
       webhooks: {
-        constructEvent: jest.fn()
+        constructEvent: mockConstructEvent
       },
       subscriptions: {
         retrieve: jest.fn()
@@ -64,7 +65,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
         data: { object: { id: 'prod_123', name: 'Test Product' } }
       };
 
-      mockStripe.webhooks.constructEvent.mockReturnValue(validEvent as any);
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(validEvent as any);
 
       const response = await request(app)
         .post('/webhooks/stripe')
@@ -89,7 +90,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
     });
 
     it('rejects invalid signatures', async () => {
-      mockStripe.webhooks.constructEvent.mockImplementation(() => {
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockImplementation(() => {
         throw new Error('Invalid signature');
       });
 
@@ -130,7 +131,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
       ];
 
       for (const signature of maliciousSignatures) {
-        mockStripe.webhooks.constructEvent.mockImplementation(() => {
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockImplementation(() => {
           throw new Error('Invalid signature');
         });
 

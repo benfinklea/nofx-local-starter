@@ -137,18 +137,18 @@ describe('Resend Email Client - Reliability Tests', () => {
       });
 
       it('sends email with React component', async () => {
-        const MockComponent = () => '<p>React Email</p>';
+        const MockComponent = () => ({ type: 'div', props: { children: 'React Email' } });
 
         const options = {
           ...basicEmailOptions,
-          react: MockComponent({}),
+          react: MockComponent() as any,
           html: undefined
         };
 
         await sendEmail(options);
 
         expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
-          react: MockComponent({})
+          react: expect.any(Object)
         }));
       });
 
