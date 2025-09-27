@@ -204,9 +204,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     <div class="links">
       <div class="divider">or</div>
-      <a href="/api/auth/signup-page">Create Account</a>
+      <a href="#" onclick="alert('Signup temporarily disabled for debugging'); return false;">Create Account</a>
       ·
-      <a href="/api/auth/reset-password">Forgot Password?</a>
+      <a href="#" onclick="alert('Password reset: Please use the email link sent to you'); return false;">Forgot Password?</a>
     </div>
   </div>
 
@@ -243,14 +243,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-          messageDiv.innerHTML = '<div class="success">Login successful! Redirecting...</div>';
+          messageDiv.innerHTML = '<div class="success">Login successful!</div>';
           // Store token in localStorage for client-side use
           if (data.session?.accessToken) {
             localStorage.setItem('sb-access-token', data.session.accessToken);
           }
-          setTimeout(() => {
-            window.location.href = next;
-          }, 500);
+          // TEMPORARILY DISABLED REDIRECT FOR DEBUGGING
+          // setTimeout(() => {
+          //   window.location.href = next;
+          // }, 500);
         } else {
           messageDiv.innerHTML = '<div class="error">' + (data.error || 'Login failed') + '</div>';
           submitBtn.disabled = false;
@@ -265,10 +266,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (googleBtn) {
       googleBtn.addEventListener('click', () => {
-        googleBtn.disabled = true;
-        googleBtn.textContent = 'Redirecting...';
-        const target = '/api/auth/oauth-start?provider=google&next=' + encodeURIComponent(next);
-        window.location.href = target;
+        // TEMPORARILY DISABLED FOR DEBUGGING
+        alert('Google login temporarily disabled for debugging');
+        // googleBtn.disabled = true;
+        // googleBtn.textContent = 'Redirecting...';
+        // const target = '/api/auth/oauth-start?provider=google&next=' + encodeURIComponent(next);
+        // window.location.href = target;
       });
     }
   </script>
