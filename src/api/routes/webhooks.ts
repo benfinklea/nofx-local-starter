@@ -23,6 +23,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-08-27.basil'
 });
 
+const unwrapStripe = <T>(resource: T | Stripe.Response<T>): T => {
+  const maybeResponse = resource as Stripe.Response<T> & { data?: T };
+  return typeof maybeResponse.data !== 'undefined' ? maybeResponse.data : resource as T;
+};
+
 // Events we care about
 const relevantEvents = new Set([
   'product.created',
@@ -149,22 +154,26 @@ export default function mount(app: Express) {
 
                   if (user?.email) {
                     // Get subscription details
-                    const subscription = await stripe.subscriptions.retrieve(
+                    const subscriptionResponse = await stripe.subscriptions.retrieve(
                       subscriptionId,
                       { expand: ['items.data.price.product'] }
                     );
 
-                    const product = subscription.items.data[0]?.price.product as Stripe.Product;
-                    const price = subscription.items.data[0]?.price;
-
-                    const nextBillingDate = new Date(subscription.current_period_end * 1000)
-                      .toLocaleDateString();
+                    const subscription = unwrapStripe(subscriptionResponse);
+                    const subscriptionItem = subscription.items.data[0];
+                    const price = subscriptionItem?.price;
+                    const product = typeof price?.product === 'string' ? null : (price?.product as Stripe.Product | null);
+                    const unitAmount = price?.unit_amount ?? 0;
+                    const interval = price?.recurring?.interval === 'year' ? 'yearly' : 'monthly';
+                    const nextBillingDate = typeof subscription.current_period_end === 'number'
+                      ? new Date(subscription.current_period_end * 1000).toLocaleDateString()
+                      : undefined;
 
                     sendSubscriptionConfirmationEmail(userId, user.email, {
                       planName: product?.name || 'Subscription',
-                      amount: `$${(price?.unit_amount || 0) / 100}`,
-                      interval: price?.recurring?.interval === 'year' ? 'yearly' : 'monthly',
-                      nextBillingDate,
+                      amount: `$${(unitAmount / 100).toFixed(2)}`,
+                      interval,
+                      nextBillingDate: nextBillingDate || 'TBD',
                       features: (product?.metadata?.features || '').split(',').filter(Boolean),
                     }).catch(err => {
                       log.error({ err, userId }, 'Failed to send subscription confirmation email');
@@ -275,12 +284,23 @@ export default function mount(app: Express) {
                   const retryDate = new Date();
                   retryDate.setDate(retryDate.getDate() + 3);
 
+                  let lastFourDigits: string | undefined;
+
+                  if (typeof failedInvoice.payment_intent === 'string') {
+                    const paymentIntentResponse = await stripe.paymentIntents.retrieve(
+                      failedInvoice.payment_intent,
+                      { expand: ['payment_method'] }
+                    );
+                    const paymentIntent = unwrapStripe(paymentIntentResponse);
+                    const paymentMethod = paymentIntent.payment_method;
+                    if (paymentMethod && typeof paymentMethod !== 'string' && paymentMethod.card) {
+                      lastFourDigits = paymentMethod.card.last4;
+                    }
+                  }
+
                   sendPaymentFailedEmail(customer.id, user.email, {
-                    amount: `$${failedInvoice.amount_due / 100}`,
-                    lastFourDigits: failedInvoice.payment_intent
-                      ? (await stripe.paymentIntents.retrieve(failedInvoice.payment_intent as string))
-                          .payment_method?.card?.last4
-                      : undefined,
+                    amount: `$${(failedInvoice.amount_due / 100).toFixed(2)}`,
+                    lastFourDigits,
                     failureReason: failedInvoice.last_finalization_error?.message,
                     retryDate: retryDate.toLocaleDateString(),
                   }).catch(err => {

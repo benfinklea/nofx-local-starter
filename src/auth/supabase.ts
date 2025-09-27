@@ -157,14 +157,17 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
       .eq('status', 'active')
       .single();
 
-    if (error || !data) {
+    if (error || !data || !data.current_period_end) {
       return false;
     }
 
     // Check if subscription is still valid
-    const now = new Date();
-    const periodEnd = new Date(data.current_period_end);
-    return periodEnd > now;
+    const periodEndMs = new Date(data.current_period_end).getTime();
+    if (Number.isNaN(periodEndMs)) {
+      return false;
+    }
+
+    return periodEndMs > Date.now();
   } catch (error) {
     log.error({ error }, 'Error checking subscription status');
     return false;

@@ -16,12 +16,13 @@
     "api"
   ],
   "exclude": [
-    "node_modules",
+    ".vercel",
+    "apps",
     "dist",
     "local_data",
-    "apps",
+    "node_modules",
+    "src/**/__tests__",
     "tests",
-    "worktrees",
-    ".vercel"
+    "worktrees"
   ]
 }

@@ -176,11 +176,13 @@ export async function manageSubscriptionStatusChange(
     }
 
     // Retrieve subscription from Stripe
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId, {
       expand: ['default_payment_method', 'items.data.price.product']
     });
 
-    const priceId = subscription.items.data[0]?.price.id;
+    const subscription = unwrapStripe(subscriptionResponse);
+    const subscriptionItem = subscription.items.data[0];
+    const priceId = subscriptionItem?.price?.id;
 
     const subscriptionData = {
       id: subscription.id,
@@ -188,7 +190,7 @@ export async function manageSubscriptionStatusChange(
       status: subscription.status,
       metadata: subscription.metadata,
       price_id: priceId,
-      quantity: subscription.items.data[0]?.quantity || 1,
+      quantity: subscriptionItem?.quantity || 1,
       cancel_at_period_end: subscription.cancel_at_period_end,
       created: toDateTime(subscription.created),
       current_period_start: toDateTime(subscription.current_period_start),
@@ -209,7 +211,7 @@ export async function manageSubscriptionStatusChange(
     }
 
     // Update user's billing info if payment method changed
-    if (subscription.default_payment_method) {
+    if (subscription.default_payment_method && typeof subscription.default_payment_method !== 'string') {
       const paymentMethod = subscription.default_payment_method as Stripe.PaymentMethod;
       await supabase
         .from('users')

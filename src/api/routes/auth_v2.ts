@@ -116,13 +116,13 @@ export default function mount(app: Express) {
       res.json({
         success: true,
         user: {
-          id: data.user.id,
-          email: data.user.email,
-          emailConfirmed: data.user.confirmed_at != null
+          id: user.id,
+          email: user.email,
+          emailConfirmed: user.confirmed_at != null
         },
-        session: data.session ? {
-          accessToken: data.session.access_token,
-          expiresAt: data.session.expires_at
+        session: session ? {
+          accessToken: session.access_token,
+          expiresAt: session.expires_at
         } : null
       });
     } catch (error) {

@@ -78,7 +78,7 @@ describe('Auth Middleware - Security Tests', () => {
 
         await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-        expect(verifyApiKey).toHaveBeenCalledWith(apiKey);
+        expect(verifyApiKey).toHaveBeenCalledWith(apiKey, expect.objectContaining({ ip: '127.0.0.1' }));
         expect(mockReq.userId).toBe('user123');
         expect(mockNext).toHaveBeenCalled();
         expect(mockStatus).not.toHaveBeenCalled();

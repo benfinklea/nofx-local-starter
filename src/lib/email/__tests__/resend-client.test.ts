@@ -378,7 +378,7 @@ describe('Resend Email Client - Reliability Tests', () => {
     });
 
     it('limits concurrent email sends', async () => {
-      const largeB batch = Array(20).fill(null).map((_, i) => ({
+      const largeBatch = Array(20).fill(null).map((_, i) => ({
         to: `user${i}@example.com`,
         subject: `Email ${i}`,
         html: `<p>Content ${i}</p>`

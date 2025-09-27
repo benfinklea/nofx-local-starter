@@ -29,7 +29,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     // Check for API key first (faster)
     const apiKey = req.headers['x-api-key'] as string;
     if (apiKey) {
-      const result = await verifyApiKey(apiKey);
+      const result = await verifyApiKey(apiKey, { ip: req.ip });
       if (result) {
         req.userId = result.userId;
         req.apiKeyId = apiKey.substring(0, 8); // Store prefix for logging
