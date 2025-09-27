@@ -94,18 +94,21 @@ export async function getUserFromRequest(req: Request, res: Response) {
 /**
  * Verify API key for programmatic access
  */
-export async function verifyApiKey(apiKey: string): Promise<{ userId: string } | null> {
+interface VerifyApiKeyContext {
+  ip?: string;
+}
+
+export async function verifyApiKey(apiKey: string, context: VerifyApiKeyContext = {}): Promise<{ userId: string } | null> {
   const supabase = createServiceClient();
   if (!supabase) return null;
 
   try {
-    // Hash the API key to compare with stored hash
     const crypto = require('crypto');
     const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
 
     const { data, error } = await supabase
       .from('api_keys')
-      .select('user_id')
+      .select('user_id, expires_at')
       .eq('key_hash', keyHash)
       .eq('is_active', true)
       .single();
@@ -114,18 +117,22 @@ export async function verifyApiKey(apiKey: string): Promise<{ userId: string } |
       return null;
     }
 
-    // Check if key is expired
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+    const expiresAt = (data as { expires_at?: string | null }).expires_at;
+    if (expiresAt && new Date(expiresAt) < new Date()) {
       return null;
     }
 
-    // Update last used timestamp
+    const updatePayload: Record<string, unknown> = {
+      last_used_at: new Date().toISOString()
+    };
+
+    if (context.ip) {
+      updatePayload.last_used_ip = context.ip;
+    }
+
     await supabase
       .from('api_keys')
-      .update({
-        last_used_at: new Date().toISOString(),
-        last_used_ip: req.ip
-      })
+      .update(updatePayload)
       .eq('key_hash', keyHash);
 
     return { userId: data.user_id };

@@ -98,7 +98,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
 
   describe('Worker Subscription', () => {
     it('creates worker with correct configuration', () => {
-      const handler = jest.fn();
+      const handler = jest.fn().mockResolvedValue(undefined);
 
       adapter.subscribe('test_topic', handler);
 
@@ -113,7 +113,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     });
 
     it('sets up worker event handlers', () => {
-      const handler = jest.fn();
+      const handler = jest.fn().mockResolvedValue(undefined);
 
       adapter.subscribe('test_topic', handler);
 
@@ -220,7 +220,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
 
   describe('Retry Logic and DLQ', () => {
     it('sets up retry logic in failed handler', () => {
-      const handler = jest.fn();
+      const handler = jest.fn().mockResolvedValue(undefined);
 
       adapter.subscribe('test_topic', handler);
 
@@ -229,7 +229,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     });
 
     it('handles worker setup without errors', () => {
-      const handler = jest.fn();
+      const handler = jest.fn().mockResolvedValue(undefined);
 
       expect(() => {
         adapter.subscribe('test_topic', handler);
@@ -254,7 +254,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
       });
 
       expect(() => {
-        adapter.subscribe('test_topic', jest.fn());
+        adapter.subscribe('test_topic', jest.fn().mockResolvedValue(undefined));
       }).toThrow('Worker creation failed');
     });
   });
@@ -273,7 +273,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     });
 
     it('handles rapid subscription setup', () => {
-      const handlers = Array(5).fill(null).map(() => jest.fn());
+      const handlers = Array(5).fill(null).map(() => jest.fn().mockResolvedValue(undefined));
 
       handlers.forEach((handler, i) => {
         adapter.subscribe(`topic_${i}`, handler);

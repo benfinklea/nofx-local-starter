@@ -69,7 +69,9 @@ export default function mount(app: Express) {
         return res.status(400).json({ error: error.message });
       }
 
-      if (!data.user) {
+      const user = data.user;
+
+      if (!user) {
         return res.status(400).json({ error: 'Signup failed' });
       }
 
@@ -80,28 +82,30 @@ export default function mount(app: Express) {
           await serviceClient
             .from('users')
             .update({ company_name: companyName })
-            .eq('id', data.user.id);
+            .eq('id', user.id);
         }
       }
 
       // Create audit log
-      await createAuditLog(data.user.id, 'auth.signup', 'user', data.user.id, { email }, req);
+      await createAuditLog(user.id, 'auth.signup', 'user', user.id, { email }, req);
 
       // Send welcome email (async, don't block response)
-      sendWelcomeEmail(data.user.id, email, fullName).catch(err => {
-        log.error({ err, userId: data.user.id }, 'Failed to send welcome email');
+      sendWelcomeEmail(user.id, email, fullName).catch(err => {
+        log.error({ err, userId: user.id }, 'Failed to send welcome email');
       });
 
       // Set session cookies
-      if (data.session) {
-        res.cookie('sb-access-token', data.session.access_token, {
+      const session = data.session;
+
+      if (session) {
+        res.cookie('sb-access-token', session.access_token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 7 * 1000 // 7 days
         });
 
-        res.cookie('sb-refresh-token', data.session.refresh_token, {
+        res.cookie('sb-refresh-token', session.refresh_token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
@@ -163,14 +167,14 @@ export default function mount(app: Express) {
       await createAuditLog(data.user.id, 'auth.login', 'session', data.session.access_token.substring(0, 8), { email }, req);
 
       // Set session cookies
-      res.cookie('sb-access-token', data.session.access_token, {
+      res.cookie('sb-access-token', session.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7 * 1000 // 7 days
       });
 
-      res.cookie('sb-refresh-token', data.session.refresh_token, {
+      res.cookie('sb-refresh-token', session.refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -242,14 +246,14 @@ export default function mount(app: Express) {
       }
 
       // Update cookies
-      res.cookie('sb-access-token', data.session.access_token, {
+      res.cookie('sb-access-token', session.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7 * 1000 // 7 days
       });
 
-      res.cookie('sb-refresh-token', data.session.refresh_token, {
+      res.cookie('sb-refresh-token', session.refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

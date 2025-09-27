@@ -173,7 +173,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
         type: 'retry',
         status: 'open',
         sequence: 1,
-        occurredAt: new Date('2024-01-01T10:00:00Z'),
+        occurredAt: new Date('2024-01-01T10:00:00Z').toISOString(),
         tenantId: 'tenant_123'
       }
     ];
@@ -222,8 +222,12 @@ describe('Response API Routes - Comprehensive Tests', () => {
   describe('POST /responses/ops/incidents/:id/resolve', () => {
     const mockIncident = {
       id: 'inc_123',
+      runId: 'run_123',
+      type: 'retry',
+      sequence: 1,
       status: 'resolved',
       resolvedBy: 'admin',
+      occurredAt: new Date('2024-01-01T10:00:00Z').toISOString(),
       resolvedAt: new Date('2024-01-01T10:00:00Z')
     };
 
@@ -419,6 +423,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
   describe('POST /responses/runs/:id/retry', () => {
     const mockRetryResult = {
       runId: 'run_456',
+      request: { model: 'gpt-4o-mini', messages: [] },
       bufferedMessages: [{ id: 'msg_1', text: 'Hello' }],
       reasoningSummaries: ['Model reasoned'],
       refusals: [],
