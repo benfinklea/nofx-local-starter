@@ -9,6 +9,14 @@
   },
   "rewrites": [
     {
+      "source": "/reset-password",
+      "destination": "/reset-password.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -71,14 +79,6 @@
     {
       "source": "/health",
       "destination": "/api/health"
-    },
-    {
-      "source": "/login",
-      "destination": "/login.html"
-    },
-    {
-      "source": "/reset-password",
-      "destination": "/reset-password.html"
     },
     {
       "source": "/(.*)",
