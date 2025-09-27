@@ -6,8 +6,8 @@
 import { Resend } from 'resend';
 import { log } from '../logger';
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend client - use dummy key in test environment
+const resend = new Resend(process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'test' ? 're_test_key' : undefined));
 
 // Email configuration
 export const EMAIL_CONFIG = {

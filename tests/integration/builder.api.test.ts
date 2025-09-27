@@ -13,7 +13,7 @@ const responsesDir = path.join(os.tmpdir(), `responses-archive-${process.pid}-${
 process.env.RESPONSES_ARCHIVE_DIR = responsesDir;
 process.env.RESPONSES_RUNTIME_MODE = 'stub';
 
-import app from '../../src/api/main';
+import { app } from '../../src/api/main';
 import { resetResponsesRuntime } from '../../src/services/responses/runtime';
 
 function builderDataPath() {

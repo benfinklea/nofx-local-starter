@@ -301,7 +301,7 @@ describe('Worker Integration Tests', () => {
       mocks.store.getStep.mockResolvedValue(mockStep);
       mocks.store.inboxMarkIfNew.mockResolvedValue(true);
 
-      await expect(runner.runStep('run-456', 'step-123')).rejects.toThrow('no handler for nonexistent:tool');
+      await expect(runner.runStep('run-456', 'step-123')).rejects.toThrow('No handler found for tool \'nonexistent:tool\'');
 
       expect(mocks.events.recordEvent).toHaveBeenCalledWith('run-456', 'step.failed', {
         error: 'no handler for tool',

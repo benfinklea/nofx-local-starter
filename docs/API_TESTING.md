@@ -1,10 +1,11 @@
 # API Testing Documentation
 
 ## Overview
-Complete test suite for all 28 Vercel API endpoints using Jest and custom test utilities.
+Complete test suite for all 28 Vercel API endpoints using Jest, Newman (Postman), and custom test utilities for comprehensive API validation, contract testing, and smoke testing.
 
 ## Test Structure
 
+### Jest Tests (Unit & Integration)
 ```
 tests/api/
 ├── setup.ts              # Test configuration and environment setup
@@ -16,31 +17,62 @@ tests/api/
 ├── all-endpoints.test.ts # Comprehensive smoke tests for all 28 endpoints
 ```
 
+### Newman Collections (API & Contract Testing)
+```
+collections/
+├── nofx-smoke-tests.json     # Critical endpoint health checks
+├── nofx-api-tests.json       # Comprehensive API testing
+├── nofx-auth-tests.json      # Authentication flows
+├── nofx-admin-tests.json     # Admin-only endpoints
+└── nofx-contract-tests.json  # API contract validation
+
+environments/
+├── local.json                # Local development (http://localhost:3000)
+├── staging.json              # Staging environment
+└── production.json           # Production (health checks only)
+```
+
 ## Running Tests
 
 ### Quick Start
 ```bash
-# Run all API tests
-npm run test:api
+# Jest API tests
+npm run test:api                # Run all Jest API tests
+npm run test:api:watch          # Watch mode for development
+npm run test:api:coverage       # Generate coverage report
 
-# Watch mode for development
-npm run test:api:watch
+# Newman API tests
+npm run test:smoke              # Fast smoke tests (< 30 seconds)
+npm run test:api:newman         # Full Newman API suite
+npm run test:contracts          # API contract validation
 
-# With coverage report
-npm run test:api:coverage
-
-# Run before deployment
-npm run test:vercel
+# Combined testing
+npm run test:vercel             # Pre-deployment test suite
+npm run precommit:test          # Run before commits
 ```
 
 ### Test Commands
+
+#### Jest Commands
 | Command | Description |
 |---------|-------------|
-| `npm run test:api` | Run all API tests once |
-| `npm run test:api:watch` | Run tests in watch mode |
-| `npm run test:api:coverage` | Generate coverage report |
-| `npm run test:vercel` | Pre-deployment test suite |
-| `npm run precommit:test` | Run before commits |
+| `npm run test:api` | Run all Jest API tests once |
+| `npm run test:api:watch` | Run Jest tests in watch mode |
+| `npm run test:api:coverage` | Generate Jest coverage report |
+
+#### Newman Commands
+| Command | Description |
+|---------|-------------|
+| `npm run test:smoke` | Fast smoke tests (critical endpoints) |
+| `npm run test:api:newman` | Full Newman API test suite |
+| `npm run test:contracts` | API contract validation |
+| `newman run collections/nofx-smoke-tests.json` | Direct Newman execution |
+
+#### Combined Commands
+| Command | Description |
+|---------|-------------|
+| `npm run test:vercel` | Pre-deployment test suite (Jest + Newman) |
+| `npm run precommit:test` | Run before commits (fast tests only) |
 
 ## Test Coverage
 
@@ -67,14 +99,85 @@ npm run test:vercel
 - Queue operations (mocked)
 - Event recording (mocked)
 
-#### 3. Smoke Tests
-- All endpoints respond
+#### 3. Smoke Tests (Newman)
+- All endpoints respond (< 30 seconds)
 - Method validation
 - Authentication requirements
+- Cross-environment validation
+
+#### 4. Contract Tests (Newman)
+- API schema validation
+- Request/response format verification
+- Breaking change detection
+- Backward compatibility checks
 
 ## Writing Tests
 
-### Basic Test Template
+### Newman Collection Structure
+
+#### Basic Postman Collection Template
+```json
+{
+  "info": {
+    "name": "NOFX API Tests",
+    "description": "API testing for NOFX Control Plane",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('API is healthy', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Environment Configuration
+```json
+{
+  "name": "Local Development",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "enabled": true
+    },
+    {
+      "key": "adminPassword",
+      "value": "{{$randomPassword}}",
+      "enabled": true
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}
+```
+
+### Jest Test Template
 ```typescript
 import handler from '../../api/your-endpoint';
 import { callHandler, factories, resetMocks } from './utils/testHelpers';
@@ -113,6 +216,65 @@ jest.mock('../../src/lib/store', () => ({
 }));
 
 mockStore.getRun.mockResolvedValue(mockRun);
+```
+
+## Newman Setup and Installation
+
+### Installation
+```bash
+# Install Newman globally for CLI usage
+npm install -g newman
+
+# Or install locally for project
+npm install --save-dev newman
+```
+
+### Creating Collections
+
+#### 1. Export from Postman
+1. Create collections in Postman application
+2. Export as Collection v2.1 format
+3. Save to `collections/` directory
+
+#### 2. Generate Programmatically
+```bash
+# Install Newman collection SDK
+npm install --save-dev postman-collection
+
+# Generate collection from OpenAPI spec
+npx openapi-to-postman -s docs/openapi.yaml -o collections/nofx-api-tests.json
+```
+
+### Running Newman Tests
+
+#### Basic Execution
+```bash
+# Run smoke tests
+newman run collections/nofx-smoke-tests.json \
+  --environment environments/local.json
+
+# Run with reporters
+newman run collections/nofx-api-tests.json \
+  --environment environments/local.json \
+  --reporters cli,json \
+  --reporter-json-export results.json
+
+# Run with custom options
+newman run collections/nofx-api-tests.json \
+  --environment environments/local.json \
+  --timeout-request 30000 \
+  --insecure \
+  --disable-unicode
+```
+
+#### CI/CD Integration
+```bash
+# Newman in CI (exit on failure)
+newman run collections/nofx-smoke-tests.json \
+  --environment environments/staging.json \
+  --reporters cli,junit \
+  --reporter-junit-export newman-results.xml \
+  --bail
 ```
 
 ## Environment Setup

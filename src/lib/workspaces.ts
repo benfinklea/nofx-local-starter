@@ -132,7 +132,7 @@ export class WorkspaceManager {
    */
   public async cloneRepo(project: Project): Promise<void> {
     if (!project.repo_url) {
-      throw new Error('Cannot clone without repo_url');
+      throw new Error('Cannot clone repository: repo_url is required but not provided. Specify the repository URL in the workspace configuration.');
     }
 
     const workspacePath = this.getWorkspacePath(project);

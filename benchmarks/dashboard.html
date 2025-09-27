@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOFX Performance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h3 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .metric-value.good {
+            color: #38a169;
+        }
+
+        .metric-value.warning {
+            color: #d69e2e;
+        }
+
+        .metric-value.critical {
+            color: #e53e3e;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy {
+            background: #38a169;
+        }
+
+        .status-warning {
+            background: #d69e2e;
+        }
+
+        .status-critical {
+            background: #e53e3e;
+        }
+
+        .chart-container {
+            height: 300px;
+            margin-top: 1rem;
+        }
+
+        .loading {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+        }
+
+        .error {
+            color: #e53e3e;
+            background: #fed7d7;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #5a67d8;
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
+        .last-updated {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 0.9rem;
+            color: #718096;
+        }
+
+        .alerts {
+            margin-bottom: 2rem;
+        }
+
+        .alert {
+            background: white;
+            border-left: 4px solid #e53e3e;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .alert.warning {
+            border-left-color: #d69e2e;
+        }
+
+        .alert.critical {
+            border-left-color: #e53e3e;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 NOFX Performance Dashboard</h1>
+        <p class="subtitle">Real-time performance monitoring and benchmarks</p>
+    </div>
+
+    <div class="container">
+        <div id="alerts" class="alerts"></div>
+
+        <div class="grid">
+            <!-- System Health Card -->
+            <div class="card">
+                <h3>🏥 System Health</h3>
+                <div id="health-status" class="loading">Loading...</div>
+            </div>
+
+            <!-- Performance Summary Card -->
+            <div class="card">
+                <h3>📊 Performance Summary</h3>
+                <div id="performance-summary" class="loading">Loading...</div>
+            </div>
+
+            <!-- Response Times Card -->
+            <div class="card">
+                <h3>⚡ Response Times</h3>
+                <div class="chart-container">
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Memory Usage Card -->
+            <div class="card">
+                <h3>🧠 Memory Usage</h3>
+                <div class="chart-container">
+                    <canvas id="memoryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Request Rate Card -->
+            <div class="card">
+                <h3>📈 Request Rate</h3>
+                <div class="chart-container">
+                    <canvas id="requestRateChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Error Rate Card -->
+            <div class="card">
+                <h3>❌ Error Rate</h3>
+                <div class="chart-container">
+                    <canvas id="errorRateChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Benchmark Results Card -->
+            <div class="card">
+                <h3>🎯 Recent Benchmarks</h3>
+                <div id="benchmark-results" class="loading">Loading...</div>
+            </div>
+
+            <!-- System Resources Card -->
+            <div class="card">
+                <h3>💻 System Resources</h3>
+                <div id="system-resources" class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="refreshData()" title="Refresh Data">🔄</button>
+    <div class="last-updated">Last updated: <span id="last-updated">Never</span></div>
+
+    <script>
+        // Auto-detect API base URL - works for both local and cloud deployments
+        function getApiBase() {
+            const origin = window.location.origin;
+
+            // If running from file:// protocol (local file), use production URL
+            if (window.location.protocol === 'file:') {
+                return 'https://nofx-control-plane.vercel.app/api/public';
+            }
+
+            // If localhost, try to detect the right port
+            if (origin.includes('localhost')) {
+                // Check if we're on the frontend port, redirect to API port
+                if (origin.includes(':5173') || origin.includes(':3000')) {
+                    return origin.replace(':5173', ':3002').replace(':3000', ':3002') + '/api/public';
+                }
+                return origin + '/api/public';
+            }
+
+            // For cloud deployments (vercel, etc.)
+            return origin + '/api/public';
+        }
+
+        const API_BASE = getApiBase();
+        let charts = {};
+        let updateInterval;
+
+        console.log('🔧 Performance Dashboard API Base:', API_BASE);
+
+        // Initialize charts
+        function initCharts() {
+            const chartConfig = {
+                type: 'line',
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            };
+
+            // Response Time Chart
+            charts.responseTime = new Chart(document.getElementById('responseTimeChart'), {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Response Time (ms)',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                }
+            });
+
+            // Memory Chart
+            charts.memory = new Chart(document.getElementById('memoryChart'), {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Memory (MB)',
+                        data: [],
+                        borderColor: '#38a169',
+                        backgroundColor: 'rgba(56, 161, 105, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                }
+            });
+
+            // Request Rate Chart
+            charts.requestRate = new Chart(document.getElementById('requestRateChart'), {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Requests/sec',
+                        data: [],
+                        borderColor: '#d69e2e',
+                        backgroundColor: 'rgba(214, 158, 46, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                }
+            });
+
+            // Error Rate Chart
+            charts.errorRate = new Chart(document.getElementById('errorRateChart'), {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Error Rate (%)',
+                        data: [],
+                        borderColor: '#e53e3e',
+                        backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                }
+            });
+        }
+
+        // Format numbers with appropriate units
+        function formatNumber(value, unit = '') {
+            if (value === null || value === undefined) return 'N/A';
+
+            if (typeof value === 'number') {
+                if (value > 1000000) {
+                    return (value / 1000000).toFixed(2) + 'M' + unit;
+                } else if (value > 1000) {
+                    return (value / 1000).toFixed(2) + 'K' + unit;
+                }
+                return value.toFixed(2) + unit;
+            }
+
+            return value;
+        }
+
+        // Get status class based on value and thresholds
+        function getStatusClass(value, warningThreshold, criticalThreshold) {
+            if (value >= criticalThreshold) return 'critical';
+            if (value >= warningThreshold) return 'warning';
+            return 'good';
+        }
+
+        // Update health status
+        async function updateHealthStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/performance/health`);
+                const data = await response.json();
+
+                const container = document.getElementById('health-status');
+                const isHealthy = data.status === 'healthy';
+
+                container.innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">
+                            <span class="status-indicator status-${isHealthy ? 'healthy' : 'critical'}"></span>
+                            Overall Status
+                        </span>
+                        <span class="metric-value ${isHealthy ? 'good' : 'critical'}">
+                            ${isHealthy ? '✅ Healthy' : '❌ Unhealthy'}
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Uptime</span>
+                        <span class="metric-value">${formatNumber(data.data.summary.uptime / 1000, 's')}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Requests</span>
+                        <span class="metric-value">${formatNumber(data.data.summary.totalRequests)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Error Rate</span>
+                        <span class="metric-value ${getStatusClass(data.data.summary.errorRate, 5, 10)}">
+                            ${data.data.summary.errorRate.toFixed(2)}%
+                        </span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('health-status').innerHTML =
+                    `<div class="error">Failed to load health status: ${error.message}</div>`;
+            }
+        }
+
+        // Update performance summary
+        async function updatePerformanceSummary() {
+            try {
+                const response = await fetch(`${API_BASE}/performance/summary`);
+                const data = await response.json();
+
+                const container = document.getElementById('performance-summary');
+                const summary = data.data;
+
+                container.innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Avg Response Time</span>
+                        <span class="metric-value ${getStatusClass(summary.avgResponseTime, 100, 500)}">
+                            ${summary.avgResponseTime.toFixed(2)}ms
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Avg Memory Usage</span>
+                        <span class="metric-value ${getStatusClass(summary.avgMemoryMB, 512, 1024)}">
+                            ${summary.avgMemoryMB.toFixed(2)}MB
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Requests/Second</span>
+                        <span class="metric-value">${summary.avgRPS.toFixed(2)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Errors</span>
+                        <span class="metric-value ${summary.totalErrors > 0 ? 'warning' : 'good'}">
+                            ${summary.totalErrors}
+                        </span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('performance-summary').innerHTML =
+                    `<div class="error">Failed to load performance summary: ${error.message}</div>`;
+            }
+        }
+
+        // Update charts with performance snapshots
+        async function updateCharts() {
+            try {
+                const response = await fetch(`${API_BASE}/performance/snapshots?count=50`);
+                const data = await response.json();
+                const snapshots = data.data;
+
+                if (snapshots.length === 0) return;
+
+                const labels = snapshots.map(s => new Date(s.timestamp).toLocaleTimeString());
+
+                // Update response time chart
+                charts.responseTime.data.labels = labels;
+                charts.responseTime.data.datasets[0].data = snapshots.map(s => s.responseTime.avg);
+                charts.responseTime.update('none');
+
+                // Update memory chart
+                charts.memory.data.labels = labels;
+                charts.memory.data.datasets[0].data = snapshots.map(s => s.memory.heapUsed / (1024 * 1024));
+                charts.memory.update('none');
+
+                // Update request rate chart
+                charts.requestRate.data.labels = labels;
+                charts.requestRate.data.datasets[0].data = snapshots.map(s => s.requests.rps);
+                charts.requestRate.update('none');
+
+                // Update error rate chart
+                charts.errorRate.data.labels = labels;
+                charts.errorRate.data.datasets[0].data = snapshots.map(s =>
+                    s.requests.total > 0 ? (s.requests.errors / s.requests.total) * 100 : 0
+                );
+                charts.errorRate.update('none');
+
+            } catch (error) {
+                console.error('Failed to update charts:', error);
+            }
+        }
+
+        // Update benchmark results
+        async function updateBenchmarkResults() {
+            try {
+                const response = await fetch(`${API_BASE}/benchmarks/suites`);
+                const data = await response.json();
+                const suites = data.data;
+
+                const container = document.getElementById('benchmark-results');
+
+                if (suites.length === 0) {
+                    container.innerHTML = '<p class="loading">No benchmark data available</p>';
+                    return;
+                }
+
+                let html = '';
+                for (const suite of suites.slice(0, 3)) { // Show last 3 suites
+                    try {
+                        const statsResponse = await fetch(`${API_BASE}/benchmarks/stats/${suite}`);
+                        const statsData = await statsResponse.json();
+                        const stats = statsData.data;
+
+                        html += `
+                            <div class="metric">
+                                <span class="metric-label">${suite}</span>
+                                <span class="metric-value">${stats.avgDuration.toFixed(2)}ms avg</span>
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.error(`Failed to load stats for ${suite}:`, error);
+                    }
+                }
+
+                container.innerHTML = html || '<p class="loading">No benchmark stats available</p>';
+            } catch (error) {
+                document.getElementById('benchmark-results').innerHTML =
+                    `<div class="error">Failed to load benchmark results: ${error.message}</div>`;
+            }
+        }
+
+        // Update system resources
+        async function updateSystemResources() {
+            try {
+                const response = await fetch(`${API_BASE}/performance/current`);
+                const data = await response.json();
+                const snapshot = data.data;
+
+                const container = document.getElementById('system-resources');
+
+                container.innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">RSS Memory</span>
+                        <span class="metric-value">${formatNumber(snapshot.memory.rss / (1024 * 1024), 'MB')}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Heap Used</span>
+                        <span class="metric-value">${formatNumber(snapshot.memory.heapUsed / (1024 * 1024), 'MB')}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">External Memory</span>
+                        <span class="metric-value">${formatNumber(snapshot.memory.external / (1024 * 1024), 'MB')}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">CPU Time</span>
+                        <span class="metric-value">${formatNumber(snapshot.cpu.user + snapshot.cpu.system, 'ms')}</span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('system-resources').innerHTML =
+                    `<div class="error">Failed to load system resources: ${error.message}</div>`;
+            }
+        }
+
+        // Refresh all data
+        async function refreshData() {
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+
+            await Promise.all([
+                updateHealthStatus(),
+                updatePerformanceSummary(),
+                updateCharts(),
+                updateBenchmarkResults(),
+                updateSystemResources()
+            ]);
+        }
+
+        // Initialize dashboard
+        function initDashboard() {
+            initCharts();
+            refreshData();
+
+            // Auto-refresh every 5 seconds
+            updateInterval = setInterval(refreshData, 5000);
+        }
+
+        // Start dashboard when page loads
+        window.addEventListener('load', initDashboard);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>

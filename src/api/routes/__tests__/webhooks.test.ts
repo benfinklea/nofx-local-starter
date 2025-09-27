@@ -25,15 +25,18 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
 
     // Mock Stripe
     const mockConstructEvent = jest.fn();
+    const mockSubscriptionsRetrieve = jest.fn();
+    const mockPaymentIntentsRetrieve = jest.fn();
+
     mockStripe = {
       webhooks: {
         constructEvent: mockConstructEvent
       },
       subscriptions: {
-        retrieve: jest.fn()
+        retrieve: mockSubscriptionsRetrieve
       },
       paymentIntents: {
-        retrieve: jest.fn()
+        retrieve: mockPaymentIntentsRetrieve
       }
     } as any;
 
@@ -148,7 +151,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
 
   describe('Event Processing', () => {
     beforeEach(() => {
-      mockStripe.webhooks.constructEvent.mockImplementation((body, sig, secret) => ({
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockImplementation((body, sig, secret) => ({
         id: 'evt_test_123',
         type: 'product.created',
         data: { object: { id: 'prod_123', name: 'Test Product' } }
@@ -169,7 +172,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(productEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(productEvent as any);
         (upsertProduct as jest.Mock).mockResolvedValue(true);
 
         const response = await request(app)
@@ -188,7 +191,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           data: { object: { id: 'prod_123', name: 'Updated Product' } }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(productEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(productEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -205,7 +208,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           data: { object: { id: 'prod_123' } }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(productEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(productEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -230,7 +233,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(priceEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(priceEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -247,7 +250,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           data: { object: { id: 'price_123' } }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(priceEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(priceEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -276,8 +279,8 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(checkoutEvent as any);
-        mockStripe.subscriptions.retrieve.mockResolvedValue({
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(checkoutEvent as any);
+        (mockStripe.subscriptions.retrieve as jest.Mock).mockResolvedValue({
           id: 'sub_123',
           items: {
             data: [{
@@ -319,7 +322,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(checkoutEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(checkoutEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -344,7 +347,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(subscriptionEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(subscriptionEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -366,7 +369,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(subscriptionEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(subscriptionEvent as any);
         mockSupabase.single.mockResolvedValue({
           data: { id: 'user_123' },
           error: null
@@ -404,7 +407,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(invoiceEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(invoiceEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -438,12 +441,12 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(invoiceEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(invoiceEvent as any);
         mockSupabase.single
           .mockResolvedValueOnce({ data: { id: 'user_123' }, error: null })
           .mockResolvedValueOnce({ data: { email: 'test@example.com' }, error: null });
 
-        mockStripe.paymentIntents.retrieve.mockResolvedValue({
+        (mockStripe.paymentIntents.retrieve as jest.Mock).mockResolvedValue({
           payment_method: { card: { last4: '4242' } }
         } as any);
 
@@ -484,7 +487,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(customerEvent as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(customerEvent as any);
 
         await request(app)
           .post('/webhooks/stripe')
@@ -506,7 +509,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
         data: { object: { id: 'prod_123' } }
       };
 
-      mockStripe.webhooks.constructEvent.mockReturnValue(productEvent as any);
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(productEvent as any);
       (upsertProduct as jest.Mock).mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
@@ -533,8 +536,8 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
         }
       };
 
-      mockStripe.webhooks.constructEvent.mockReturnValue(checkoutEvent as any);
-      mockStripe.subscriptions.retrieve.mockResolvedValue({
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(checkoutEvent as any);
+      (mockStripe.subscriptions.retrieve as jest.Mock).mockResolvedValue({
         items: { data: [{ price: { product: {} } }] }
       } as any);
       mockSupabase.single.mockResolvedValue({
@@ -561,7 +564,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
         data: { object: { id: 'prod_123' } }
       };
 
-      mockStripe.webhooks.constructEvent.mockReturnValue(productEvent as any);
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(productEvent as any);
       require('../../../auth/supabase').createServiceClient = jest.fn().mockReturnValue(null);
 
       const response = await request(app)
@@ -591,7 +594,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           data: { object: { id: 'test_123' } }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(event as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(event as any);
 
         const response = await request(app)
           .post('/webhooks/stripe')
@@ -617,7 +620,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
           data: { object: { id: 'test_123' } }
         };
 
-        mockStripe.webhooks.constructEvent.mockReturnValue(event as any);
+        (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(event as any);
 
         const response = await request(app)
           .post('/webhooks/stripe')
@@ -691,7 +694,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
         data: { object: { id: `prod_${i}` } }
       }));
 
-      mockStripe.webhooks.constructEvent.mockImplementation(() => events[0]);
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockImplementation(() => events[0]);
 
       const promises = events.map(() =>
         request(app)
@@ -712,7 +715,7 @@ describe('Webhook Handling - Security & Reliability Tests', () => {
         data: { object: { id: 'prod_123' } }
       };
 
-      mockStripe.webhooks.constructEvent.mockReturnValue(productEvent as any);
+      (mockStripe.webhooks.constructEvent as jest.Mock).mockReturnValue(productEvent as any);
 
       const startTime = Date.now();
       await request(app)

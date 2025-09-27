@@ -1,0 +1,37 @@
+{
+  "id": "production-env",
+  "name": "Production Environment",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "https://nofx-control-plane.vercel.app",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "adminPassword",
+      "value": "{{ADMIN_PASSWORD}}",
+      "enabled": true,
+      "type": "secret"
+    },
+    {
+      "key": "smokeTestRun",
+      "value": "{\n  \"plan\": {\n    \"goal\": \"Production health check\",\n    \"steps\": [\n      {\n        \"name\": \"health-check\",\n        \"tool\": \"codegen\",\n        \"inputs\": {\n          \"prompt\": \"Minimal production health validation\"\n        }\n      }\n    ]\n  }\n}",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "timeout",
+      "value": "5000",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "environment",
+      "value": "production",
+      "enabled": true,
+      "type": "default"
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

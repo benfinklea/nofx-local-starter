@@ -3,7 +3,7 @@ export interface Step {
   run_id: string;
   name: string;
   tool: string;
-  inputs: any;
+  inputs: Record<string, any>;
 }
 export interface StepHandler {
   /** match a tool exactly or by regex */

@@ -2,7 +2,7 @@ process.env.NODE_ENV = 'test';
 process.env.DATA_DRIVER = 'fs';
 process.env.QUEUE_DRIVER = 'memory';
 import request from 'supertest';
-import app from '../../src/api/main';
+import { app } from '../../src/api/main';
 import { issueAdminCookie } from '../../src/lib/auth';
 
 describe('Projects API', () => {

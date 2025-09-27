@@ -1,0 +1,80 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+    - duration: 120
+      arrivalRate: 10
+    - duration: 60
+      arrivalRate: 5
+  environments:
+    local:
+      target: 'http://localhost:3000'
+    staging:
+      target: 'https://nofx-staging.vercel.app'
+    production:
+      target: 'https://nofx-control-plane.vercel.app'
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "Health Check Load Test"
+    weight: 40
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+
+  - name: "Authentication Load Test"
+    weight: 20
+    flow:
+      - post:
+          url: "/ui/login"
+          json:
+            password: "admin123"
+          expect:
+            - statusCode: 200
+
+  - name: "Run Creation Load Test"
+    weight: 30
+    flow:
+      - post:
+          url: "/ui/login"
+          json:
+            password: "admin123"
+          capture:
+            - header: "set-cookie"
+              as: "adminCookie"
+      - post:
+          url: "/api/runs"
+          headers:
+            Cookie: "{{ adminCookie }}"
+          json:
+            plan:
+              goal: "Load test run {{ $randomString() }}"
+              steps:
+                - name: "load-test-step"
+                  tool: "codegen"
+                  inputs:
+                    prompt: "Generate load test content"
+          expect:
+            - statusCode: 200
+
+  - name: "Projects Load Test"
+    weight: 10
+    flow:
+      - post:
+          url: "/ui/login"
+          json:
+            password: "admin123"
+          capture:
+            - header: "set-cookie"
+              as: "adminCookie"
+      - get:
+          url: "/api/projects"
+          headers:
+            Cookie: "{{ adminCookie }}"
+          expect:
+            - statusCode: 200

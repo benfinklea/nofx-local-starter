@@ -63,7 +63,7 @@ function ensureHandlersLoaded() {
 export async function runStep(runId: string, stepId: string) {
   ensureHandlersLoaded();
   const s = await store.getStep(stepId) as StepRow | undefined;
-  if (!s) throw new Error("step not found");
+  if (!s) throw new Error(`Step with ID '${stepId}' not found. Ensure the step was created with store.createStep() before retrying.`);
   const step: Step = { id: s.id, run_id: s.run_id, name: s.name, tool: s.tool, inputs: s.inputs } as Step;
 
   // Exactly-once guard: inbox key based on step id
@@ -133,7 +133,7 @@ export async function runStep(runId: string, stepId: string) {
     await recordEvent(runId, "step.failed", { error: "no handler for tool", tool: step.tool }, stepId);
     await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString() });
     await releaseExecutionKey();
-    throw new Error("no handler for " + step.tool);
+    throw new Error(`No handler found for tool '${step.tool}'. Available handlers: ${handlers.map(h => h.constructor.name).join(', ') || 'none loaded'}. Check worker/handlers directory.`);
   }
 
   const started = Date.now();
@@ -161,9 +161,19 @@ export async function runStep(runId: string, stepId: string) {
     } catch {}
     log.info({ runId, stepId, status: 'succeeded', latencyMs }, 'step.completed');
   } catch (err: unknown) {
-    log.error({ err }, "step failed");
-    await releaseExecutionKey();
     const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+
+    log.error({
+      err,
+      stepId,
+      runId,
+      tool: step.tool,
+      message: msg,
+      stack
+    }, "step failed");
+
+    await releaseExecutionKey();
     await runAtomically(async () => {
       const latest = await store.getStep(stepId);
       const currentStatus = String((latest as any)?.status || '').toLowerCase();

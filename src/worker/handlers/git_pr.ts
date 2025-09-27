@@ -93,7 +93,7 @@ const handler: StepHandler = {
       }
     } catch {/* non-fatal: continue if store not available */}
 
-    const inputs: Inputs = step.inputs || {};
+    const inputs: Inputs = step.inputs as Inputs || { commits: [] };
     if (!Array.isArray(inputs.commits) || inputs.commits.length === 0) throw new Error('git_pr requires commits');
     const base = inputs.base || process.env.GIT_DEFAULT_BASE || 'main';
     const branch = inputs.branch || `feat/run-${runId.slice(0,8)}`;

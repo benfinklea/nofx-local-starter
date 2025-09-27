@@ -42,7 +42,7 @@ export async function routeLLM(kind: TaskKind, prompt: string, opts?: RouteOpts)
         lastErr = error;
       }
     }
-    throw (lastErr as Error) || new Error('no model succeeded');
+    throw (lastErr as Error) || new Error(`No models available for task '${kind}'. Tried models: ${modelOrder.join(', ')}. Check model configuration and ensure at least one model is active.`);
   }
 
   const order = await pickOrder(kind);
@@ -64,7 +64,7 @@ export async function routeLLM(kind: TaskKind, prompt: string, opts?: RouteOpts)
     }
   }
 
-  throw (lastErr as Error) || new Error('no provider succeeded');
+  throw (lastErr as Error) || new Error(`All providers failed for task '${kind}'. Tried providers: ${order.join(', ')}. Check provider configurations and API keys.`);
 }
 
 async function pickOrder(kind: TaskKind): Promise<CoreProvider[]> {
@@ -112,12 +112,12 @@ function call(
 
   if (customConfig && isHttpConfig(customConfig)) {
     const endpoint = customConfig.baseUrl || resolveEnvBaseUrl(provider);
-    if (!endpoint) throw new Error(`http provider ${provider} missing baseUrl`);
+    if (!endpoint) throw new Error(`HTTP provider '${provider}' missing baseUrl. Set baseUrl in provider config or environment variable LLM_${provider.toUpperCase()}_BASE_URL.`);
     const apiKeyEnv = resolveProviderApiKeyEnv(provider);
     return httpChat(prompt, endpoint, apiKeyEnv, model);
   }
 
-  throw new Error(`unknown provider ${provider}`);
+  throw new Error(`Unknown provider '${provider}'. Supported providers: anthropic, openai, gemini, http. Check your provider configuration.`);
 }
 
 async function callWithRetry(

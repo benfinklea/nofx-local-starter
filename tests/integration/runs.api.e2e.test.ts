@@ -3,7 +3,7 @@ process.env.DATA_DRIVER = 'fs';
 process.env.QUEUE_DRIVER = 'memory';
 process.env.LOAD_ALL_HANDLERS = '1';
 import request from 'supertest';
-import app from '../../src/api/main';
+import { app } from '../../src/api/main';
 import { issueAdminCookie } from '../../src/lib/auth';
 
 describe('Runs API with project context', () => {

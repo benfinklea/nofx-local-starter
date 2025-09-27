@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { isAdmin, issueAdminCookie } from '../../lib/auth';
+import { issueAdminCookie } from '../../lib/auth';
 
 export default function mount(app: Express){
   app.get('/ui/login', (req, res) => {

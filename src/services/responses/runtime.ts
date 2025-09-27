@@ -10,12 +10,22 @@ import { HistoryPlanner } from './historyPlanner';
 import type { ResponsesClient } from './runCoordinator';
 import type { ResponsesResult } from '../../shared/openai/responsesSchemas';
 import { OpenAIResponsesClient } from './openaiClient';
-import { IncidentLog, type IncidentRecord, type IncidentStatus, type IncidentDisposition } from './incidentLog';
-import type { RateLimitTenantSummary, RateLimitSnapshot } from './rateLimitTracker';
-import type { ModeratorNote, ModeratorDisposition, RollbackOptions, RunRecord, EventRecord } from '../../shared/responses/archive';
+import { IncidentLog, type IncidentStatus } from './incidentLog';
+import type { ModeratorNote, ModeratorDisposition, RollbackOptions } from '../../shared/responses/archive';
 import { DelegationTracker } from './delegationTracker';
 
-type RuntimeBundle = {
+// Import extracted services
+import { RuntimeSummaryService } from './runtime/RuntimeSummaryService';
+import { RuntimeDataService } from './runtime/RuntimeDataService';
+import { RuntimeRetryService } from './runtime/RuntimeRetryService';
+import { RuntimeIncidentService } from './runtime/RuntimeIncidentService';
+import { RuntimeUtilityService } from './runtime/RuntimeUtilityService';
+
+// Re-export types from services
+export type { ResponsesOperationsSummary } from './runtime/RuntimeSummaryService';
+export type { SerializedIncident } from './runtime/RuntimeIncidentService';
+
+export type RuntimeBundle = {
   archive: FileSystemResponsesArchive;
   coordinator: ResponsesRunCoordinator;
   service: ResponsesRunService;
@@ -25,76 +35,16 @@ type RuntimeBundle = {
   delegations: DelegationTracker;
 };
 
-export interface ResponsesOperationsSummary {
-  totalRuns: number;
-  statusCounts: Record<string, number>;
-  failuresLast24h: number;
-  lastRunAt?: string;
-  totalTokens: number;
-  averageTokensPerRun: number;
-  totalEstimatedCost: number;
-  recentRuns: Array<{
-    runId: string;
-    status: string;
-    model?: string;
-    createdAt: string;
-    updatedAt: string;
-    traceId?: string;
-    tenantId?: string;
-    refusalCount?: number;
-  }>;
-  totalRefusals: number;
-  lastRateLimits?: SerializedRateLimitSnapshot;
-  rateLimitTenants: SerializedTenantRateLimit[];
-  tenantRollup: TenantRollup[];
-  openIncidents: number;
-  incidentDetails: SerializedIncident[];
-}
-
-type SerializedRateLimitSnapshot = (Omit<RateLimitSnapshot, 'observedAt'> & { observedAt: string }) | undefined;
-
-type SerializedTenantRateLimit = {
-  tenantId: string;
-  latest?: SerializedRateLimitSnapshot;
-  averageProcessingMs?: number;
-  remainingRequestsPct?: number;
-  remainingTokensPct?: number;
-  alert?: 'requests' | 'tokens';
-};
-
-type TenantRollup = {
-  tenantId: string;
-  runCount: number;
-  totalTokens: number;
-  averageTokensPerRun: number;
-  refusalCount: number;
-  lastRunAt?: string;
-  estimatedCost: number;
-  regions: string[];
-};
-
-type SerializedIncident = {
-  id: string;
-  runId: string;
-  status: string;
-  type: string;
-  sequence: number;
-  occurredAt: string;
-  tenantId?: string;
-  model?: string;
-  requestId?: string;
-  traceId?: string;
-  reason?: string;
-  resolution?: {
-    resolvedAt: string;
-    resolvedBy: string;
-    notes?: string;
-    disposition: string;
-    linkedRunId?: string;
-  };
+type RuntimeServices = {
+  summary: RuntimeSummaryService;
+  data: RuntimeDataService;
+  retry: RuntimeRetryService;
+  incident: RuntimeIncidentService;
+  utility: RuntimeUtilityService;
 };
 
 let bundle: RuntimeBundle | undefined;
+let services: RuntimeServices | undefined;
 
 class StubResponsesClient implements ResponsesClient {
   async create(): Promise<{ result: ResponsesResult; headers?: Record<string, string> }> {
@@ -183,27 +133,6 @@ function createRuntime(): RuntimeBundle {
   return { archive, coordinator, service, tracker, toolRegistry, incidents: incidentLog, delegations: delegationTracker };
 }
 
-function serializeRunRecordMinimal(run: RunRecord) {
-  return {
-    runId: run.runId,
-    status: run.status,
-    createdAt: run.createdAt.toISOString(),
-    updatedAt: run.updatedAt.toISOString(),
-    model: run.request?.model,
-    metadata: run.metadata ?? {},
-    traceId: run.traceId,
-  };
-}
-
-function serializeEventRecordMinimal(event: EventRecord) {
-  return {
-    sequence: event.sequence,
-    type: event.type,
-    payload: event.payload,
-    occurredAt: event.occurredAt.toISOString(),
-  };
-}
-
 export function getResponsesRuntime(): RuntimeBundle {
   if (!bundle) {
     bundle = createRuntime();
@@ -211,250 +140,58 @@ export function getResponsesRuntime(): RuntimeBundle {
   return bundle;
 }
 
-export function resetResponsesRuntime() {
-  bundle = undefined;
+function getServices(): RuntimeServices {
+  if (!services) {
+    const runtime = getResponsesRuntime();
+    services = {
+      summary: new RuntimeSummaryService(runtime),
+      data: new RuntimeDataService(runtime),
+      retry: new RuntimeRetryService(runtime),
+      incident: new RuntimeIncidentService(runtime),
+      utility: new RuntimeUtilityService(runtime),
+    };
+  }
+  return services;
 }
 
-export function getResponsesOperationsSummary(): ResponsesOperationsSummary {
-  const runtime = getResponsesRuntime();
-  const runs = runtime.archive.listRuns();
-  const statusCounts: Record<string, number> = {};
-  const now = Date.now();
-  const dayAgo = now - 24 * 60 * 60 * 1000;
-  let failuresLast24h = 0;
-  let totalTokens = 0;
-  let lastRunAt: Date | undefined;
-  let totalRefusals = 0;
+export function resetResponsesRuntime() {
+  bundle = undefined;
+  services = undefined;
+}
 
-  const tenantRollupMap = new Map<string, { runs: number; tokens: number; refusals: number; lastRunAt?: Date; cost: number; regions: Set<string> }>();
-  const costPerThousand = Number(process.env.RESPONSES_COST_PER_1K_TOKENS || 0.002);
-  let totalEstimatedCost = 0;
-
-  for (const run of runs) {
-    const status = run.status ?? 'unknown';
-    statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-    if (!lastRunAt || run.updatedAt > lastRunAt) {
-      lastRunAt = run.updatedAt;
-    }
-    if (run.updatedAt.getTime() >= dayAgo && (status === 'failed' || status === 'incomplete')) {
-      failuresLast24h += 1;
-    }
-    const tokens = run.result?.usage?.total_tokens ?? 0;
-    totalTokens += tokens;
-    const runCost = (tokens / 1000) * costPerThousand;
-    totalEstimatedCost += runCost;
-    const tenantId = run.metadata?.tenant_id ?? run.metadata?.tenantId ?? 'default';
-    const current = tenantRollupMap.get(tenantId) ?? {
-      runs: 0,
-      tokens: 0,
-      refusals: 0,
-      cost: 0,
-      regions: new Set<string>(),
-    };
-    current.runs += 1;
-    current.tokens += tokens;
-    if (!current.lastRunAt || run.updatedAt > current.lastRunAt) {
-      current.lastRunAt = run.updatedAt;
-    }
-    const refusals = run.safety?.refusalCount ?? 0;
-    current.refusals += refusals;
-    current.cost += runCost;
-    const region = run.metadata?.region;
-    if (region) current.regions.add(region);
-    tenantRollupMap.set(tenantId, current);
-    totalRefusals += refusals;
-  }
-
-  const recentRuns = runs.slice(0, 10).map((run) => ({
-    runId: run.runId,
-    status: run.status,
-    model: run.request?.model,
-    createdAt: run.createdAt.toISOString(),
-    updatedAt: run.updatedAt.toISOString(),
-    traceId: run.traceId,
-    tenantId: run.metadata?.tenant_id ?? run.metadata?.tenantId,
-    refusalCount: run.safety?.refusalCount,
-  }));
-
-  const tenantRollup: TenantRollup[] = Array.from(tenantRollupMap.entries()).map(([tenantId, data]) => ({
-    tenantId,
-    runCount: data.runs,
-    totalTokens: data.tokens,
-    averageTokensPerRun: data.runs ? data.tokens / data.runs : 0,
-    refusalCount: data.refusals,
-    lastRunAt: data.lastRunAt ? data.lastRunAt.toISOString() : undefined,
-    estimatedCost: Number(data.cost.toFixed(6)),
-    regions: Array.from(data.regions.values()),
-  }));
-
-  const openIncidents = runtime.incidents.listIncidents({ status: 'open' }).map(serializeIncident);
-  const rateLimitSummaries = runtime.tracker.getTenantSummaries().map(serializeTenantSummary);
-  const lastRateSnapshot = runtime.tracker.getLastSnapshot();
-
-  return {
-    totalRuns: runs.length,
-    statusCounts,
-    failuresLast24h,
-    lastRunAt: lastRunAt ? lastRunAt.toISOString() : undefined,
-    totalTokens,
-    averageTokensPerRun: runs.length ? totalTokens / runs.length : 0,
-    totalEstimatedCost: Number(totalEstimatedCost.toFixed(6)),
-    recentRuns,
-    totalRefusals,
-    lastRateLimits: lastRateSnapshot ? serializeSnapshot(lastRateSnapshot) : undefined,
-    rateLimitTenants: rateLimitSummaries,
-    tenantRollup: tenantRollup.sort((a, b) => b.totalTokens - a.totalTokens),
-    openIncidents: openIncidents.length,
-    incidentDetails: openIncidents,
-  };
+// Delegated function exports
+export function getResponsesOperationsSummary() {
+  return getServices().summary.generateOperationsSummary();
 }
 
 export function pruneResponsesOlderThanDays(days: number): void {
-  if (days <= 0) return;
-  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const runtime = getResponsesRuntime();
-  if (typeof runtime.archive.pruneOlderThan === 'function') {
-    runtime.archive.pruneOlderThan(cutoff);
-    return;
-  }
-  const runs = runtime.archive.listRuns();
-  if (typeof runtime.archive.deleteRun === 'function') {
-    for (const run of runs) {
-      if (run.updatedAt < cutoff) runtime.archive.deleteRun(run.runId);
-    }
-  }
+  getServices().data.pruneOlderThanDays(days);
 }
 
 export function retryResponsesRun(originalRunId: string, options?: { tenantId?: string; metadata?: Record<string, string>; background?: boolean }): Promise<ResponsesRunResult> {
-  const runtime = getResponsesRuntime();
-  const original = runtime.archive.getRun(originalRunId);
-  if (!original) throw new Error('run not found');
-  const tenantId = options?.tenantId ?? original.metadata?.tenant_id ?? original.metadata?.tenantId ?? 'default';
-  const retryMetadata: Record<string, string> = {
-    ...(original.metadata ?? {}),
-    ...(options?.metadata ?? {}),
-    retried_from: originalRunId,
-  };
-  const input = original.request.input;
-  if (input === undefined) {
-    throw new Error('original run is missing input payload');
-  }
-  const request: ResponsesRunConfig['request'] = {
-    ...original.request,
-    input,
-    metadata: {
-      ...(original.request.metadata ?? {}),
-      retried_from: originalRunId,
-    },
-  };
-
-  return runtime.service.execute({
-    tenantId,
-    request,
-    metadata: retryMetadata,
-    history: undefined,
-    conversationPolicy: { strategy: 'stateless' },
-    background: options?.background ?? false,
-  }).then((result) => {
-    runtime.incidents.resolveIncidentsByRun(originalRunId, {
-      resolvedBy: 'system',
-      disposition: 'retry',
-      linkedRunId: result.runId,
-    });
-    return result;
-  });
+  return getServices().retry.retryResponsesRun(originalRunId, options);
 }
 
-export function listResponseIncidents(status: IncidentStatus = 'open'): SerializedIncident[] {
-  const runtime = getResponsesRuntime();
-  return runtime.incidents.listIncidents({ status }).map(serializeIncident);
+export function listResponseIncidents(status: IncidentStatus = 'open') {
+  return getServices().incident.listResponseIncidents(status);
 }
 
-export function resolveResponseIncident(input: { incidentId: string; resolvedBy: string; notes?: string; disposition?: string; linkedRunId?: string }): SerializedIncident {
-  const runtime = getResponsesRuntime();
-  const record = runtime.incidents.resolveIncident({
-    incidentId: input.incidentId,
-    resolvedBy: input.resolvedBy,
-    notes: input.notes,
-    disposition: (input.disposition as IncidentDisposition | undefined) ?? 'manual',
-    linkedRunId: input.linkedRunId,
-  });
-  return serializeIncident(record);
+export function resolveResponseIncident(input: { incidentId: string; resolvedBy: string; notes?: string; disposition?: string; linkedRunId?: string }) {
+  return getServices().incident.resolveResponseIncident(input);
 }
 
 export function addResponsesModeratorNote(runId: string, note: { reviewer: string; note: string; disposition: ModeratorDisposition; recordedAt?: Date }): ModeratorNote {
-  const runtime = getResponsesRuntime();
-  const created = runtime.archive.addModeratorNote?.(runId, note);
-  if (!created) throw new Error('archive does not support moderator notes');
-  return created;
+  return getServices().utility.addResponsesModeratorNote(runId, note);
 }
 
 export async function exportResponsesRun(runId: string): Promise<string> {
-  const runtime = getResponsesRuntime();
-  if (!runtime.archive.exportRun) throw new Error('archive export not supported');
-  return runtime.archive.exportRun(runId);
+  return getServices().utility.exportResponsesRun(runId);
 }
 
-export function getRunIncidents(runId: string): SerializedIncident[] {
-  const runtime = getResponsesRuntime();
-  return runtime.incidents.getIncidentsForRun(runId).map(serializeIncident);
+export function getRunIncidents(runId: string) {
+  return getServices().incident.getRunIncidents(runId);
 }
 
 export async function rollbackResponsesRun(runId: string, options: RollbackOptions) {
-  const runtime = getResponsesRuntime();
-  if (typeof runtime.archive.rollback !== 'function') {
-    throw new Error('archive does not support rollback operations');
-  }
-  const snapshot = runtime.archive.rollback(runId, options);
-  const maybePromise = runtime.coordinator.resyncFromArchive(runId);
-  if (maybePromise instanceof Promise) {
-    await maybePromise;
-  }
-  return {
-    run: serializeRunRecordMinimal(snapshot.run),
-    events: snapshot.events.map(serializeEventRecordMinimal),
-  };
-}
-
-function serializeSnapshot(snapshot: RateLimitSnapshot): SerializedRateLimitSnapshot {
-  return {
-    ...snapshot,
-    observedAt: snapshot.observedAt.toISOString(),
-  };
-}
-
-function serializeTenantSummary(summary: RateLimitTenantSummary): SerializedTenantRateLimit {
-  return {
-    tenantId: summary.tenantId,
-    latest: summary.latest ? serializeSnapshot(summary.latest) : undefined,
-    averageProcessingMs: summary.averageProcessingMs,
-    remainingRequestsPct: summary.remainingRequestsPct,
-    remainingTokensPct: summary.remainingTokensPct,
-    alert: summary.alert,
-  };
-}
-
-function serializeIncident(record: IncidentRecord): SerializedIncident {
-  return {
-    id: record.id,
-    runId: record.runId,
-    status: record.status,
-    type: record.type,
-    sequence: record.sequence,
-    occurredAt: record.occurredAt.toISOString(),
-    tenantId: record.tenantId,
-    model: record.model,
-    requestId: record.requestId,
-    traceId: record.traceId,
-    reason: record.reason,
-    resolution: record.resolution
-      ? {
-          resolvedAt: record.resolution.resolvedAt.toISOString(),
-          resolvedBy: record.resolution.resolvedBy,
-          notes: record.resolution.notes,
-          disposition: record.resolution.disposition,
-          linkedRunId: record.resolution.linkedRunId,
-        }
-      : undefined,
-  };
+  return getServices().utility.rollbackResponsesRun(runId, options);
 }

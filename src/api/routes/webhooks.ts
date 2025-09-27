@@ -1,54 +1,32 @@
 /**
  * Webhook Handlers for NOFX
- * Processes Stripe webhooks for billing and subscription management
+ * Refactored into service-based architecture
  */
 
 import { Express, Request, Response } from 'express';
 import express from 'express';
 import Stripe from 'stripe';
 import { log } from '../../lib/logger';
-import {
-  upsertProduct,
-  upsertPrice,
-  manageSubscriptionStatusChange,
-  deleteProduct,
-  deletePrice
-} from '../../billing/stripe';
-import {
-  sendSubscriptionConfirmationEmail,
-  sendPaymentFailedEmail
-} from '../../services/email/emailService';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+// Import extracted services
+import { WebhookValidationService } from './webhooks/WebhookValidationService';
+import { ProductEventService } from './webhooks/ProductEventService';
+import { SubscriptionEventService } from './webhooks/SubscriptionEventService';
+import { InvoiceEventService } from './webhooks/InvoiceEventService';
+import { CustomerEventService } from './webhooks/CustomerEventService';
+import { EmailNotificationService } from './webhooks/EmailNotificationService';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || (process.env.NODE_ENV === 'test' ? 'sk_test_dummy' : ''), {
   apiVersion: '2025-08-27.basil'
 });
 
-type InvoiceWithLegacyFields = Stripe.Invoice & {
-  subscription?: string | Stripe.Subscription;
-  payment_intent?: string | Stripe.PaymentIntent;
-};
-
-const unwrapStripe = <T>(resource: T | Stripe.Response<T>): T => {
-  const maybeResponse = resource as Stripe.Response<T> & { data?: T };
-  return typeof maybeResponse.data !== 'undefined' ? maybeResponse.data : resource as T;
-};
-
-// Events we care about
-const relevantEvents = new Set([
-  'product.created',
-  'product.updated',
-  'product.deleted',
-  'price.created',
-  'price.updated',
-  'price.deleted',
-  'checkout.session.completed',
-  'customer.subscription.created',
-  'customer.subscription.updated',
-  'customer.subscription.deleted',
-  'invoice.payment_succeeded',
-  'invoice.payment_failed',
-  'customer.updated'
-]);
+// Initialize services
+const emailNotificationService = new EmailNotificationService();
+const webhookValidationService = new WebhookValidationService(stripe);
+const productEventService = new ProductEventService();
+const subscriptionEventService = new SubscriptionEventService(stripe, emailNotificationService);
+const invoiceEventService = new InvoiceEventService(stripe, emailNotificationService);
+const customerEventService = new CustomerEventService();
 
 export default function mount(app: Express) {
   /**
@@ -59,287 +37,22 @@ export default function mount(app: Express) {
     '/webhooks/stripe',
     express.raw({ type: 'application/json' }),
     async (req: Request, res: Response) => {
-      const sig = req.headers['stripe-signature'];
-
-      if (!sig) {
-        log.warn('Stripe webhook called without signature');
-        return res.status(400).json({ error: 'Missing signature' });
+      // Validate webhook signature
+      const validation = webhookValidationService.validateWebhook(req, res);
+      if (validation.error || !validation.event) {
+        return; // Response already sent by validation service
       }
 
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!webhookSecret) {
-        log.error('STRIPE_WEBHOOK_SECRET not configured');
-        return res.status(500).json({ error: 'Webhook secret not configured' });
-      }
-
-      let event: Stripe.Event;
-
-      try {
-        event = stripe.webhooks.constructEvent(
-          req.body,
-          sig,
-          webhookSecret
-        );
-      } catch (err) {
-        const error = err as Error;
-        log.error({ error: error.message }, 'Webhook signature verification failed');
-        return res.status(400).json({ error: `Webhook Error: ${error.message}` });
-      }
-
-      // Log the event
-      log.info({
-        eventType: event.type,
-        eventId: event.id
-      }, 'Stripe webhook received');
+      const event = validation.event;
 
       // Filter out events we don't care about
-      if (!relevantEvents.has(event.type)) {
+      if (!webhookValidationService.isRelevantEvent(event.type)) {
         log.debug({ eventType: event.type }, 'Ignoring irrelevant webhook event');
         return res.json({ received: true });
       }
 
       try {
-        switch (event.type) {
-          // Product events
-          case 'product.created':
-          case 'product.updated':
-            await upsertProduct(event.data.object as Stripe.Product);
-            break;
-
-          case 'product.deleted':
-            await deleteProduct((event.data.object as Stripe.Product).id);
-            break;
-
-          // Price events
-          case 'price.created':
-          case 'price.updated':
-            await upsertPrice(event.data.object as Stripe.Price);
-            break;
-
-          case 'price.deleted':
-            await deletePrice((event.data.object as Stripe.Price).id);
-            break;
-
-          // Checkout completed
-          case 'checkout.session.completed':
-            const checkoutSession = event.data.object as Stripe.Checkout.Session;
-
-            if (checkoutSession.mode === 'subscription') {
-              const subscriptionId = checkoutSession.subscription as string;
-              await manageSubscriptionStatusChange(
-                subscriptionId,
-                checkoutSession.customer as string,
-                true
-              );
-
-              // Track the signup
-              const { createAuditLog } = require('../../auth/supabase');
-              const userId = checkoutSession.metadata?.supabase_user_id;
-              if (userId) {
-                await createAuditLog(
-                  userId,
-                  'billing.subscription_created',
-                  'subscription',
-                  subscriptionId,
-                  {
-                    amount: checkoutSession.amount_total,
-                    currency: checkoutSession.currency
-                  }
-                );
-
-                // Send subscription confirmation email
-                const { createServiceClient } = require('../../auth/supabase');
-                const supabase = createServiceClient();
-                if (supabase && userId) {
-                  const { data: user } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
-
-                  if (user?.email) {
-                    // Get subscription details
-                    const subscriptionResponse = await stripe.subscriptions.retrieve(
-                      subscriptionId,
-                      { expand: ['items.data.price.product'] }
-                    );
-
-                    const subscription = unwrapStripe(subscriptionResponse);
-                    const subscriptionItem = subscription.items.data[0];
-                    const price = subscriptionItem?.price;
-                    const product = typeof price?.product === 'string' ? null : (price?.product as Stripe.Product | null);
-                    const unitAmount = price?.unit_amount ?? 0;
-                    const interval = price?.recurring?.interval === 'year' ? 'yearly' : 'monthly';
-                    const subscriptionWithPeriod = subscription as Stripe.Subscription & { current_period_end?: number };
-                    const nextBillingDate = typeof subscriptionWithPeriod.current_period_end === 'number'
-                      ? new Date(subscriptionWithPeriod.current_period_end * 1000).toLocaleDateString()
-                      : undefined;
-
-                    sendSubscriptionConfirmationEmail(userId, user.email, {
-                      planName: product?.name || 'Subscription',
-                      amount: `$${(unitAmount / 100).toFixed(2)}`,
-                      interval,
-                      nextBillingDate: nextBillingDate || 'TBD',
-                      features: (product?.metadata?.features || '').split(',').filter(Boolean),
-                    }).catch(err => {
-                      log.error({ err, userId }, 'Failed to send subscription confirmation email');
-                    });
-                  }
-                }
-              }
-            }
-            break;
-
-          // Subscription events
-          case 'customer.subscription.created':
-          case 'customer.subscription.updated':
-            const subscription = event.data.object as Stripe.Subscription;
-            await manageSubscriptionStatusChange(
-              subscription.id,
-              subscription.customer as string
-            );
-            break;
-
-          case 'customer.subscription.deleted':
-            const deletedSubscription = event.data.object as Stripe.Subscription;
-            await manageSubscriptionStatusChange(
-              deletedSubscription.id,
-              deletedSubscription.customer as string
-            );
-
-            // Track the cancellation
-            const { createServiceClient } = require('../../auth/supabase');
-            const supabase = createServiceClient();
-            if (supabase) {
-              const { data: customer } = await supabase
-                .from('customers')
-                .select('id')
-                .eq('stripe_customer_id', deletedSubscription.customer)
-                .single();
-
-              if (customer) {
-                const { createAuditLog } = require('../../auth/supabase');
-                await createAuditLog(
-                  customer.id,
-                  'billing.subscription_cancelled',
-                  'subscription',
-                  deletedSubscription.id
-                );
-              }
-            }
-            break;
-
-          // Invoice events
-          case 'invoice.payment_succeeded':
-            const successInvoice = event.data.object as InvoiceWithLegacyFields;
-            const subscriptionRef = successInvoice.subscription;
-            const subscriptionId = typeof subscriptionRef === 'string'
-              ? subscriptionRef
-              : subscriptionRef?.id;
-
-            if (subscriptionId) {
-              await manageSubscriptionStatusChange(
-                subscriptionId,
-                successInvoice.customer as string
-              );
-            }
-
-            // Track the payment
-            const { createServiceClient: getClient } = require('../../auth/supabase');
-            const client = getClient();
-            if (client && successInvoice.metadata?.supabase_user_id) {
-              const { trackUsage } = require('../../auth/supabase');
-              await trackUsage(
-                successInvoice.metadata.supabase_user_id,
-                'payment_succeeded',
-                successInvoice.amount_paid / 100, // Convert from cents
-                {
-                  invoiceId: successInvoice.id,
-                  currency: successInvoice.currency
-                }
-              );
-            }
-            break;
-
-          case 'invoice.payment_failed':
-            const failedInvoice = event.data.object as InvoiceWithLegacyFields;
-
-            // Log the failure
-            log.warn({
-              customerId: failedInvoice.customer,
-              invoiceId: failedInvoice.id,
-              amount: failedInvoice.amount_due
-            }, 'Invoice payment failed');
-
-            // Send payment failed email
-            const { createServiceClient: getFailedSvc } = require('../../auth/supabase');
-            const failedSvc = getFailedSvc();
-            if (failedSvc) {
-              const { data: customer } = await failedSvc
-                .from('customers')
-                .select('id')
-                .eq('stripe_customer_id', failedInvoice.customer)
-                .single();
-
-              if (customer) {
-                const { data: user } = await failedSvc
-                  .from('users')
-                  .select('*')
-                  .eq('id', customer.id)
-                  .single();
-
-                if (user?.email) {
-                  // Calculate retry date (3 days from now)
-                  const retryDate = new Date();
-                  retryDate.setDate(retryDate.getDate() + 3);
-
-                  let lastFourDigits: string | undefined;
-
-                  if (typeof failedInvoice.payment_intent === 'string') {
-                    const paymentIntentResponse = await stripe.paymentIntents.retrieve(
-                      failedInvoice.payment_intent,
-                      { expand: ['payment_method'] }
-                    );
-                    const paymentIntent = unwrapStripe(paymentIntentResponse);
-                    const paymentMethod = paymentIntent.payment_method;
-                    if (paymentMethod && typeof paymentMethod !== 'string' && paymentMethod.card) {
-                      lastFourDigits = paymentMethod.card.last4;
-                    }
-                  }
-
-                  sendPaymentFailedEmail(customer.id, user.email, {
-                    amount: `$${(failedInvoice.amount_due / 100).toFixed(2)}`,
-                    lastFourDigits,
-                    failureReason: failedInvoice.last_finalization_error?.message,
-                    retryDate: retryDate.toLocaleDateString(),
-                  }).catch(err => {
-                    log.error({ err, userId: customer.id }, 'Failed to send payment failed email');
-                  });
-                }
-              }
-            }
-            break;
-
-          // Customer updated (billing info changes)
-          case 'customer.updated':
-            const customer = event.data.object as Stripe.Customer;
-
-            // Update user's billing info
-            const { createServiceClient: getSvc } = require('../../auth/supabase');
-            const svc = getSvc();
-            if (svc && customer.metadata?.supabase_user_id) {
-              await svc
-                .from('users')
-                .update({
-                  billing_address: customer.address
-                })
-                .eq('id', customer.metadata.supabase_user_id);
-            }
-            break;
-
-          default:
-            log.warn({ eventType: event.type }, 'Unhandled webhook event');
-        }
+        await processWebhookEvent(event);
 
         res.json({ received: true });
       } catch (error) {
@@ -355,6 +68,56 @@ export default function mount(app: Express) {
       }
     }
   );
+
+  /**
+   * Process webhook event using appropriate service
+   */
+  async function processWebhookEvent(event: Stripe.Event): Promise<void> {
+    switch (event.type) {
+      // Product events
+      case 'product.created':
+      case 'product.updated':
+      case 'product.deleted':
+        await productEventService.handleProductEvent(event);
+        break;
+
+      // Price events
+      case 'price.created':
+      case 'price.updated':
+      case 'price.deleted':
+        await productEventService.handlePriceEvent(event);
+        break;
+
+      // Checkout completed
+      case 'checkout.session.completed':
+        await subscriptionEventService.handleCheckoutCompleted(event);
+        break;
+
+      // Subscription events
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await subscriptionEventService.handleSubscriptionEvent(event);
+        break;
+
+      // Invoice events
+      case 'invoice.payment_succeeded':
+        await invoiceEventService.handlePaymentSucceeded(event);
+        break;
+
+      case 'invoice.payment_failed':
+        await invoiceEventService.handlePaymentFailed(event);
+        break;
+
+      // Customer events
+      case 'customer.updated':
+        await customerEventService.handleCustomerUpdated(event);
+        break;
+
+      default:
+        log.warn({ eventType: event.type }, 'Unhandled webhook event');
+    }
+  }
 
   /**
    * Test endpoint for webhook (development only)

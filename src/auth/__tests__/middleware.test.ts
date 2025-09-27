@@ -25,7 +25,7 @@ jest.mock('../../lib/logger');
 describe('Auth Middleware - Security Tests', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
-  let mockNext: NextFunction;
+  let mockNext: jest.MockedFunction<NextFunction>;
   let mockStatus: jest.Mock;
   let mockJson: jest.Mock;
   let mockSetHeader: jest.Mock;
@@ -55,14 +55,17 @@ describe('Auth Middleware - Security Tests', () => {
       on: jest.fn()
     };
 
-    mockNext = jest.fn();
+    mockNext = jest.fn() as jest.MockedFunction<NextFunction>;
 
     // Reset all mocks
     jest.clearAllMocks();
-    mockNext.mockReset();
-    mockStatus.mockReset();
-    mockJson.mockReset();
-    (getUserFromRequest as jest.Mock).mockResolvedValue(null);
+    mockNext.mockClear();
+    mockStatus.mockClear();
+    mockJson.mockClear();
+    (getUserFromRequest as jest.Mock).mockImplementation(async (req: Partial<Request>) => {
+      const id = req?.userId;
+      return id ? { id } : null;
+    });
     (verifyApiKey as jest.Mock).mockResolvedValue(null);
     (hasActiveSubscription as jest.Mock).mockResolvedValue(false);
     (checkUsageLimits as jest.Mock).mockResolvedValue(true);
@@ -203,8 +206,8 @@ describe('Auth Middleware - Security Tests', () => {
   describe('requireAuth()', () => {
     it('allows authenticated users', async () => {
       mockReq.userId = 'user123';
-      mockNext.mockReset();
-      mockStatus.mockReset();
+      mockNext.mockClear();
+      mockStatus.mockClear();
 
       await requireAuth(mockReq as Request, mockRes as Response, mockNext);
 
@@ -214,9 +217,9 @@ describe('Auth Middleware - Security Tests', () => {
 
     it('blocks unauthenticated users', async () => {
       mockReq.userId = undefined;
-      mockStatus.mockReset();
-      mockJson.mockReset();
-      mockNext.mockReset();
+      mockStatus.mockClear();
+      mockJson.mockClear();
+      mockNext.mockClear();
 
       await requireAuth(mockReq as Request, mockRes as Response, mockNext);
 
@@ -238,8 +241,8 @@ describe('Auth Middleware - Security Tests', () => {
       ];
 
       for (const attempt of bypassAttempts) {
-        mockNext.mockReset();
-        mockStatus.mockReset();
+        mockNext.mockClear();
+        mockStatus.mockClear();
         Object.assign(mockReq, attempt);
 
         await requireAuth(mockReq as Request, mockRes as Response, mockNext);
@@ -403,12 +406,18 @@ describe('Auth Middleware - Security Tests', () => {
     });
 
     it('applies different limits for different tiers', async () => {
+      const tierMiddleware = rateLimit();
       const tiers = ['free', 'starter', 'pro', 'enterprise'];
       const expectedLimits = [10, 30, 60, 200];
 
       for (let i = 0; i < tiers.length; i++) {
         mockReq.userTier = tiers[i];
-        await middleware(mockReq as Request, mockRes as Response, mockNext);
+        mockReq.userId = `user-${tiers[i]}`;
+        Object.defineProperty(mockReq, 'path', { value: `/api/test-${tiers[i]}`, writable: true });
+        mockSetHeader.mockClear();
+        mockNext.mockClear();
+
+        await tierMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
         expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Limit', expectedLimits[i].toString());
       }

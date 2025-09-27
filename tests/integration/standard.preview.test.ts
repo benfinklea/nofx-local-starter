@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../../src/api/main';
+import { app } from '../../src/api/main';
 
 jest.mock('../../src/lib/settings', () => ({
   getSettings: jest.fn(async () => ({

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background: #38a169;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .status-overview {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .status-item.healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-item.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-item.critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+        }
+
+        .admin-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .admin-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .admin-card h3 {
+            color: #4a5568;
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .admin-links {
+            list-style: none;
+        }
+
+        .admin-links li {
+            margin-bottom: 1rem;
+        }
+
+        .admin-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .admin-link:hover {
+            background: #667eea;
+            color: white;
+            border-color: #5a67d8;
+        }
+
+        .admin-link .icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            width: 2rem;
+            text-align: center;
+        }
+
+        .admin-link .details {
+            flex: 1;
+        }
+
+        .admin-link .title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .admin-link .description {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .admin-link .external {
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-warning {
+            background: #d69e2e;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #b7791f;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .timestamp {
+            text-align: center;
+            margin-top: 2rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .admin-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ NOFX Super Admin Dashboard</h1>
+        <p class="subtitle">Exclusive admin tools and performance monitoring</p>
+        <div class="admin-badge">👑 Super Admin: <%= userEmail %></div>
+    </div>
+
+    <div class="container">
+        <!-- System Status Overview -->
+        <div class="status-overview">
+            <h2 style="margin-bottom: 1.5rem; color: #4a5568;">🚀 System Status</h2>
+            <div class="status-grid">
+                <div class="status-item <%= isHealthy ? 'healthy' : 'critical' %>">
+                    <div class="status-value"><%= isHealthy ? '✅' : '❌' %></div>
+                    <div class="status-label">System Health</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value"><%= Math.round(summary.uptime / 1000) %>s</div>
+                    <div class="status-label">Uptime</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value"><%= summary.totalRequests %></div>
+                    <div class="status-label">Total Requests</div>
+                </div>
+                <div class="status-item <%= summary.errorRate > 5 ? 'warning' : 'healthy' %>">
+                    <div class="status-value"><%= summary.errorRate.toFixed(1) %>%</div>
+                    <div class="status-label">Error Rate</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value"><%= summary.avgResponseTime.toFixed(0) %>ms</div>
+                    <div class="status-label">Avg Response</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value"><%= summary.avgMemoryMB.toFixed(0) %>MB</div>
+                    <div class="status-label">Memory Usage</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+            <!-- Performance Monitoring -->
+            <div class="admin-card">
+                <h3>📊 Performance Monitoring</h3>
+                <ul class="admin-links">
+                    <li>
+                        <a href="/performance-dashboard.html" target="_blank" class="admin-link">
+                            <span class="icon">📈</span>
+                            <div class="details">
+                                <div class="title">Live Performance Dashboard</div>
+                                <div class="description">Real-time charts and metrics</div>
+                                <div class="external">Opens in new tab</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/api/public/performance/health" target="_blank" class="admin-link">
+                            <span class="icon">🏥</span>
+                            <div class="details">
+                                <div class="title">Health Check API</div>
+                                <div class="description">JSON health status</div>
+                                <div class="external">Public API endpoint</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/api/public/performance/current" target="_blank" class="admin-link">
+                            <span class="icon">⚡</span>
+                            <div class="details">
+                                <div class="title">Current Performance Snapshot</div>
+                                <div class="description">Live system metrics</div>
+                                <div class="external">JSON data</div>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- System Administration -->
+            <div class="admin-card">
+                <h3>🔧 System Administration</h3>
+                <ul class="admin-links">
+                    <li>
+                        <a href="/admin/super-admin/system/info" target="_blank" class="admin-link">
+                            <span class="icon">ℹ️</span>
+                            <div class="details">
+                                <div class="title">System Information</div>
+                                <div class="description">Detailed system stats</div>
+                                <div class="external">Admin only</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/super-admin/performance/full" target="_blank" class="admin-link">
+                            <span class="icon">📋</span>
+                            <div class="details">
+                                <div class="title">Full Performance Data</div>
+                                <div class="description">Complete performance export</div>
+                                <div class="external">Admin view</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/api/public/performance/snapshots?count=200" target="_blank" class="admin-link">
+                            <span class="icon">📸</span>
+                            <div class="details">
+                                <div class="title">Performance Snapshots</div>
+                                <div class="description">Historical data points</div>
+                                <div class="external">Last 200 snapshots</div>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Testing & Benchmarks -->
+            <div class="admin-card">
+                <h3>🧪 Testing & Benchmarks</h3>
+                <ul class="admin-links">
+                    <li>
+                        <a href="#" onclick="runBenchmarks()" class="admin-link">
+                            <span class="icon">🚀</span>
+                            <div class="details">
+                                <div class="title">Run Performance Benchmarks</div>
+                                <div class="description">Execute full benchmark suite</div>
+                                <div class="external">Admin action</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/api/public/performance/ping" target="_blank" class="admin-link">
+                            <span class="icon">🏓</span>
+                            <div class="details">
+                                <div class="title">API Connectivity Test</div>
+                                <div class="description">Simple ping test</div>
+                                <div class="external">Should return "pong"</div>
+                            </div>
+                        </a>
+                    </li>
+                    <% if (suites && suites.length > 0) { %>
+                    <li>
+                        <span class="admin-link" style="cursor: default;">
+                            <span class="icon">📊</span>
+                            <div class="details">
+                                <div class="title">Available Benchmark Suites</div>
+                                <div class="description"><%= suites.length %> suites available</div>
+                                <div class="external"><%= suites.join(', ') %></div>
+                            </div>
+                        </span>
+                    </li>
+                    <% } %>
+                </ul>
+            </div>
+
+            <!-- Admin Actions -->
+            <div class="admin-card">
+                <h3>⚙️ Admin Actions</h3>
+                <div class="action-buttons">
+                    <button onclick="exportPerformanceData()" class="btn btn-primary">
+                        📦 Export Performance Data
+                    </button>
+                    <button onclick="resetPerformanceData()" class="btn btn-warning">
+                        🔄 Reset Performance Data
+                    </button>
+                    <button onclick="updateThresholds()" class="btn btn-primary">
+                        🎯 Update Thresholds
+                    </button>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 1rem; color: #4a5568;">Quick Links</h4>
+                    <ul class="admin-links">
+                        <li>
+                            <a href="/api-docs" target="_blank" class="admin-link">
+                                <span class="icon">📚</span>
+                                <div class="details">
+                                    <div class="title">API Documentation</div>
+                                    <div class="description">Swagger/OpenAPI docs</div>
+                                </div>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/ui/dev" target="_blank" class="admin-link">
+                                <span class="icon">🛠️</span>
+                                <div class="details">
+                                    <div class="title">Developer Tools</div>
+                                    <div class="description">Development utilities</div>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="timestamp">
+            Last updated: <%= timestamp %>
+        </div>
+    </div>
+
+    <script>
+        // Admin action functions
+        async function runBenchmarks() {
+            if (!confirm('Run performance benchmarks? This may take a few minutes.')) return;
+
+            try {
+                const response = await fetch('/admin/super-admin/benchmarks/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        suiteName: 'admin-triggered',
+                        description: 'Manual benchmark run from admin dashboard'
+                    })
+                });
+
+                const result = await response.json();
+                alert(result.message || 'Benchmarks started successfully!');
+            } catch (error) {
+                alert('Failed to run benchmarks: ' + error.message);
+            }
+        }
+
+        async function exportPerformanceData() {
+            try {
+                const response = await fetch('/admin/super-admin/export/performance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                alert(result.message || 'Performance data exported successfully!');
+            } catch (error) {
+                alert('Failed to export data: ' + error.message);
+            }
+        }
+
+        async function resetPerformanceData() {
+            if (!confirm('Reset all performance monitoring data? This action cannot be undone.')) return;
+
+            try {
+                const response = await fetch('/admin/super-admin/system/reset-performance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                alert(result.message || 'Performance data reset successfully!');
+                location.reload();
+            } catch (error) {
+                alert('Failed to reset data: ' + error.message);
+            }
+        }
+
+        async function updateThresholds() {
+            const responseTime = prompt('Response time warning threshold (ms):', '100');
+            const criticalResponseTime = prompt('Response time critical threshold (ms):', '500');
+            const memoryWarning = prompt('Memory warning threshold (MB):', '512');
+            const memoryCritical = prompt('Memory critical threshold (MB):', '1024');
+
+            if (!responseTime || !criticalResponseTime || !memoryWarning || !memoryCritical) return;
+
+            try {
+                const response = await fetch('/admin/super-admin/performance/thresholds', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        responseTime: {
+                            warning: parseInt(responseTime),
+                            critical: parseInt(criticalResponseTime)
+                        },
+                        memoryUsage: {
+                            warning: parseInt(memoryWarning),
+                            critical: parseInt(memoryCritical)
+                        }
+                    })
+                });
+
+                const result = await response.json();
+                alert(result.message || 'Thresholds updated successfully!');
+            } catch (error) {
+                alert('Failed to update thresholds: ' + error.message);
+            }
+        }
+
+        // Auto-refresh page every 30 seconds
+        setTimeout(() => location.reload(), 30000);
+    </script>
+</body>
+</html>

@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
-import type { Express } from 'express';
 import request from 'supertest';
 import { app } from '../../main';
 import * as auth from '../../../lib/auth';
@@ -19,7 +18,6 @@ const mockAuth = jest.mocked(auth);
 const mockRuntime = jest.mocked(responsesRuntime);
 
 describe('Response API Routes - Comprehensive Tests', () => {
-  let app: Express;
 
   const mockRunRecord = {
     runId: 'run_123',
@@ -114,7 +112,6 @@ describe('Response API Routes - Comprehensive Tests', () => {
     mockRuntimeInstance.archive.listRuns.mockReturnValue([mockRunRecord]);
     mockRuntimeInstance.archive.getTimeline.mockReturnValue(mockTimeline);
 
-    // Use the imported app directly
   });
 
   afterEach(() => {
@@ -521,7 +518,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
       const payload = {
         reviewer: 'admin',
         note: 'Test moderation note',
-        disposition: 'approved'
+        disposition: 'approved' as const
       };
 
       const response = await request(app)
@@ -619,10 +616,23 @@ describe('Response API Routes - Comprehensive Tests', () => {
 
   describe('POST /responses/runs/:id/rollback', () => {
     const mockSnapshot = {
-      runId: 'run_123',
-      sequence: 5,
-      state: 'rolled_back',
-      timestamp: new Date('2024-01-01T10:00:00Z').toISOString()
+      run: {
+        runId: 'run_123',
+        status: 'rolled_back' as const,
+        createdAt: new Date('2024-01-01T09:00:00Z').toISOString(),
+        updatedAt: new Date('2024-01-01T10:00:00Z').toISOString(),
+        model: 'test-model',
+        metadata: {},
+        traceId: 'trace_123'
+      },
+      events: [
+        {
+          sequence: 5,
+          type: 'rollback',
+          payload: { reason: 'test rollback' },
+          occurredAt: new Date('2024-01-01T10:00:00Z').toISOString()
+        }
+      ]
     };
 
     it('rolls back by sequence number', async () => {

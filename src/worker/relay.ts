@@ -50,14 +50,14 @@ export function startOutboxRelay() {
 
 function normalizeOutboxPayload(value: unknown): OutboxJobPayload {
   if (typeof value !== 'object' || value === null) {
-    throw new Error('outbox payload must be an object');
+    throw new Error(`Outbox payload must be an object, received: ${typeof value}. Use an object with runId and type properties.`);
   }
 
   const record = value as Record<string, unknown>;
   const runId = record.runId;
   const type = record.type;
   if (typeof runId !== 'string' || typeof type !== 'string') {
-    throw new Error('outbox payload missing runId or type');
+    throw new Error(`Outbox payload missing required fields. Expected: {runId: string, type: string}, received: {runId: ${typeof runId}, type: ${typeof record.type}}`);
   }
 
   const payload = record.payload as OutboxJobPayload['payload'];
