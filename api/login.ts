@@ -29,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 1.5rem;
     }
     .container {
       background: white;
@@ -45,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     .subtitle {
       color: #666;
-      margin-bottom: 2rem;
+      margin-bottom: 1.75rem;
       font-size: 0.95rem;
     }
     .form-group {
@@ -88,6 +89,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       background: #ccc;
       cursor: not-allowed;
     }
+    .google-button {
+      margin-top: 1rem;
+      background: white;
+      color: #1a202c;
+      border: 2px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .google-button:hover {
+      background: #f8fafc;
+      border-color: #d1d5db;
+    }
+    .google-button:disabled {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .google-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      color: #ea4335;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
     .error {
       background: #fee;
       color: #c33;
@@ -117,9 +151,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text-decoration: underline;
     }
     .divider {
-      margin: 1rem 0;
+      margin: 1.25rem 0;
       color: #999;
       text-align: center;
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
   </style>
 </head>
@@ -158,6 +195,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       <button type="submit" id="submitBtn">Sign In</button>
     </form>
 
+    <div class="divider">or</div>
+
+    <button type="button" id="googleBtn" class="google-button">
+      <span class="google-icon">G</span>
+      Continue with Google
+    </button>
+
     <div class="links">
       <div class="divider">or</div>
       <a href="/api/auth/signup-page">Create Account</a>
@@ -170,6 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const form = document.getElementById('loginForm');
     const messageDiv = document.getElementById('message');
     const submitBtn = document.getElementById('submitBtn');
+    const googleBtn = document.getElementById('googleBtn');
 
     // Get redirect URL from query params
     const params = new URLSearchParams(window.location.search);
@@ -217,6 +262,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         submitBtn.textContent = 'Sign In';
       }
     });
+
+    if (googleBtn) {
+      googleBtn.addEventListener('click', () => {
+        googleBtn.disabled = true;
+        googleBtn.textContent = 'Redirecting...';
+        const target = '/api/auth/oauth-start?provider=google&next=' + encodeURIComponent(next);
+        window.location.href = target;
+      });
+    }
   </script>
 </body>
 </html>
