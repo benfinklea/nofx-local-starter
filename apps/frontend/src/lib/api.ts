@@ -1,4 +1,5 @@
 import { apiBase } from '../config';
+import { auth } from './auth';
 
 export type Plan = { goal: string; steps: Array<{ name: string; tool: string; inputs?: any }> };
 export type Run = { id: string; status: string; created_at?: string; plan?: Plan };
@@ -13,6 +14,12 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   const headers = new Headers(init?.headers || {});
   if (projectId) headers.set('x-project-id', projectId);
 
+  // Add auth token if available
+  const session = auth.getSession();
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`);
+  }
+
   // Add base URL if needed
   let fetchUrl: RequestInfo = input;
   if (typeof input === 'string') {
@@ -23,7 +30,11 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   console.log(`[API] Making request to: ${url}`, { method: init?.method || 'GET', projectId });
 
   try {
-    const response = await fetch(fetchUrl, { ...init, headers });
+    const response = await fetch(fetchUrl, {
+      ...init,
+      headers,
+      credentials: 'include' // Include cookies for auth
+    });
 
     console.log(`[API] Response from ${url}:`, {
       status: response.status,
@@ -33,9 +44,17 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
 
     // Handle authentication errors
     if (response.status === 401) {
-      console.error('[API] Authentication error - REDIRECT DISABLED FOR DEBUGGING');
-      // TEMPORARILY DISABLED REDIRECT FOR DEBUGGING
-      // window.location.href = '/login.html?next=' + encodeURIComponent(window.location.pathname + window.location.hash);
+      console.error('[API] Authentication error - redirecting to login');
+      const currentPath = window.location.pathname + window.location.hash;
+
+      // Only redirect if we're not already on a public page
+      const publicPaths = ['/login', '/signup', '/reset-password', '/auth/callback'];
+      const isPublicPath = publicPaths.some(path => currentPath.includes(path));
+
+      if (!isPublicPath) {
+        window.location.href = '/login.html?next=' + encodeURIComponent(currentPath);
+      }
+
       throw new Error('Authentication required');
     }
 

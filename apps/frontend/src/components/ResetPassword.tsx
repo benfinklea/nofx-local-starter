@@ -9,6 +9,7 @@ import {
   CircularProgress,
   Link
 } from '@mui/material';
+import { auth } from '../lib/auth';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -74,21 +75,13 @@ export default function ResetPassword() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: resetEmail })
-      });
+      const result = await auth.resetPassword(resetEmail);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (result.error) {
+        setError(result.error);
+      } else {
         setResetEmailSent(true);
         setError('');
-      } else {
-        setError(data.error || 'Failed to send reset email');
       }
     } catch (err) {
       setError('Failed to send reset email. Please try again.');
@@ -134,33 +127,16 @@ export default function ResetPassword() {
       }
 
       // Using access token for password update
+      const result = await auth.updatePassword(password, accessToken);
 
-      // Get refresh token if available
-      const refreshToken = sessionStorage.getItem('reset_refresh_token');
-
-      const response = await fetch('/api/auth/update-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          newPassword: password,
-          accessToken: accessToken,
-          refreshToken: refreshToken || undefined
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (result.error) {
+        setError(result.error);
+      } else {
         setSuccess(true);
-        // Redirect to login after 3 seconds
+        // Redirect to main app after 3 seconds
         setTimeout(() => {
           window.location.href = '/';
         }, 3000);
-      } else {
-        setError(data.error || 'Failed to update password');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred. Please try again.');

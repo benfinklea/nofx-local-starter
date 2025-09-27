@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CircularProgress, Box, Typography } from '@mui/material';
 import LoginForm from './components/LoginForm';
+import { auth } from './lib/auth';
 
 interface AuthCheckProps {
   children: React.ReactNode;
@@ -15,31 +16,14 @@ export default function AuthCheck({ children }: AuthCheckProps) {
     const checkAuth = async () => {
       console.log('[AuthCheck] Starting authentication check...');
       try {
-        // Check the protected auth endpoint
-        const response = await fetch('/api/auth/check', {
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/json',
-            // Include auth token from localStorage if available
-            'Authorization': `Bearer ${localStorage.getItem('sb-access-token') || localStorage.getItem('token') || ''}`
-          }
-        });
+        // Use the auth service to check current user
+        const user = await auth.getCurrentUser();
 
-        console.log('[AuthCheck] Response status:', response.status);
-
-        if (response.status === 401) {
-          // Not authenticated, show login form
-          console.log('[AuthCheck] User not authenticated, showing login form');
-          setIsAuthenticated(false);
-          return;
-        }
-
-        if (response.ok) {
-          console.log('[AuthCheck] User authenticated');
+        if (user) {
+          console.log('[AuthCheck] User authenticated:', user.id);
           setIsAuthenticated(true);
         } else {
-          // Some other error, show login form
-          console.log('[AuthCheck] Auth check failed with status:', response.status);
+          console.log('[AuthCheck] User not authenticated, showing login form');
           setIsAuthenticated(false);
         }
       } catch (err) {

@@ -543,7 +543,7 @@ export default function mount(app: Express) {
           action: 'team.member_role_updated',
           resource_type: 'member',
           resource_id: req.params.memberId,
-          metadata: { role, user_id: member.user_id },
+          metadata: { role, user_id: member?.user_id ?? null },
           ip_address: req.ip,
           user_agent: req.headers['user-agent'],
         });
@@ -598,7 +598,7 @@ export default function mount(app: Express) {
           action: 'team.member_removed',
           resource_type: 'member',
           resource_id: req.params.memberId,
-          metadata: { removed_user_id: member.user_id },
+          metadata: { removed_user_id: member?.user_id ?? null },
           ip_address: req.ip,
           user_agent: req.headers['user-agent'],
         });

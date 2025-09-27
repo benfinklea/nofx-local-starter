@@ -264,7 +264,8 @@ export async function sendTeamDeletionWarningEmail(
     const admins = team.members.filter(m => m.role === 'owner' || m.role === 'admin');
 
     for (const admin of admins) {
-      if (!admin.user?.email) continue;
+      const user = Array.isArray(admin.user) ? admin.user[0] : admin.user;
+      if (!user?.email) continue;
 
       const html = `
         <h2>⚠️ Team Deletion Warning</h2>
@@ -280,7 +281,7 @@ export async function sendTeamDeletionWarningEmail(
       `;
 
       await sendEmail({
-        to: admin.user.email,
+        to: user.email,
         subject: `⚠️ ${team.name} will be deleted in ${daysUntilDeletion} days`,
         html,
         tags: [

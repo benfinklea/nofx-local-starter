@@ -27,9 +27,9 @@ function AppRoutes() {
     return <ResetPassword />;
   }
 
-  // TEMPORARILY DISABLED AUTH CHECK FOR DEBUGGING
+  // Auth check re-enabled with new server-side authentication
   return (
-    // <AuthCheck>
+    <AuthCheck>
       <Shell>
         <Routes>
           <Route path="/" element={<Dashboard/>} />
@@ -51,7 +51,7 @@ function AppRoutes() {
           <Route path="/dev/tools" element={<DevTools/>} />
         </Routes>
       </Shell>
-    // </AuthCheck>
+    </AuthCheck>
   );
 }
 

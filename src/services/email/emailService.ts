@@ -37,8 +37,16 @@ export async function sendWelcomeEmail(
         .eq('status', 'active')
         .single();
 
-      if (subscription?.price?.product?.metadata?.tier) {
-        tier = subscription.price.product.metadata.tier;
+      const price = Array.isArray(subscription?.price)
+        ? subscription?.price[0]
+        : subscription?.price;
+
+      const product = Array.isArray(price?.product)
+        ? price?.product[0]
+        : price?.product;
+
+      if (product?.metadata?.tier) {
+        tier = product.metadata.tier;
       }
     }
 

@@ -12,7 +12,7 @@ import {
   Section,
   Text,
 } from '@react-email/components';
-import BaseEmailTemplate from './components/BaseEmailTemplate';
+import { BaseEmailTemplate } from './components/BaseEmailTemplate';
 
 interface TeamInviteEmailProps {
   teamName: string;
@@ -48,7 +48,7 @@ export default function TeamInviteEmail({
 
   return (
     <BaseEmailTemplate
-      preview={`${inviterName} invited you to join ${teamName} on NOFX`}
+      previewText={`${inviterName} invited you to join ${teamName} on NOFX`}
     >
       <Heading className="text-2xl font-bold text-gray-900 mb-6">
         You've been invited to a team!

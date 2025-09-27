@@ -208,8 +208,7 @@ describe('Team Management System - Bulletproof Tests', () => {
           ? `/teams/${teamId}/members/target-member-id`
           : `/teams/${teamId}/members/target-member-id`;
 
-        const response = await request(app)
-          [action === 'update' ? 'patch' : 'delete'](endpoint)
+        const response = await request(app)[action === 'update' ? 'patch' : 'delete'](endpoint)
           .set('Authorization', `Bearer ${authToken}`)
           .send(action === 'update' ? { role: targetRole } : {});
 
@@ -535,16 +534,27 @@ describe('Team Management System - Bulletproof Tests', () => {
 
   describe('Monitoring & Observability Tests', () => {
     it('logs all team operations', async () => {
-      const operations = [
+      const operations: Array<{
+        method: 'post' | 'get' | 'patch' | 'delete';
+        path: string;
+        body: Record<string, unknown>;
+      }> = [
         { method: 'post', path: '/teams', body: { name: 'Log Test' } },
         { method: 'get', path: `/teams/${teamId}`, body: {} },
         { method: 'patch', path: `/teams/${teamId}`, body: { name: 'Updated' } },
         { method: 'delete', path: `/teams/${teamId}`, body: {} },
       ];
 
+      const agent = request(app);
+      const methodMap = {
+        post: (path: string) => agent.post(path),
+        get: (path: string) => agent.get(path),
+        patch: (path: string) => agent.patch(path),
+        delete: (path: string) => agent.delete(path),
+      } as const;
+
       for (const op of operations) {
-        await request(app)
-          [op.method](op.path)
+        await methodMap[op.method](op.path)
           .set('Authorization', `Bearer ${authToken}`)
           .send(op.body);
       }

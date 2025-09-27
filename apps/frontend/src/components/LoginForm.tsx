@@ -11,6 +11,7 @@ import {
   Divider
 } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
+import { auth } from '../lib/auth';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -44,32 +45,16 @@ export default function LoginForm() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password })
-      });
+      const result = await auth.login(email, password);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (result.error) {
+        setError(result.error);
+      } else {
         setMessage('Login successful! Refreshing...');
-
-        // Store auth tokens
-        if (data.session?.accessToken) {
-          localStorage.setItem('sb-access-token', data.session.accessToken);
-          localStorage.setItem('authenticated', 'true');
-        }
-
         // Refresh the page to reload the app with authentication
         setTimeout(() => {
           window.location.reload();
         }, 500);
-      } else {
-        setError(data.error || 'Invalid email or password');
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -90,20 +75,12 @@ export default function LoginForm() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      });
+      const result = await auth.resetPassword(email);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Password reset email sent! Check your inbox.');
+      if (result.error) {
+        setError(result.error);
       } else {
-        setError(data.error || 'Failed to send reset email');
+        setMessage('Password reset email sent! Check your inbox.');
       }
     } catch (err) {
       console.error('Reset password error:', err);
