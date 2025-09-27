@@ -81,6 +81,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cursor: pointer;
       transition: background 0.3s;
     }
+    .google-button {
+      background: white;
+      color: #1a202c;
+      border: 2px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-weight: 600;
+    }
+    .google-button:hover {
+      background: #f8fafc;
+    }
+    .google-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      color: #ea4335;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
     button:hover {
       background: #5a67d8;
     }
@@ -158,6 +184,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       <button type="submit" id="submitBtn">Sign In</button>
     </form>
 
+    <div style="margin: 1rem 0; text-align: center; color: #999; font-size: 0.9rem;">or</div>
+
+    <button type="button" id="googleBtn" class="google-button">
+      <span class="google-icon">G</span>
+      Continue with Google
+    </button>
+
     <div class="links">
       <div class="divider">or</div>
       <a href="/api/auth/signup-page">Create Account</a>
@@ -169,7 +202,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <script>
     const form = document.getElementById('loginForm');
     const messageDiv = document.getElementById('message');
-    const submitBtn = document.getElementById('submitBtn');
+  const submitBtn = document.getElementById('submitBtn');
+    const googleBtn = document.getElementById('googleBtn');
 
     // Get redirect URL from query params
     const params = new URLSearchParams(window.location.search);
@@ -217,6 +251,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         submitBtn.textContent = 'Sign In';
       }
     });
+
+    if (googleBtn) {
+      googleBtn.addEventListener('click', () => {
+        googleBtn.disabled = true;
+        googleBtn.textContent = 'Redirecting...';
+        const target = \`/api/auth/oauth-start?provider=google&next=\${encodeURIComponent(next)}\`;
+        window.location.href = target;
+      });
+    }
   </script>
 </body>
 </html>

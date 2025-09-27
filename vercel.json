@@ -81,7 +81,7 @@
       "destination": "/api/health"
     },
     {
-      "source": "/((?!login\\.html).*)",
+      "source": "/((?!login\\.html|reset-password\\.html).*)",
       "destination": "/index.html"
     }
   ],
