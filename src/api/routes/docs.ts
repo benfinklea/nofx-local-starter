@@ -3,6 +3,7 @@ import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import path from 'node:path';
 import fs from 'node:fs';
+import { log } from '../../lib/observability';
 
 export default function mount(app: Express) {
   // Load OpenAPI specification
@@ -38,11 +39,11 @@ export default function mount(app: Express) {
         res.json(swaggerDocument);
       });
 
-      console.log('📚 API documentation available at /api-docs');
+      log.info({ path: '/api-docs' }, '📚 API documentation available');
     } catch (error) {
-      console.error('Failed to load OpenAPI specification:', error);
+      log.error({ error, path: openapiPath }, 'Failed to load OpenAPI specification');
     }
   } else {
-    console.warn('OpenAPI specification not found at:', openapiPath);
+    log.warn({ path: openapiPath }, 'OpenAPI specification not found');
   }
 }

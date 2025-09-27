@@ -65,15 +65,22 @@ export async function createOrRetrieveCustomer(userId: string, email?: string): 
       .single();
 
     // Create new Stripe customer
-    const customer = await stripe.customers.create({
+    const customerParams: Stripe.CustomerCreateParams = {
       email: email || userData?.email,
       metadata: {
         supabase_user_id: userId
       },
-      name: userData?.full_name,
-      // @ts-ignore - Stripe types might not include this yet
-      address: userData?.billing_address
-    });
+      name: userData?.full_name
+    };
+
+    // Add address if available and properly formatted
+    if (userData?.billing_address) {
+      // Ensure address is properly typed for Stripe
+      const address = userData.billing_address as Stripe.AddressParam;
+      customerParams.address = address;
+    }
+
+    const customer = await stripe.customers.create(customerParams);
 
     // Store customer ID
     await supabase
