@@ -159,12 +159,15 @@ export default function mount(app: Express) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
-      if (!data.user || !data.session) {
+      const user = data.user;
+      const session = data.session;
+
+      if (!user || !session) {
         return res.status(401).json({ error: 'Login failed' });
       }
 
       // Create audit log
-      await createAuditLog(data.user.id, 'auth.login', 'session', data.session.access_token.substring(0, 8), { email }, req);
+      await createAuditLog(user.id, 'auth.login', 'session', session.access_token.substring(0, 8), { email }, req);
 
       // Set session cookies
       res.cookie('sb-access-token', session.access_token, {
@@ -184,13 +187,13 @@ export default function mount(app: Express) {
       res.json({
         success: true,
         user: {
-          id: data.user.id,
-          email: data.user.email,
-          emailConfirmed: data.user.confirmed_at != null
+          id: user.id,
+          email: user.email,
+          emailConfirmed: user.confirmed_at != null
         },
         session: {
-          accessToken: data.session.access_token,
-          expiresAt: data.session.expires_at
+          accessToken: session.access_token,
+          expiresAt: session.expires_at
         }
       });
     } catch (error) {
@@ -245,6 +248,8 @@ export default function mount(app: Express) {
         return res.status(401).json({ error: 'Session expired' });
       }
 
+      const session = data.session;
+
       // Update cookies
       res.cookie('sb-access-token', session.access_token, {
         httpOnly: true,
@@ -263,8 +268,8 @@ export default function mount(app: Express) {
       res.json({
         success: true,
         session: {
-          accessToken: data.session.access_token,
-          expiresAt: data.session.expires_at
+          accessToken: session.access_token,
+          expiresAt: session.expires_at
         }
       });
     } catch (error) {

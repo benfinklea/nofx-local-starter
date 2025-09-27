@@ -76,7 +76,7 @@ class AuthService {
 
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth/login', {
+      const response = await this.request('/api/auth-v2/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -98,7 +98,7 @@ class AuthService {
 
   async signup(email: string, password: string, fullName?: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth/signup', {
+      const response = await this.request('/api/auth-v2/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, fullName }),
@@ -124,7 +124,7 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await this.request('/api/auth/logout', { method: 'POST' });
+      await this.request('/api/auth-v2/logout', { method: 'POST' });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -134,7 +134,7 @@ class AuthService {
 
   async resetPassword(email: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth/reset-password', {
+      const response = await this.request('/api/auth-v2/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -155,7 +155,7 @@ class AuthService {
 
   async updatePassword(password: string, accessToken: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth/reset-password', {
+      const response = await this.request('/api/auth-v2/reset-password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password, access_token: accessToken }),
@@ -187,7 +187,7 @@ class AuthService {
 
     // Otherwise fetch from server
     try {
-      const response = await this.request('/api/auth/me');
+      const response = await this.request('/api/auth-v2/me');
 
       if (!response.ok) {
         this.saveSession(null, null);

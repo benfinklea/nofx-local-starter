@@ -59,6 +59,9 @@ describe('Auth Middleware - Security Tests', () => {
 
     // Reset all mocks
     jest.clearAllMocks();
+    mockNext.mockReset();
+    mockStatus.mockReset();
+    mockJson.mockReset();
     (getUserFromRequest as jest.Mock).mockResolvedValue(null);
     (verifyApiKey as jest.Mock).mockResolvedValue(null);
     (hasActiveSubscription as jest.Mock).mockResolvedValue(false);
@@ -200,6 +203,8 @@ describe('Auth Middleware - Security Tests', () => {
   describe('requireAuth()', () => {
     it('allows authenticated users', async () => {
       mockReq.userId = 'user123';
+      mockNext.mockReset();
+      mockStatus.mockReset();
 
       await requireAuth(mockReq as Request, mockRes as Response, mockNext);
 
@@ -209,13 +214,16 @@ describe('Auth Middleware - Security Tests', () => {
 
     it('blocks unauthenticated users', async () => {
       mockReq.userId = undefined;
+      mockStatus.mockReset();
+      mockJson.mockReset();
+      mockNext.mockReset();
 
       await requireAuth(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         error: 'Authentication required',
-        message: 'You must be logged in to access this resource'
+        message: 'Please provide a valid JWT token or API key'
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -230,6 +238,8 @@ describe('Auth Middleware - Security Tests', () => {
       ];
 
       for (const attempt of bypassAttempts) {
+        mockNext.mockReset();
+        mockStatus.mockReset();
         Object.assign(mockReq, attempt);
 
         await requireAuth(mockReq as Request, mockRes as Response, mockNext);

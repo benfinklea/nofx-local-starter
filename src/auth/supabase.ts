@@ -201,8 +201,10 @@ export async function getUserTier(userId: string): Promise<string> {
       return 'free';
     }
 
-    // Extract tier from product metadata
-    const tier = data.price.product?.metadata?.tier || 'free';
+    const price = Array.isArray(data.price) ? data.price[0] : data.price;
+    const product = price && Array.isArray(price.product) ? price.product[0] : price?.product;
+    const normalizedProduct = Array.isArray(product) ? product[0] : product;
+    const tier = normalizedProduct?.metadata?.tier || 'free';
     return tier;
   } catch (error) {
     log.error({ error }, 'Error getting user tier');

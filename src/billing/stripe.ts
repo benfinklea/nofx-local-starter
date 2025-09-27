@@ -14,6 +14,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export { stripe };
 
+const unwrapStripe = <T>(resource: T | Stripe.Response<T>): T => {
+  const maybeResponse = resource as Stripe.Response<T> & { data?: T };
+  return typeof maybeResponse.data !== 'undefined' ? maybeResponse.data : resource as T;
+};
+
 /**
  * Convert Unix timestamp to ISO date string
  */
@@ -184,6 +189,14 @@ export async function manageSubscriptionStatusChange(
     const subscriptionItem = subscription.items.data[0];
     const priceId = subscriptionItem?.price?.id;
 
+    const subscriptionWithPeriods = subscription as Stripe.Subscription & {
+      current_period_start?: number | null;
+      current_period_end?: number | null;
+      created?: number;
+    };
+
+    const toOptionalDateTime = (value?: number | null) => (typeof value === 'number' ? toDateTime(value) : null);
+
     const subscriptionData = {
       id: subscription.id,
       user_id: customerData.id,
@@ -192,14 +205,14 @@ export async function manageSubscriptionStatusChange(
       price_id: priceId,
       quantity: subscriptionItem?.quantity || 1,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      created: toDateTime(subscription.created),
-      current_period_start: toDateTime(subscription.current_period_start),
-      current_period_end: toDateTime(subscription.current_period_end),
-      ended_at: subscription.ended_at ? toDateTime(subscription.ended_at) : null,
-      cancel_at: subscription.cancel_at ? toDateTime(subscription.cancel_at) : null,
-      canceled_at: subscription.canceled_at ? toDateTime(subscription.canceled_at) : null,
-      trial_start: subscription.trial_start ? toDateTime(subscription.trial_start) : null,
-      trial_end: subscription.trial_end ? toDateTime(subscription.trial_end) : null
+      created: toOptionalDateTime(subscriptionWithPeriods.created),
+      current_period_start: toOptionalDateTime(subscriptionWithPeriods.current_period_start),
+      current_period_end: toOptionalDateTime(subscriptionWithPeriods.current_period_end),
+      ended_at: toOptionalDateTime(subscription.ended_at),
+      cancel_at: toOptionalDateTime(subscription.cancel_at),
+      canceled_at: toOptionalDateTime(subscription.canceled_at),
+      trial_start: toOptionalDateTime(subscription.trial_start),
+      trial_end: toOptionalDateTime(subscription.trial_end)
     };
 
     const { error } = await supabase

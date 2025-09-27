@@ -23,6 +23,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-08-27.basil'
 });
 
+type InvoiceWithLegacyFields = Stripe.Invoice & {
+  subscription?: string | Stripe.Subscription;
+  payment_intent?: string | Stripe.PaymentIntent;
+};
+
 const unwrapStripe = <T>(resource: T | Stripe.Response<T>): T => {
   const maybeResponse = resource as Stripe.Response<T> & { data?: T };
   return typeof maybeResponse.data !== 'undefined' ? maybeResponse.data : resource as T;
@@ -165,8 +170,9 @@ export default function mount(app: Express) {
                     const product = typeof price?.product === 'string' ? null : (price?.product as Stripe.Product | null);
                     const unitAmount = price?.unit_amount ?? 0;
                     const interval = price?.recurring?.interval === 'year' ? 'yearly' : 'monthly';
-                    const nextBillingDate = typeof subscription.current_period_end === 'number'
-                      ? new Date(subscription.current_period_end * 1000).toLocaleDateString()
+                    const subscriptionWithPeriod = subscription as Stripe.Subscription & { current_period_end?: number };
+                    const nextBillingDate = typeof subscriptionWithPeriod.current_period_end === 'number'
+                      ? new Date(subscriptionWithPeriod.current_period_end * 1000).toLocaleDateString()
                       : undefined;
 
                     sendSubscriptionConfirmationEmail(userId, user.email, {
@@ -225,12 +231,15 @@ export default function mount(app: Express) {
 
           // Invoice events
           case 'invoice.payment_succeeded':
-            const successInvoice = event.data.object as Stripe.Invoice;
+            const successInvoice = event.data.object as InvoiceWithLegacyFields;
+            const subscriptionRef = successInvoice.subscription;
+            const subscriptionId = typeof subscriptionRef === 'string'
+              ? subscriptionRef
+              : subscriptionRef?.id;
 
-            // Update subscription if this is a subscription invoice
-            if (successInvoice.subscription) {
+            if (subscriptionId) {
               await manageSubscriptionStatusChange(
-                successInvoice.subscription as string,
+                subscriptionId,
                 successInvoice.customer as string
               );
             }
@@ -253,7 +262,7 @@ export default function mount(app: Express) {
             break;
 
           case 'invoice.payment_failed':
-            const failedInvoice = event.data.object as Stripe.Invoice;
+            const failedInvoice = event.data.object as InvoiceWithLegacyFields;
 
             // Log the failure
             log.warn({
