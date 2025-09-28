@@ -26,10 +26,11 @@ function resolveLogger(): Logger {
   return baseLogger.child({ correlationId: ctx.correlationId });
 }
 
-export const log = new Proxy(baseLogger as Logger, {
-  get(_target, prop, receiver) {
+// Export a proxy that always resolves to the current logger
+export const log = new Proxy({} as Logger, {
+  get(_, prop) {
     const logger = resolveLogger();
-    return Reflect.get(logger, prop, receiver);
+    return logger[prop as keyof Logger];
   }
 });
 

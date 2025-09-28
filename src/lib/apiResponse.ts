@@ -226,7 +226,7 @@ export class ApiResponse {
 /**
  * Middleware to handle async route errors
  */
-export function asyncHandler(fn: Function) {
+export function asyncHandler(fn: (req: any, res: any, next: any) => Promise<void>) {
   return (req: any, res: any, next: any) => {
     Promise.resolve(fn(req, res, next)).catch((error) => {
       log.error({
