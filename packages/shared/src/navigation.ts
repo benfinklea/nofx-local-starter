@@ -53,7 +53,7 @@ export enum NavigationItemType {
 /**
  * Core navigation item definition
  */
-export const NavigationItemSchema = z.object({
+export const NavigationItemSchema: z.ZodType<any> = z.object({
   /** Unique identifier for the navigation item */
   id: z.string(),
   /** Display label */
@@ -87,7 +87,7 @@ export const NavigationItemSchema = z.object({
   /** Keyboard shortcut */
   shortcut: z.string().optional(),
   /** Child items for nested navigation */
-  children: z.lazy(() => z.array(NavigationItemSchema)).optional(),
+  children: z.lazy((): z.ZodOptional<z.ZodArray<z.ZodType<any>>> => z.array(NavigationItemSchema).optional()),
   /** Custom metadata for extensions */
   metadata: z.record(z.unknown()).optional(),
 });

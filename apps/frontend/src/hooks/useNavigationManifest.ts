@@ -141,7 +141,7 @@ export function useNavigationManifest(): UseNavigationManifestReturn {
 
       ws.onmessage = (event) => {
         if (event.data === 'reload') {
-          console.log('Navigation manifest changed, reloading...');
+          // console.log('Navigation manifest changed, reloading...');
           reload();
         }
       };

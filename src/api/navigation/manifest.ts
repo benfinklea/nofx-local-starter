@@ -1,15 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { corsMiddleware } from '../middleware/cors';
+import { withCors } from '../../../api/_lib/cors';
 import { navigationService } from '../../services/navigation/navigationService';
-import { logger } from '../../utils/logger';
+import { log } from '../../lib/observability';
 
 /**
  * GET /api/navigation/manifest
  * Returns the navigation manifest filtered by user permissions
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Apply CORS
-  await corsMiddleware(req, res);
+async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -52,12 +50,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     };
 
-    logger.info('Navigation manifest served', {
+    log.info({
       correlation_id: correlationId,
       user_id: userContext.userId,
       total_entries: filteredEntries.length,
       user_roles: userContext.roles.length
-    });
+    }, 'Navigation manifest served');
 
     // Cache for 5 minutes in production
     if (process.env.NODE_ENV === 'production') {
@@ -66,11 +64,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json(manifest);
   } catch (error) {
-    logger.error('Failed to serve navigation manifest', {
+    log.error({
       correlation_id: correlationId,
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
-    });
+    }, 'Failed to serve navigation manifest');
 
     return res.status(500).json({
       error: 'Failed to load navigation manifest',
@@ -78,3 +76,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
+
+export default withCors(handler);

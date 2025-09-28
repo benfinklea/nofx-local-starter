@@ -117,7 +117,7 @@ export default function FeedbackWidget({ open, onClose }: FeedbackWidgetProps) {
     try {
       // In production, this would send to an API endpoint
       // For now, we'll log it and simulate a delay
-      console.log('[Feedback Submitted]', feedbackData);
+      // console.log('[Feedback Submitted]', feedbackData);
 
       // If GitHub integration is available, create an issue
       if (window.location.hostname === 'localhost') {

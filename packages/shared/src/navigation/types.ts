@@ -29,7 +29,7 @@ export const NavigationTelemetrySchema = z.object({
 });
 
 // Single navigation item
-export const NavigationItemSchema = z.object({
+export const NavigationItemSchema: z.ZodType<any> = z.object({
   id: z.string(),
   label: z.string(),
   path: z.string(),
@@ -43,7 +43,7 @@ export const NavigationItemSchema = z.object({
     text: z.string(),
     type: z.enum(['new', 'beta', 'alpha', 'coming-soon', 'deprecated']),
   }).optional(),
-  children: z.lazy(() => z.array(NavigationItemSchema)).optional(),
+  children: z.lazy((): z.ZodOptional<z.ZodArray<z.ZodType<any>>> => z.array(NavigationItemSchema).optional()),
   contextual: z.boolean().optional(), // For contextual actions
   keyboard: z.string().optional(), // Keyboard shortcut
   searchTerms: z.array(z.string()).optional(), // For search

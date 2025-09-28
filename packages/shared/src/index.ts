@@ -20,10 +20,13 @@ export * from './nav-composer';
 export {
   NavigationManifest,
   NavigationItem,
+  DEFAULT_MANIFEST,
+} from './navigation';
+
+export {
   NavigationComposer,
   createNavigationComposer,
   validateManifest,
-  DEFAULT_MANIFEST,
-} from './navigation';
+} from './nav-composer';
 
 export { default as NavComposer } from './nav-composer';

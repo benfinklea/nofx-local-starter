@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import { z } from 'zod';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { NavigationManifest, NavigationEntry } from '../src/types/navigation-manifest';
+import { NavigationManifest } from '../src/types/navigation-manifest';
 
 interface ValidationResult {
   valid: boolean;
@@ -19,7 +18,7 @@ interface ValidationError {
 }
 
 interface ValidationWarning {
-  type: 'missing_test' | 'missing_docs' | 'deprecated' | 'no_owner' | 'no_telemetry';
+  type: 'missing_test' | 'missing_docs' | 'deprecated' | 'no_owner' | 'no_telemetry' | 'missing_route';
   entry: string;
   message: string;
 }
@@ -56,10 +55,10 @@ class NavigationValidator {
 
       this.manifest = result.data;
       return true;
-    } catch (error) {
+    } catch (_error) {
       this.errors.push({
         type: 'schema',
-        message: `Failed to load manifest: ${error}`
+        message: `Failed to load manifest: ${_error}`
       });
       return false;
     }
@@ -75,16 +74,16 @@ class NavigationValidator {
       for (const match of routeMatches) {
         this.routeFiles.add(match[1]);
       }
-    } catch (error) {
-      console.warn(`Warning: Could not load routes from App.tsx: ${error}`);
+    } catch (_error) {
+      console.warn(`Warning: Could not load routes from App.tsx: ${_error}`);
     }
 
     // Load API routes
     const apiDir = path.join(__dirname, '../src/api');
     try {
       await this.scanApiRoutes(apiDir);
-    } catch (error) {
-      console.warn(`Warning: Could not scan API routes: ${error}`);
+    } catch (_error) {
+      console.warn(`Warning: Could not scan API routes: ${_error}`);
     }
   }
 
@@ -104,7 +103,7 @@ class NavigationValidator {
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Silent fail for missing directories
     }
   }

@@ -12,10 +12,8 @@ import {
   NavigationGroup,
   NavigationContext,
   ResolvedNavigationItem,
-  NavigationState,
   NavigationEvent,
   NavigationEventType,
-  NavigationOverride,
   ManifestValidationResult,
   NavigationMetrics,
   NavigationPermission,
@@ -35,7 +33,7 @@ import {
 export class NavigationComposer {
   private manifest: NavigationManifest;
   private context: NavigationContext;
-  private cache: Map<string, any> = new Map();
+  private cache: Map<string, unknown> = new Map();
   private eventListeners: Map<NavigationEventType, Set<(event: NavigationEvent) => void>> = new Map();
   private metricsCollector: NavigationMetricsCollector;
 
@@ -260,8 +258,8 @@ export class NavigationComposer {
 
     if (item.children) {
       resolved.children = item.children
-        .map(child => this.resolveItem(child))
-        .filter(child => child.visible);
+        .map((child: NavigationItem) => this.resolveItem(child))
+        .filter((child: ResolvedNavigationItem) => child.visible);
     }
 
     return resolved;

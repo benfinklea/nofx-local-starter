@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger';
+import { log } from '../../lib/observability';
 import type {
   NavigationManifest,
   NavigationEntry,
@@ -40,7 +40,7 @@ export class NavigationService {
     const correlationId = `nav-load-${Date.now()}`;
 
     try {
-      logger.info('Loading navigation manifest', {
+      log.info('Loading navigation manifest', {
         correlation_id: correlationId,
         timestamp: new Date().toISOString()
       });
@@ -53,7 +53,7 @@ export class NavigationService {
       this.state.manifest = this.manifest;
 
       // Log manifest statistics
-      logger.info('Navigation manifest loaded successfully', {
+      log.info('Navigation manifest loaded successfully', {
         correlation_id: correlationId,
         duration_ms: Date.now() - startTime,
         stats: {
@@ -66,7 +66,7 @@ export class NavigationService {
       // Initialize health checks
       this.initializeHealthChecks();
     } catch (error) {
-      logger.error('Failed to load navigation manifest', {
+      log.error('Failed to load navigation manifest', {
         correlation_id: correlationId,
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
@@ -102,7 +102,7 @@ export class NavigationService {
 
     try {
       // Log permission check attempt
-      logger.debug('Checking navigation permissions', {
+      log.debug('Checking navigation permissions', {
         entry_id: entry.id,
         user_id: userContext.userId,
         check_id: checkId,
@@ -134,7 +134,7 @@ export class NavigationService {
         hasPermission = rolloutThreshold < entry.rollout_percentage;
 
         if (!hasPermission) {
-          logger.info('Entry hidden due to rollout percentage', {
+          log.info('Entry hidden due to rollout percentage', {
             entry_id: entry.id,
             user_id: userContext.userId,
             rollout_percentage: entry.rollout_percentage,
@@ -146,7 +146,7 @@ export class NavigationService {
       // Check if entry is disabled or hidden
       if (entry.disabled || entry.hidden) {
         hasPermission = false;
-        logger.debug('Entry disabled or hidden', {
+        log.debug('Entry disabled or hidden', {
           entry_id: entry.id,
           disabled: entry.disabled,
           hidden: entry.hidden
@@ -157,7 +157,7 @@ export class NavigationService {
       this.permissionCache.set(cacheKey, hasPermission);
 
       // Log the result
-      logger.debug('Permission check completed', {
+      log.debug('Permission check completed', {
         entry_id: entry.id,
         user_id: userContext.userId,
         check_id: checkId,
@@ -166,7 +166,7 @@ export class NavigationService {
 
       return hasPermission;
     } catch (error) {
-      logger.error('Permission check failed', {
+      log.error('Permission check failed', {
         entry_id: entry.id,
         check_id: checkId,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -201,7 +201,7 @@ export class NavigationService {
       }
     }
 
-    logger.info('Navigation entries filtered', {
+    log.info('Navigation entries filtered', {
       user_id: userContext.userId,
       total_entries: this.manifest!.entries.length,
       visible_entries: filteredEntries.length,
@@ -221,7 +221,7 @@ export class NavigationService {
       this.telemetryQueue.push(event);
 
       // Log the event with structured data
-      logger.info('Navigation event tracked', {
+      log.info('Navigation event tracked', {
         event_type: event.event_type,
         entry_id: event.entry_id,
         user_id: event.user_id,
@@ -240,7 +240,7 @@ export class NavigationService {
 
         // Custom attributes
         if (entry.telemetry.custom_attributes) {
-          logger.info('Custom telemetry attributes', {
+          log.info('Custom telemetry attributes', {
             entry_id: event.entry_id,
             custom_attributes: entry.telemetry.custom_attributes
           });
@@ -252,7 +252,7 @@ export class NavigationService {
         this.flushTelemetry();
       }
     } catch (error) {
-      logger.error('Failed to track navigation event', {
+      log.error('Failed to track navigation event', {
         error: error instanceof Error ? error.message : 'Unknown error',
         event_type: event.event_type,
         entry_id: event.entry_id
@@ -273,7 +273,7 @@ export class NavigationService {
       const logLevel = health === 'unavailable' ? 'error' :
                       health === 'degraded' ? 'warn' : 'info';
 
-      logger[logLevel]('Navigation entry health status changed', {
+      log[logLevel]('Navigation entry health status changed', {
         entry_id: entryId,
         previous_health: previousHealth,
         current_health: health,
@@ -293,7 +293,7 @@ export class NavigationService {
   setActiveEntry(entryId: string): void {
     const entry = this.manifest?.entries.find(e => e.id === entryId);
     if (!entry) {
-      logger.warn('Attempted to set non-existent entry as active', {
+      log.warn('Attempted to set non-existent entry as active', {
         entry_id: entryId
       });
       return;
@@ -311,7 +311,7 @@ export class NavigationService {
       timestamp: new Date()
     });
 
-    logger.debug('Active navigation entry updated', {
+    log.debug('Active navigation entry updated', {
       entry_id: entryId,
       path: entry.path,
       breadcrumb_depth: this.state.breadcrumbs.length
@@ -356,7 +356,7 @@ export class NavigationService {
     const sessionStart = this.getSessionStartTime(event.session_id);
     if (sessionStart) {
       const timeToFeature = event.timestamp.getTime() - sessionStart;
-      logger.info('Time to feature tracked', {
+      log.info('Time to feature tracked', {
         entry_id: event.entry_id,
         session_id: event.session_id,
         time_to_feature_ms: timeToFeature
@@ -364,7 +364,7 @@ export class NavigationService {
     }
   }
 
-  private getSessionStartTime(sessionId?: string): number | null {
+  private getSessionStartTime(_sessionId?: string): number | null {
     // In a real implementation, this would query session storage
     return Date.now() - (5 * 60 * 1000); // Mock: 5 minutes ago
   }
@@ -390,7 +390,7 @@ export class NavigationService {
   private flushTelemetry(): void {
     if (this.telemetryQueue.length === 0) return;
 
-    logger.info('Flushing telemetry queue', {
+    log.info('Flushing telemetry queue', {
       event_count: this.telemetryQueue.length
     });
 
@@ -403,7 +403,7 @@ export class NavigationService {
     const entry = this.manifest?.entries.find(e => e.id === entryId);
     if (!entry) return;
 
-    logger.error('ALERT: Navigation entry unavailable', {
+    log.error('ALERT: Navigation entry unavailable', {
       entry_id: entryId,
       entry_label: entry.label,
       entry_path: entry.path,

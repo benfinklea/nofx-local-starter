@@ -54,7 +54,7 @@ const trackNavigation = (event: NavigationAnalyticsEvent) => {
 
   // Log to console in dev mode
   if (process.env.NODE_ENV === 'development') {
-    console.log('[Navigation Analytics]', event);
+    // console.log('[Navigation Analytics]', event);
   }
 };
 

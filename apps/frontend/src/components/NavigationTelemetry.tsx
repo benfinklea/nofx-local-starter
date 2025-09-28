@@ -153,7 +153,7 @@ export default function NavigationTelemetry() {
 
     // Log in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Navigation Telemetry] Page View:', event);
+      // console.log('[Navigation Telemetry] Page View:', event);
     }
 
     return stopTracking;
@@ -176,7 +176,7 @@ export default function NavigationTelemetry() {
 
       // Log in development
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Navigation Telemetry] Performance:', fullMetrics);
+        // console.log('[Navigation Telemetry] Performance:', fullMetrics);
       }
 
       // Check SLIs/SLOs
@@ -246,7 +246,7 @@ export const navigationAnalytics = {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Navigation Analytics]', fullEvent);
+      // console.log('[Navigation Analytics]', fullEvent);
     }
   },
 

@@ -12,21 +12,16 @@ import type {
   CreateSessionResponse,
   SelectedAgent,
   AgentSelectionCriteria,
-  RoutingDecision,
   SendMessageRequest,
   MessageResponse,
   ListSessionsQuery,
   ListSessionsResponse,
   SessionUpdateRequest,
   OrchestrationType,
-  AgentCapability,
   CapabilityRequirement,
   OrchestrationError,
-  OrchestrationConfig,
-  AgentRelationship,
-  PerformanceMetrics
+  AgentRelationship
 } from '../../packages/shared/src/orchestration';
-import type { AgentDetail } from '../../packages/shared/src/agents';
 
 // ============================================
 // SESSION MANAGEMENT
@@ -35,7 +30,7 @@ import type { AgentDetail } from '../../packages/shared/src/agents';
 export async function createOrchestrationSession(
   request: CreateSessionRequest
 ): Promise<CreateSessionResponse> {
-  return timeIt('orchestration.createSession', async () => {
+  const result = await timeIt('orchestration.createSession', async () => {
     const { orchestrationType, agentSelectionCriteria, sessionMetadata, autoStart } = request;
 
     // Select agents based on criteria
@@ -51,7 +46,7 @@ export async function createOrchestrationSession(
     const estimates = calculateSessionEstimates(selectedAgents, orchestrationType);
 
     // Create session in database
-    const session = await withTransaction(async (client) => {
+    const session = await withTransaction(async () => {
       // Create the session
       const sessionResult = await query(
         `
@@ -69,21 +64,15 @@ export async function createOrchestrationSession(
           selectedAgents[0]?.agentId || null,
           sessionMetadata || {},
           autoStart ? 'active' : 'pending'
-        ],
-        client
+        ]
       );
 
       const session = mapSessionRow(sessionResult.rows[0]);
 
       // Create relationships for hierarchical mode
       if (orchestrationType === 'hierarchical' && selectedAgents.length > 1) {
-        await createAgentRelationships(session.id, selectedAgents, client);
+        await createAgentRelationships(session.id, selectedAgents);
       }
-
-      // Log session creation
-      metrics.increment('orchestration.sessions.created', {
-        type: orchestrationType
-      });
 
       return session;
     });
@@ -97,13 +86,14 @@ export async function createOrchestrationSession(
       estimatedDuration: estimates.duration
     };
   });
+  return result.result;
 }
 
 export async function updateOrchestrationSession(
   sessionId: string,
   updates: SessionUpdateRequest
 ): Promise<AgentSession> {
-  return timeIt('orchestration.updateSession', async () => {
+  const result = await timeIt('orchestration.updateSession', async () => {
     const updateFields: string[] = [];
     const values: unknown[] = [];
     let paramCount = 1;
@@ -141,12 +131,13 @@ export async function updateOrchestrationSession(
 
     return mapSessionRow(result.rows[0]);
   });
+  return result.result;
 }
 
 export async function listOrchestrationSessions(
   queryParams: ListSessionsQuery
 ): Promise<ListSessionsResponse> {
-  return timeIt('orchestration.listSessions', async () => {
+  const result = await timeIt('orchestration.listSessions', async () => {
     const conditions: string[] = [];
     const values: unknown[] = [];
     let paramCount = 1;
@@ -206,6 +197,7 @@ export async function listOrchestrationSessions(
       nextCursor
     };
   });
+  return result.result;
 }
 
 // ============================================
@@ -215,7 +207,7 @@ export async function listOrchestrationSessions(
 export async function selectAgentsForOrchestration(
   criteria: AgentSelectionCriteria
 ): Promise<SelectedAgent[]> {
-  return timeIt('orchestration.selectAgents', async () => {
+  const result = await timeIt('orchestration.selectAgents', async () => {
     const { requiredCapabilities, orchestrationType, resourceConstraints, costBudget } = criteria;
 
     // Get agents with required capabilities
@@ -234,8 +226,7 @@ export async function selectAgentsForOrchestration(
     // Apply orchestration-specific selection logic
     const selectedAgents = selectByOrchestrationPattern(
       affordableAgents,
-      orchestrationType,
-      criteria
+      orchestrationType
     );
 
     log.info(
@@ -249,6 +240,7 @@ export async function selectAgentsForOrchestration(
 
     return selectedAgents;
   });
+  return result.result;
 }
 
 async function findAgentsWithCapabilities(
@@ -294,8 +286,7 @@ async function findAgentsWithCapabilities(
 
 function selectByOrchestrationPattern(
   agents: SelectedAgent[],
-  orchestrationType: OrchestrationType,
-  criteria: AgentSelectionCriteria
+  orchestrationType: OrchestrationType
 ): SelectedAgent[] {
   switch (orchestrationType) {
     case 'solo':
@@ -341,7 +332,7 @@ function selectByOrchestrationPattern(
 export async function sendAgentMessage(
   request: SendMessageRequest
 ): Promise<MessageResponse> {
-  return timeIt('orchestration.sendMessage', async () => {
+  const result = await timeIt('orchestration.sendMessage', async () => {
     const { sessionId, fromAgentId, toAgentId, messageType, payload, requireAcknowledgment } = request;
 
     // Verify session exists and is active
@@ -385,10 +376,7 @@ export async function sendAgentMessage(
       acknowledgedBy = [toAgentId];
     }
 
-    metrics.increment('orchestration.messages.sent', {
-      type: messageType,
-      broadcast: toAgentId === null
-    });
+    // TODO: Add metrics tracking for orchestration messages
 
     return {
       messageId,
@@ -396,6 +384,7 @@ export async function sendAgentMessage(
       acknowledgedBy
     };
   });
+  return result.result;
 }
 
 // ============================================
@@ -404,8 +393,7 @@ export async function sendAgentMessage(
 
 async function createAgentRelationships(
   sessionId: string,
-  agents: SelectedAgent[],
-  client?: any
+  agents: SelectedAgent[]
 ): Promise<void> {
   const supervisor = agents.find(a => a.role === 'supervisor');
   const workers = agents.filter(a => a.role === 'worker');
@@ -434,8 +422,7 @@ async function createAgentRelationships(
       relationships.map(r => r[1]),
       relationships.map(r => r[2]),
       relationships.map(r => r[3])
-    ],
-    client
+    ]
   );
 }
 
@@ -498,7 +485,7 @@ function mapSessionRow(row: any): AgentSession {
 
 function filterByResourceConstraints(
   agents: SelectedAgent[],
-  constraints: any
+  _constraints: any
 ): SelectedAgent[] {
   // Implementation would filter based on resource requirements
   // For now, return all agents
@@ -540,7 +527,7 @@ function calculateSessionEstimates(
 function createOrchestrationError(
   code: string,
   message: string,
-  details?: any
+  details?: unknown
 ): OrchestrationError {
   return {
     code: code as any,

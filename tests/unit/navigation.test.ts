@@ -6,12 +6,10 @@
 import {
   NavigationComposer,
   NavigationManifest,
-  NavigationItem,
   NavigationContext,
   NavigationItemStatus,
   NavigationItemType,
-  validateManifest,
-  DEFAULT_MANIFEST,
+  validateManifest
 } from '../../packages/shared/src/navigation';
 
 describe('Navigation System Tests', () => {
@@ -508,7 +506,7 @@ describe('Navigation System Tests', () => {
     });
 
     test('should invalidate cache on manifest change', () => {
-      const items1 = composer.getResolvedItems();
+      composer.getResolvedItems(); // First call to populate cache
 
       composer.setManifest({
         ...manifest,
