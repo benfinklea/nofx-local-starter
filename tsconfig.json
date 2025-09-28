@@ -15,7 +15,8 @@
   "include": [
     "src",
     "scripts",
-    "api"
+    "api",
+    "packages/shared"
   ],
   "exclude": [
     ".vercel",
