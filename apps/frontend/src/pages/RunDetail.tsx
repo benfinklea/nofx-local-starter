@@ -44,23 +44,19 @@ export default function RunDetail(){
 
     loadData();
 
-    // Set up Server-Sent Events for real-time updates
-    const sseUrl = apiBase ? `${apiBase}/runs/${id}/stream` : `/runs/${id}/stream`;
-    const es = new EventSource(sseUrl);
-    es.addEventListener('init', (e: MessageEvent) => {
+    // Poll for timeline updates instead of SSE to avoid authentication issues
+    // EventSource doesn't support custom headers, so we'll poll the timeline endpoint
+    const pollInterval = setInterval(async () => {
       try {
-        setTimeline(JSON.parse((e as any).data || '[]'));
-      } catch {}
-    });
-    es.addEventListener('append', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse((e as any).data || '[]');
-        setTimeline(prev => prev.concat(Array.isArray(data) ? data : []));
-      } catch {}
-    });
-    es.onerror = () => { /* ignore SSE errors */ };
+        const timelineData = await getTimeline(id!);
+        setTimeline(timelineData);
+      } catch (err) {
+        // Silently ignore polling errors to avoid disrupting the UI
+        console.debug('Timeline polling error:', err);
+      }
+    }, 2000); // Poll every 2 seconds
 
-    return () => es.close();
+    return () => clearInterval(pollInterval);
   }, [id]);
 
   if (loading) {

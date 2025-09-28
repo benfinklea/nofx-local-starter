@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { z } from 'zod';
-import { isAdmin } from '../../lib/auth';
+import { requireAuth } from '../../auth/middleware';
 import { listProjects, getProject, createProject, updateProject, deleteProject } from '../../lib/projects';
 import type { Project } from '../../lib/projects';
 
@@ -31,33 +31,28 @@ function normalizeProjectInput(input: Partial<UpsertInput>): Partial<Project> {
 }
 
 export default function mount(app: Express){
-  app.get('/projects', async (req, res) => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+  app.get('/projects', requireAuth, async (req, res) => {
     const rows = await listProjects();
     res.json({ projects: rows });
   });
-  app.post('/projects', async (req, res) => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+  app.post('/projects', requireAuth, async (req, res) => {
     const parsed = UpsertSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
     const row = await createProject(normalizeProjectInput(parsed.data));
     res.status(201).json(row);
   });
-  app.get('/projects/:id', async (req, res) => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+  app.get('/projects/:id', requireAuth, async (req, res) => {
     const row = await getProject(req.params.id);
     if (!row) return res.status(404).json({ error: 'not found' });
     res.json(row);
   });
-  app.patch('/projects/:id', async (req, res) => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+  app.patch('/projects/:id', requireAuth, async (req, res) => {
     const parsed = UpsertSchema.partial().safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
     const row = await updateProject(req.params.id, normalizeProjectInput(parsed.data));
     res.json(row);
   });
-  app.delete('/projects/:id', async (req, res) => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required' });
+  app.delete('/projects/:id', requireAuth, async (req, res) => {
     await deleteProject(req.params.id);
     res.json({ ok: true });
   });
