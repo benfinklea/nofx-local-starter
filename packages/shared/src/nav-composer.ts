@@ -317,7 +317,7 @@ export class NavigationComposer {
 
     return items.map(item => {
       const override = overrides.find(o => o.itemId === item.id);
-      if (override) {
+      if (override && override.overrides) {
         return { ...item, ...override.overrides };
       }
 
@@ -390,9 +390,11 @@ export class NavigationComposer {
   private getFromCache(key: string): any {
     if (!NAVIGATION_CACHE_CONFIG.enabled) return null;
     const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < NAVIGATION_CACHE_CONFIG.ttl) {
+    if (cached && typeof cached === 'object' && cached !== null &&
+        'timestamp' in cached && 'data' in cached &&
+        Date.now() - (cached.timestamp as number) < NAVIGATION_CACHE_CONFIG.ttl) {
       this.metricsCollector.recordCacheHit(true);
-      return cached.data;
+      return (cached as any).data;
     }
     this.metricsCollector.recordCacheHit(false);
     return null;

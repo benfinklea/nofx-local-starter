@@ -527,7 +527,7 @@ function calculateSessionEstimates(
 function createOrchestrationError(
   code: string,
   message: string,
-  details?: unknown
+  details?: Record<string, unknown>
 ): OrchestrationError {
   return {
     code: code as any,

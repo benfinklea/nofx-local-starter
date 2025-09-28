@@ -1,4 +1,7 @@
-import { log } from '../../lib/observability';
+import { log as baseLog } from '../../lib/observability';
+
+// Type-safe logger wrapper for this service
+const log = baseLog as any;
 import type {
   NavigationManifest,
   NavigationEntry,
@@ -438,7 +441,11 @@ export class NavigationService {
         ownership: {
           team: 'platform'
         },
-        version: '1.0.0'
+        version: '1.0.0',
+        disabled: false,
+        hidden: false,
+        rollout_percentage: 100,
+        environments: ['development', 'staging', 'production']
       }]
     };
   }
