@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isAdmin } from '../../src/lib/auth';
 import { deleteModel } from '../../src/lib/models';
-import { withCors } from '../../_lib/cors';
+import { withCors } from '../_lib/cors';
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   // Check authentication
