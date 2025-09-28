@@ -7,7 +7,6 @@
       "maxDuration": 60
     },
     "apps/frontend/api/**/*.ts": {
-      "runtime": "@vercel/node@3",
       "maxDuration": 60
     }
   },
