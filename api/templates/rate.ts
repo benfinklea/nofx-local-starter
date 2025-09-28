@@ -2,7 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { isAdmin } from '../../src/lib/auth';
 import { submitTemplateRating } from '../../src/lib/registry';
+import type { SubmitTemplateRatingRequest } from '../../packages/shared/src/templates';
 import { withCors } from '../_lib/cors';
+import { recordRegistryUsage } from '../_lib/billingUsage';
 
 const RateSchema = z.object({
   templateId: z.string().min(1),
@@ -26,7 +28,12 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   }
 
   try {
-    const result = await submitTemplateRating(parsed.data);
+    const payload = parsed.data as SubmitTemplateRatingRequest;
+    const result = await submitTemplateRating(payload);
+    await recordRegistryUsage(req, 'registry:template:rating', {
+      templateId: payload.templateId,
+      rating: payload.rating
+    });
     return res.status(201).json({ rating: result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to submit rating';

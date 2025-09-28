@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { isAdmin } from '../../../src/lib/auth';
 import { rollbackAgent } from '../../../src/lib/registry';
 import { withCors } from '../../_lib/cors';
+import { recordRegistryUsage } from '../../_lib/billingUsage';
 
 const BodySchema = z.object({
   targetVersion: z.string().min(1)
@@ -29,6 +30,10 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
   try {
     const agent = await rollbackAgent(agentId, parsed.data.targetVersion);
+    await recordRegistryUsage(req, 'registry:agent:rollback', {
+      agentId,
+      targetVersion: parsed.data.targetVersion
+    });
     return res.json({ agent });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to rollback agent';

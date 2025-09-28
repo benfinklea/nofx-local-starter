@@ -47,6 +47,18 @@ Rollbacks reactivate the selected version and archive the current one. Observabi
 - Logs: look for `registry.agent.published`, `registry.template.published` in the aggregated log stream or Supabase query logs for auditing.
 - Failures bubble up as `500` responses; check application logs with the correlation ID returned in the body.
 
+### Alerting Playbook
+- Create a Prometheus alert rule on `registry_operation_duration_ms` with `sum(rate(... [5m]))` to flag p95 latency > 200ms for five minutes, notify `#ops-registry` in Slack.
+- Add a counter alert on `registry_operation_duration_ms{action="publish"}` error rate: `increase(http_requests_total{route="/api/agents/publish",status=~"5.."}[5m]) > 0`.
+- Watch `registry_operation_duration_ms{action="rollback"}` for spikes; tie PagerDuty `registry-publish-failed` service to this rule.
+- Surface these alerts in Grafana using the "Registry Operations" dashboard (provisioned under `docs/observability/`); include runbook links back to this document.
+
+### Dashboards
+- Panel 1: Agent/template publish latency (p50/p95) with alert banner.
+- Panel 2: Publish throughput vs. failures by entity.
+- Panel 3: Template rating volume (reads `nofx.template_feedback`).
+- Panel 4: Supabase connection errors (query `pg_stat_activity` via existing datasource).
+
 ## Troubleshooting
 1. **Schema missing** – Registry operations throw `Agent/template registry tables are missing`; run Supabase migrations.
 2. **Duplicate publish** – API returns `202 skipped`; ensure version bump or run `rollback` prior to re-publish.
@@ -58,3 +70,19 @@ Rollbacks reactivate the selected version and archive the current one. Observabi
 - Use CLI `registry:agents:validate` before emergency publishes.
 - Monitor metrics dashboards for spikes in publish latency.
 - Update this runbook when new registry features land (search, analytics, etc.).
+
+## Security Audit Checklist
+- Verify admin authentication: `/api/agents/*` and `/api/templates/*` must return `401` without the signed admin cookie or `ENABLE_ADMIN` flag.
+- Run `npx ts-node scripts/security/scanRegistryRoutes.ts` (see below) to ensure no new routes bypass auth middleware.
+- Confirm Supabase RLS policies are enabled for `nofx.agent_registry`, `agent_versions`, `template_registry`, `template_versions`, `template_usage_daily`, and `template_feedback` (`alter table ... enable row level security` present in migrations).
+- Execute the monthly OWASP quick scan (Burp/ZAP) against `/api/agents` and `/api/templates`; attach reports to the security vault.
+- Audit usage tracking: ensure `REGISTRY_DRY_RUN=0` deployments call `trackUsage` so billing reconciliation can flag anomalous publish volume.
+
+### Automated Scan Script
+`scripts/security/scanRegistryRoutes.ts` performs a static check that every registry route imports `isAdmin()` and returns `401` when authentication is missing. Run with `npx ts-node scripts/security/scanRegistryRoutes.ts`; wire it into the security gate before deploying auth changes.
+
+## Backup & Recovery
+- **Daily snapshot**: schedule Supabase `pg_dump` of `nofx.agent_registry*` and `nofx.template_*` tables to S3 (`scripts/backups/exportRegistry.sh`). Retain 14 days.
+- **Warm restore drill**: quarterly, restore latest snapshot into staging, run `npm run registry:sync` in dry-run mode to validate data integrity, and execute a read-only smoke test against `/api/agents` + `/api/templates`.
+- **Disaster procedure**: if primary Supabase fails, provision standby, apply latest migrations (`supabase/migrations/*.sql`), restore snapshot, re-run `npm run registry:agents:publish` with `REGISTRY_DRY_RUN=0` after verifying `registry.publishAgents.cli.dryRun` logs show success.
+- **Verification**: track backup job in Ops calendar; failure should page `oncall-registry` and block deploys until a healthy backup is captured.

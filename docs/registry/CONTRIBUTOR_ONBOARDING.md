@@ -21,7 +21,11 @@ This runbook helps new contributors ship agent and template updates confidently.
    - `REGISTRY_DRY_RUN=1 npm run registry:agents:publish`
    - `REGISTRY_DRY_RUN=1 npm run registry:templates:publish`
    - `REGISTRY_DRY_RUN=1 npm run registry:sync`
-5. **Open a PR:** include dry-run logs and link any related docs.
+5. **Run targeted tests:**
+   - `npx jest --runTestsByPath tests/unit/registry.store.test.ts`
+   - `npx jest --runTestsByPath tests/performance/registry.performance.test.ts`
+   - `npx ts-node scripts/security/scanRegistryRoutes.ts`
+6. **Open a PR:** include dry-run logs and link any related docs.
 
 ## CI/CD Expectations
 

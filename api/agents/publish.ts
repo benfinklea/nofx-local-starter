@@ -5,6 +5,7 @@ import { publishAgent } from '../../src/lib/registry';
 import { store } from '../../src/lib/store';
 import type { PublishAgentRequest } from '../../packages/shared/src/agents';
 import { withCors } from '../_lib/cors';
+import { recordRegistryUsage } from '../_lib/billingUsage';
 
 const CapabilitySchema = z.object({
   id: z.string(),
@@ -55,6 +56,10 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
   try {
     const agent = await publishAgent(payload);
+    await recordRegistryUsage(req, 'registry:agent:publish', {
+      agentId: payload.agentId,
+      version: payload.version
+    });
     return res.status(201).json({ agent });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to publish agent';

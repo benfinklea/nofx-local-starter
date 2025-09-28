@@ -12,6 +12,11 @@ Phase 1C introduces automation and guidance for working with the registry.
 
 All publish commands respect `REGISTRY_DRY_RUN=1` to enable safe dry-runs.
 
+## Security & Billing Hooks
+
+- `npx ts-node scripts/security/scanRegistryRoutes.ts` ensures every registry endpoint enforces admin auth.
+- Registry publish/rating endpoints automatically track usage through Supabase billing (`trackUsage`), enabling per-tenant accounting.
+
 ## GitHub Actions
 
 - `registry-validation.yml` validates manifests on PRs touching registry files.

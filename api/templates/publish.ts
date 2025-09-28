@@ -5,6 +5,7 @@ import { publishTemplate } from '../../src/lib/registry';
 import { store } from '../../src/lib/store';
 import type { PublishTemplateRequest } from '../../packages/shared/src/templates';
 import { withCors } from '../_lib/cors';
+import { recordRegistryUsage } from '../_lib/billingUsage';
 
 const PublishSchema = z.object({
   templateId: z.string().min(1),
@@ -47,6 +48,10 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
   try {
     const template = await publishTemplate(payload);
+    await recordRegistryUsage(req, 'registry:template:publish', {
+      templateId: payload.templateId,
+      version: payload.version
+    });
     return res.status(201).json({ template });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to publish template';

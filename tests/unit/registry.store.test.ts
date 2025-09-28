@@ -383,6 +383,136 @@ describe('registry store', () => {
     expect(detail.currentVersion).toBe('1.0.0');
   });
 
+  test('recordTemplateUsage upserts daily counters', async () => {
+    const templateRow = {
+      id: 'tmpl-row-id',
+      template_id: 'readme'
+    };
+    const upsertSpy = jest.fn().mockResolvedValue({ rows: [] });
+
+    queryMock.mockImplementation((sql: string, params: unknown[]) => {
+      if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
+      if (sql.startsWith('select id from nofx.template_registry where template_id = $1')) {
+        return { rows: [templateRow] };
+      }
+      if (sql.startsWith('insert into nofx.template_usage_daily')) {
+        upsertSpy(sql, params);
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await registry.recordTemplateUsage({ templateId: 'readme', outcome: 'success', durationMs: 2500, tokenUsage: 150 });
+
+    expect(withTransactionMock).toHaveBeenCalled();
+    expect(upsertSpy).toHaveBeenCalled();
+    const [, params] = upsertSpy.mock.calls[0];
+    expect(params).toEqual([
+      'tmpl-row-id',
+      1,
+      2500,
+      150
+    ]);
+  });
+
+  test('submitTemplateRating inserts feedback and returns aggregate', async () => {
+    const templateRow = {
+      id: 'tmpl-row-id',
+      template_id: 'readme'
+    };
+
+    queryMock.mockImplementation((sql: string, params: unknown[]) => {
+      if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
+      if (sql.startsWith('select id from nofx.template_registry where template_id = $1')) {
+        return { rows: [templateRow] };
+      }
+      if (sql.startsWith('insert into nofx.template_feedback')) {
+        expect(params).toEqual(['tmpl-row-id', 5, 'Great template', 'user-1']);
+        return { rows: [] };
+      }
+      if (sql.startsWith('select avg(rating)::numeric as average_rating')) {
+        return { rows: [{ average_rating: '4.5', rating_count: '8' }] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await registry.submitTemplateRating({
+      templateId: 'readme',
+      rating: 5,
+      comment: 'Great template',
+      submittedBy: 'user-1'
+    });
+
+    expect(withTransactionMock).toHaveBeenCalled();
+    expect(result).toEqual({ averageRating: 4.5, ratingCount: 8 });
+  });
+
+  test('rollbackTemplate resets version status', async () => {
+    const templateRow = {
+      id: 'tmpl-row-id',
+      template_id: 'readme',
+      name: 'README',
+      description: null,
+      status: 'published',
+      current_version: '2.0.0',
+      tags: [],
+      category: null,
+      metadata: {},
+      owner_id: null,
+      created_at: '2024-02-01T00:00:00.000Z',
+      updated_at: '2024-02-04T00:00:00.000Z'
+    };
+    const versionRow = {
+      id: 'tmpl-version-row-id',
+      template_id: 'tmpl-row-id',
+      version: '1.0.0',
+      status: 'archived',
+      content: {},
+      checksum: null,
+      change_summary: null,
+      published_at: '2024-02-01T00:00:00.000Z'
+    };
+
+    queryMock.mockImplementation((sql: string, params: unknown[]) => {
+      if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
+      if (sql.startsWith('select * from nofx.template_registry where template_id = $1 limit 1')) {
+        return { rows: [templateRow] };
+      }
+      if (sql.startsWith('select * from nofx.template_versions where template_id = $1 and version = $2')) {
+        return { rows: [versionRow] };
+      }
+      if (sql.startsWith('update nofx.template_versions set status = case when version = $2')) {
+        return { rows: [] };
+      }
+      if (sql.startsWith('update nofx.template_registry set current_version')) {
+        templateRow.current_version = params[1] as string;
+        return { rows: [] };
+      }
+      if (sql.startsWith('select * from nofx.template_versions where template_id = $1 order by published_at desc')) {
+        return { rows: [versionRow] };
+      }
+      if (sql.includes('from nofx.template_usage_daily')) {
+        return { rows: [] };
+      }
+      if (sql.includes('from nofx.template_feedback')) {
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const detail = await registry.rollbackTemplate('readme', '1.0.0');
+    expect(detail.currentVersion).toBe('1.0.0');
+  });
+
   test('ensureSchema throws helpful error when tables missing', async () => {
     queryMock.mockImplementation(() => {
       throw new Error('relation "nofx.agent_registry" does not exist');
