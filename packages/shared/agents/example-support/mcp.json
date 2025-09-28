@@ -1,0 +1,17 @@
+{
+  "name": "Example Support Agent",
+  "description": "Minimal MCP manifest used for integration tests.",
+  "actions": [
+    {
+      "id": "summarize-ticket",
+      "name": "Summarize Ticket",
+      "arguments": {
+        "ticketBody": "string"
+      },
+      "output": "string"
+    }
+  ],
+  "prompts": {
+    "system": "prompts/system.md"
+  }
+}

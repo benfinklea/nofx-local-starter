@@ -118,7 +118,9 @@
     "perf:baseline": "npm run test:benchmarks && echo '📊 Baseline performance results saved'",
     "perf:compare": "npm run test:benchmarks && echo '📊 Performance comparison complete'",
     "perf:report": "node -e \"console.log('📊 Performance report generation not implemented yet')\"",
-    "admin:super": "echo '🛡️ Opening super admin dashboard...' && open http://localhost:3002/dev/super-admin"
+    "admin:super": "echo '🛡️ Opening super admin dashboard...' && open http://localhost:3002/dev/super-admin",
+    "registry:templates:validate": "ts-node-dev --transpile-only scripts/registry/validateTemplates.ts",
+    "registry:templates:publish": "ts-node-dev --transpile-only scripts/registry/publishTemplates.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.25.1",

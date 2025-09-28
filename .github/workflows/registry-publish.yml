@@ -1,0 +1,38 @@
+name: Registry Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/shared/agents/**'
+      - 'packages/shared/templates/**'
+      - 'scripts/registry/**'
+      - 'registry/**'
+      - '.github/workflows/registry-publish.yml'
+  workflow_dispatch: {}
+
+env:
+  REGISTRY_DRY_RUN: ${{ vars.REGISTRY_DRY_RUN || '1' }}
+
+jobs:
+  publish-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Validate agents
+        run: npm run registry:agents:validate
+      - name: Validate templates
+        run: npm run registry:templates:validate
+      - name: Publish agents
+        run: npm run registry:agents:publish
+      - name: Publish templates
+        run: npm run registry:templates:publish
+      - name: Sync registry
+        run: npm run registry:sync

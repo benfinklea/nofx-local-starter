@@ -1,0 +1,31 @@
+name: Registry Validation
+
+on:
+  pull_request:
+    paths:
+      - 'packages/shared/agents/**'
+      - 'packages/shared/templates/**'
+      - 'scripts/registry/**'
+      - 'registry/**'
+      - '.github/workflows/registry-validation.yml'
+
+jobs:
+  validate-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Validate agent manifests
+        run: npm run registry:agents:validate
+      - name: Validate template manifests
+        run: npm run registry:templates:validate
+      - name: Dry-run registry sync
+        env:
+          REGISTRY_DRY_RUN: '1'
+        run: npm run registry:sync
