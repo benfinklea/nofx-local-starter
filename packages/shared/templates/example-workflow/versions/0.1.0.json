@@ -1,0 +1,26 @@
+{
+  "steps": [
+    {
+      "id": "ingest",
+      "agentId": "example-support",
+      "name": "Ingest Ticket",
+      "inputs": {
+        "ticket": "{{ ticket }}"
+      }
+    },
+    {
+      "id": "triage",
+      "agentId": "example-support",
+      "name": "Triage Ticket",
+      "dependsOn": ["ingest"],
+      "inputs": {
+        "ingestSummary": "{{ steps.ingest.outputs.summary }}"
+      }
+    }
+  ],
+  "metadata": {
+    "runtime": {
+      "queue": "standard"
+    }
+  }
+}

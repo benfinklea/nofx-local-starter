@@ -1,19 +1,42 @@
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { publishAgent, validateAgent, publishTemplate, validateTemplate } from '../../src/lib/registry';
 import { log } from '../../src/lib/observability';
 import type { PublishAgentRequest } from '../../packages/shared/src/agents';
 import type { PublishTemplateRequest } from '../../packages/shared/src/templates';
 
-async function loadJsonRecords<T>(targetPath: string): Promise<T[]> {
+const DEFAULT_AGENT_PATHS = [
+  path.join(process.cwd(), 'packages', 'shared', 'agents'),
+  path.join(process.cwd(), 'registry', 'agents')
+];
+
+const DEFAULT_TEMPLATE_PATHS = [
+  path.join(process.cwd(), 'packages', 'shared', 'templates'),
+  path.join(process.cwd(), 'registry', 'templates')
+];
+
+const dryRun = process.env.REGISTRY_DRY_RUN === '1';
+
+async function loadJsonRecords<T>(targetPath: string, manifestFile: string): Promise<T[]> {
   try {
     const stat = await fs.stat(targetPath);
     if (stat.isDirectory()) {
-      const files = await fs.readdir(targetPath);
+      const entries = await fs.readdir(targetPath, { withFileTypes: true });
       const records: T[] = [];
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-        const full = path.join(targetPath, file);
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const manifestPath = path.join(targetPath, entry.name, manifestFile);
+          try {
+            const payload = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+            records.push(payload as T);
+          } catch {
+            // ignore directories without a manifest file
+          }
+          continue;
+        }
+        if (!entry.name.endsWith('.json')) continue;
+        const full = path.join(targetPath, entry.name);
         const payload = JSON.parse(await fs.readFile(full, 'utf8'));
         records.push(payload as T);
       }
@@ -29,16 +52,26 @@ async function loadJsonRecords<T>(targetPath: string): Promise<T[]> {
   }
 }
 
-async function main() {
-  const baseDir = process.argv[2] ?? path.join(process.cwd(), 'registry');
-  const agentPath = path.join(baseDir, 'agents');
-  const templatePath = path.join(baseDir, 'templates');
+async function collectDefinitions<T>(targets: string[], manifestFile: string): Promise<T[]> {
+  const records: T[] = [];
+  for (const target of targets) {
+    if (!existsSync(target)) continue;
+    const payloads = await loadJsonRecords<T>(target, manifestFile);
+    records.push(...payloads);
+  }
+  return records;
+}
 
-  const agents = await loadJsonRecords<PublishAgentRequest>(agentPath);
-  const templates = await loadJsonRecords<PublishTemplateRequest>(templatePath);
+async function main() {
+  const override = process.argv[2];
+  const agentTargets = override ? [path.join(override, 'agents')] : DEFAULT_AGENT_PATHS;
+  const templateTargets = override ? [path.join(override, 'templates')] : DEFAULT_TEMPLATE_PATHS;
+
+  const agents = await collectDefinitions<PublishAgentRequest>(agentTargets, 'agent.json');
+  const templates = await collectDefinitions<PublishTemplateRequest>(templateTargets, 'template.json');
 
   if (agents.length === 0 && templates.length === 0) {
-    log.warn({ baseDir }, 'registry.sync.cli.none');
+    log.warn({ agentTargets, templateTargets }, 'registry.sync.cli.none');
     return;
   }
 
@@ -52,6 +85,10 @@ async function main() {
       continue;
     }
     try {
+      if (dryRun) {
+        log.info({ agentId: agent.agentId, version: agent.version }, 'registry.sync.cli.agent.dryRun');
+        continue;
+      }
       const result = await publishAgent(agent);
       log.info({ agentId: result.agentId, version: result.currentVersion }, 'registry.sync.cli.agent.published');
     } catch (err) {
@@ -68,6 +105,10 @@ async function main() {
       continue;
     }
     try {
+      if (dryRun) {
+        log.info({ templateId: template.templateId, version: template.version }, 'registry.sync.cli.template.dryRun');
+        continue;
+      }
       const result = await publishTemplate(template);
       log.info({
         templateId: result.templateId,

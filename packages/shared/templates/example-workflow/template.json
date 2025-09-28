@@ -1,0 +1,21 @@
+{
+  "templateId": "example-workflow",
+  "name": "Example Multi-step Workflow",
+  "description": "Shows how to chain registry agents into a single run definition.",
+  "version": "0.1.0",
+  "tags": [
+    "demo",
+    "workflow"
+  ],
+  "category": "demo",
+  "metadata": {
+    "owner": "ops@example.com",
+    "source": "docs/registry/TEMPLATE_BEST_PRACTICES.md",
+    "agents": [
+      "example-support"
+    ]
+  },
+  "content": {
+    "versionFile": "versions/0.1.0.json"
+  }
+}

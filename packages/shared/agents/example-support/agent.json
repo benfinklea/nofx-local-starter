@@ -1,0 +1,34 @@
+{
+  "agentId": "example-support",
+  "name": "Example Support Agent",
+  "description": "Demonstration agent that triages support tickets using MCP prompts.",
+  "version": "0.1.0",
+  "manifest": {
+    "entryPrompt": "prompts/system.md",
+    "model": "gpt-4o-mini",
+    "capabilities": [
+      "ticket-triage",
+      "response-drafting"
+    ],
+    "dependencies": {
+      "packages": [
+        "@nofx/shared"
+      ]
+    }
+  },
+  "capabilities": [
+    {
+      "id": "ticket-triage",
+      "label": "Ticket Triage",
+      "description": "Categorize inbound tickets and assign ownership."
+    }
+  ],
+  "tags": [
+    "support",
+    "demo"
+  ],
+  "metadata": {
+    "owner": "ops@example.com",
+    "source": "docs/registry/AGENT_DEVELOPMENT_GUIDE.md"
+  }
+}
