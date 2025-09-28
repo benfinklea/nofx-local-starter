@@ -20,12 +20,12 @@ function normalize(input: QueryInput): ListTemplatesQuery {
   return {
     status: input.status,
     tag: input.tag,
-  category: input.category,
-  search: input.search,
-  limit: input.limit ?? undefined,
-  cursor: input.cursor,
-  sort: input.sort
-};
+    category: input.category,
+    search: input.search,
+    limit: input.limit ?? undefined,
+    cursor: input.cursor,
+    sort: input.sort,
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
