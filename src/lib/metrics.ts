@@ -15,6 +15,7 @@ type MetricsApi = {
   queueDepth: GaugeLike; // labels: topic, state
   dlqSize: GaugeLike; // labels: topic
   queueOldestAgeMs: GaugeLike; // labels: topic
+  registryOperationDuration: HistogramLike; // labels: entity, action
   render(): Promise<string>;
 };
 
@@ -31,6 +32,7 @@ function makeNoop(): MetricsApi {
     queueDepth: g,
     dlqSize: g,
     queueOldestAgeMs: g,
+    registryOperationDuration: h,
     async render() { return '# metrics unavailable: prom-client not installed\n'; }
   };
 }
@@ -86,6 +88,12 @@ try {
     help: 'Oldest waiting job age in milliseconds',
     labelNames: ['topic']
   });
+  const registryOperationDuration = new client.Histogram({
+    name: 'registry_operation_duration_ms',
+    help: 'Registry operation duration in ms',
+    buckets: [5, 10, 25, 50, 100, 200, 400, 800, 1600],
+    labelNames: ['entity','action']
+  });
 
   register.registerMetric(httpRequestDuration);
   register.registerMetric(stepDuration);
@@ -95,6 +103,7 @@ try {
   register.registerMetric(queueDepth);
   register.registerMetric(dlqSize);
   register.registerMetric(queueOldestAgeMs);
+  register.registerMetric(registryOperationDuration);
 
   impl = {
     httpRequestDuration,
@@ -105,6 +114,7 @@ try {
     queueDepth,
     dlqSize,
     queueOldestAgeMs,
+    registryOperationDuration,
     async render() { return await register.metrics(); }
   } as MetricsApi;
 } catch {

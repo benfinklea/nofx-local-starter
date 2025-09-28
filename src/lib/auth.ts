@@ -1,6 +1,4 @@
 import crypto from 'node:crypto';
-import type { Request } from 'express';
-
 const COOKIE_NAME = 'nofx_admin';
 
 function parseCookies(cookieHeader: string | undefined): Record<string,string> {
@@ -26,18 +24,17 @@ export function issueAdminCookie(): string {
   return `${COOKIE_NAME}=${value}|${sig}; Path=/; HttpOnly; SameSite=Lax`;
 }
 
-export function isAdmin(req: Request): boolean {
+export function isAdmin(req: { headers: { cookie?: string | undefined } }): boolean {
   // In development with ENABLE_ADMIN, bypass auth check
   if (process.env.NODE_ENV === 'development' && process.env.ENABLE_ADMIN === 'true') {
     return true;
   }
 
   const secret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD || 'dev-secret';
-  const cookies = parseCookies(req.headers.cookie as string|undefined);
+  const cookies = parseCookies(req.headers.cookie);
   const c = cookies[COOKIE_NAME];
   if (!c) return false;
   const [value, sig] = c.split('|');
   if (!value || !sig) return false;
   return sig === hmac(value, secret);
 }
-

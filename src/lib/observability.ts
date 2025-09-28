@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import { metrics } from './metrics';
-import { log as pinoLogger } from './logger';
+import pino from 'pino';
 import type { Logger } from 'pino';
 
 export type ObsContext = {
@@ -18,15 +18,18 @@ export type ObsContext = {
 
 const als = new AsyncLocalStorage<ObsContext>();
 
-// Export a log instance that automatically includes correlation ID
-export const log = new Proxy(pinoLogger, {
-  get(target, prop: string | symbol) {
-    const ctx = als.getStore();
-    if (ctx?.correlationId) {
-      // Return child logger with correlation ID
-      return (target.child({ correlationId: ctx.correlationId }) as any)[prop];
-    }
-    return (target as any)[prop];
+const baseLogger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+function resolveLogger(): Logger {
+  const ctx = als.getStore();
+  if (!ctx?.correlationId) return baseLogger;
+  return baseLogger.child({ correlationId: ctx.correlationId });
+}
+
+export const log = new Proxy(baseLogger as Logger, {
+  get(_target, prop, receiver) {
+    const logger = resolveLogger();
+    return Reflect.get(logger, prop, receiver);
   }
 });
 

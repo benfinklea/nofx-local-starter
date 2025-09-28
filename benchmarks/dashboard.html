@@ -236,6 +236,12 @@
                 <div id="performance-summary" class="loading">Loading...</div>
             </div>
 
+            <!-- Roadmap Baseline Metrics Card -->
+            <div class="card">
+                <h3>📌 Roadmap Baseline Metrics</h3>
+                <div id="roadmap-baseline" class="loading">Loading...</div>
+            </div>
+
             <!-- Response Times Card -->
             <div class="card">
                 <h3>⚡ Response Times</h3>
@@ -311,6 +317,48 @@
         const API_BASE = getApiBase();
         let charts = {};
         let updateInterval;
+
+        // Baseline metrics captured in README (Feb snapshot)
+        const ROADMAP_BASELINE = {
+            capturedAt: '2024-02-15',
+            apiLatencyP95: 420,
+            workerUptime: 97.2,
+            coverageChangedLines: 71,
+            complianceStatus: 'Controls drafted, audit pending'
+        };
+
+        function renderBaselineCard() {
+            const container = document.getElementById('roadmap-baseline');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">API p95 Latency</span>
+                    <span class="metric-value ${getStatusClass(ROADMAP_BASELINE.apiLatencyP95, 300, 700)}">
+                        ${ROADMAP_BASELINE.apiLatencyP95}ms
+                    </span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Worker Uptime</span>
+                    <span class="metric-value ${ROADMAP_BASELINE.workerUptime >= 99 ? 'good' : 'warning'}">
+                        ${ROADMAP_BASELINE.workerUptime.toFixed(1)}%
+                    </span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Changed-Line Coverage</span>
+                    <span class="metric-value ${ROADMAP_BASELINE.coverageChangedLines >= 90 ? 'good' : 'warning'}">
+                        ${ROADMAP_BASELINE.coverageChangedLines.toFixed(0)}%
+                    </span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Compliance Readiness</span>
+                    <span class="metric-value warning">${ROADMAP_BASELINE.complianceStatus}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Baseline Captured</span>
+                    <span class="metric-value">${ROADMAP_BASELINE.capturedAt}</span>
+                </div>
+            `;
+        }
 
         console.log('🔧 Performance Dashboard API Base:', API_BASE);
 
@@ -463,8 +511,23 @@
                     </div>
                 `;
             } catch (error) {
-                document.getElementById('health-status').innerHTML =
-                    `<div class="error">Failed to load health status: ${error.message}</div>`;
+                document.getElementById('health-status').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">
+                            <span class="status-indicator status-warning"></span>
+                            Baseline Status
+                        </span>
+                        <span class="metric-value warning">Using snapshot metrics</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Worker Uptime</span>
+                        <span class="metric-value warning">${ROADMAP_BASELINE.workerUptime.toFixed(1)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">API p95 Latency</span>
+                        <span class="metric-value warning">${ROADMAP_BASELINE.apiLatencyP95}ms</span>
+                    </div>
+                `;
             }
         }
 
@@ -502,8 +565,24 @@
                     </div>
                 `;
             } catch (error) {
-                document.getElementById('performance-summary').innerHTML =
-                    `<div class="error">Failed to load performance summary: ${error.message}</div>`;
+                document.getElementById('performance-summary').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Avg Response Time</span>
+                        <span class="metric-value warning">${ROADMAP_BASELINE.apiLatencyP95}ms (p95 snapshot)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Requests/Second</span>
+                        <span class="metric-value">n/a (offline)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Uptime</span>
+                        <span class="metric-value warning">${ROADMAP_BASELINE.workerUptime.toFixed(1)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Errors</span>
+                        <span class="metric-value">n/a (offline)</span>
+                    </div>
+                `;
             }
         }
 
@@ -632,6 +711,7 @@
 
         // Initialize dashboard
         function initDashboard() {
+            renderBaselineCard();
             initCharts();
             refreshData();
 

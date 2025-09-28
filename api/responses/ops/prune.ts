@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Check authentication
-  if (!isAdmin(req as any)) {
+  if (!isAdmin(req)) {
     return res.status(401).json({ error: 'admin required' });
   }
 

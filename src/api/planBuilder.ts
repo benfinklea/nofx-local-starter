@@ -1,4 +1,7 @@
 import { getSettings } from "../lib/settings";
+import { listAgents, listTemplates } from "../lib/registry";
+import type { AgentSummary } from "../../packages/shared/src/agents";
+import type { TemplateSummary } from "../../packages/shared/src/templates";
 
 export function guessTopicFromPrompt(p: string) {
   if (!p) return 'NOFX';
@@ -22,6 +25,16 @@ export async function buildPlanFromPrompt(
   opts: { quality: boolean; openPr: boolean; filePath?: string; summarizeQuery?: string; summarizeTarget?: string }
 ) {
   const { gates } = await getSettings();
+  let agents: AgentSummary[] = [];
+  let templates: TemplateSummary[] = [];
+  try {
+    const result = await listAgents({ status: 'active', limit: 10 });
+    agents = result.agents;
+  } catch {}
+  try {
+    const result = await listTemplates({ status: 'published', limit: 10 });
+    templates = result.templates;
+  } catch {}
   const steps: StepDef[] = [];
   if (opts.quality) {
     if (gates.typecheck) steps.push({ name: 'typecheck', tool: 'gate:typecheck' });
@@ -36,7 +49,20 @@ export async function buildPlanFromPrompt(
   const hinted = guessMarkdownPath(prompt);
   const targetPath = (opts.filePath && String(opts.filePath).trim()) || hinted || 'README.md';
   const filename = targetPath.split('/').pop() || 'README.md';
-  steps.push({ name: 'write readme', tool: 'codegen', inputs: { topic, bullets: ['Control plane','Verification','Workers'], filename } });
+  const agentOptions = agents.map(a => ({ id: a.agentId, name: a.name }));
+  const templateOptions = templates.map(t => ({ id: t.templateId, name: t.name }));
+
+  steps.push({
+    name: 'write readme',
+    tool: 'codegen',
+    inputs: {
+      topic,
+      bullets: ['Control plane', 'Verification', 'Workers'],
+      filename,
+      agentOptions,
+      templateOptions
+    }
+  });
   if (opts.summarizeQuery && (opts.summarizeTarget || /summarize/i.test(prompt))) {
     const sumPath = String(opts.summarizeTarget || 'docs/summary.md');
     const sumName = sumPath.split('/').pop() || 'summary.md';
@@ -56,5 +82,9 @@ export async function buildPlanFromPrompt(
   if (/manual approval|human approve|require approval/i.test(prompt)) {
     steps.unshift({ name: 'approval', tool: 'manual:deploy' });
   }
-  return { goal: prompt || 'ad-hoc run', steps };
+  const metadata: Record<string, unknown> = {};
+  if (agents[0]) metadata.suggestedAgentId = agents[0].agentId;
+  if (templates[0]) metadata.suggestedTemplateId = templates[0].templateId;
+
+  return { goal: prompt || 'ad-hoc run', steps, metadata };
 }

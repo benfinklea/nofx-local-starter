@@ -8,12 +8,52 @@ jest.mock('../../src/lib/settings', () => ({
   }))
 }));
 
+jest.mock('../../src/lib/registry', () => ({
+  listAgents: jest.fn(async () => ({
+    agents: [
+      {
+        id: 'agent-row-id',
+        agentId: 'builder-default-agent',
+        name: 'Builder Default Agent',
+        description: 'Default helper agent',
+        status: 'active',
+        currentVersion: '1.0.0',
+        capabilities: [],
+        tags: ['default'],
+        updatedAt: new Date().toISOString()
+      }
+    ]
+  })),
+  listTemplates: jest.fn(async () => ({
+    templates: [
+      {
+        id: 'template-row-id',
+        templateId: 'readme-template',
+        name: 'README Template',
+        description: 'Starter README copy',
+        status: 'published',
+        currentVersion: '1.0.0',
+        tags: ['docs'],
+        category: 'documentation',
+        popularityScore: 10,
+        updatedAt: new Date().toISOString()
+      }
+    ]
+  }))
+}));
+
 describe('planBuilder', () => {
   test('includes gates from settings when quality true', async () => {
     const plan = await buildPlanFromPrompt('Write README', { quality: true, openPr: false });
     const tools = plan.steps.map(s=>s.tool);
     expect(tools.slice(0,3)).toEqual(['gate:typecheck','gate:lint','gate:unit']);
     expect(tools).toContain('codegen');
+    expect(plan.metadata).toMatchObject({
+      suggestedAgentId: 'builder-default-agent',
+      suggestedTemplateId: 'readme-template'
+    });
+    const writeStep = plan.steps.find(step => step.tool === 'codegen');
+    expect(writeStep?.inputs?.agentOptions).toBeDefined();
   });
 
   test('adds PR because of prompt even when toggle off, labeled Prompt', async () => {
@@ -44,4 +84,3 @@ describe('planBuilder', () => {
     expect(guessMarkdownPath('No path here')).toBeUndefined();
   });
 });
-

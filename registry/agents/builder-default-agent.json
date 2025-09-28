@@ -1,0 +1,14 @@
+{
+  "agentId": "builder-default-agent",
+  "name": "Builder Default Agent",
+  "description": "Default agent for documentation runs",
+  "manifest": {
+    "entry": "agents/builder-default/index.ts",
+    "capabilities": ["docs", "formatting"]
+  },
+  "version": "1.0.0",
+  "capabilities": [
+    { "id": "docs", "label": "Documentation" }
+  ],
+  "tags": ["default", "docs"]
+}
