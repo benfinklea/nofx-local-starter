@@ -43,8 +43,9 @@ describe('Stream API Endpoint', () => {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': 'true',
       });
+      expect(response.headers['Access-Control-Allow-Origin']).toBeDefined();
     });
 
     it('should send initial events', async () => {

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { isAdmin } from '../../src/lib/auth';
 import { listProjects, createProject } from '../../src/lib/projects';
 import type { Project } from '../../src/lib/projects';
+import { withCors } from '../_lib/cors';
 
 const UpsertSchema = z.object({
   id: z.string().optional(),
@@ -26,7 +27,7 @@ function normalizeProjectInput(input: Partial<UpsertInput>): Partial<Project> {
   return result;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   // Check authentication
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required' });
@@ -57,4 +58,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-}
+});

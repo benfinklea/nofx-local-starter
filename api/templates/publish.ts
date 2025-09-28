@@ -4,6 +4,7 @@ import { isAdmin } from '../../src/lib/auth';
 import { publishTemplate } from '../../src/lib/registry';
 import { store } from '../../src/lib/store';
 import type { PublishTemplateRequest } from '../../packages/shared/src/templates';
+import { withCors } from '../_lib/cors';
 
 const PublishSchema = z.object({
   templateId: z.string().min(1),
@@ -16,7 +17,7 @@ const PublishSchema = z.object({
   metadata: z.record(z.any()).optional()
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required' });
   }
@@ -55,4 +56,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       store.inboxDelete(inboxKey).catch(() => {});
     }
   }
-}
+});

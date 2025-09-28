@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { store } from '../../../src/lib/store';
+import { withCors } from '../../_lib/cors';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -11,7 +12,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
 
   // Note: Vercel functions have a timeout limit, so for production
   // you may want to use a different approach like WebSockets or
@@ -67,4 +67,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.end();
     }
   }, 55000); // Close before Vercel timeout
-}
+});

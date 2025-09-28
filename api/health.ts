@@ -1,11 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { withCors } from './_lib/cors';
 
 type DatabaseStatus =
   | { status: 'ok'; error?: string }
   | { status: 'error'; error: string };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -47,4 +48,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   return res.status(200).json(health);
-}
+});

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { isAdmin } from '../../src/lib/auth';
 import { submitTemplateRating } from '../../src/lib/registry';
+import { withCors } from '../_lib/cors';
 
 const RateSchema = z.object({
   templateId: z.string().min(1),
@@ -10,7 +11,7 @@ const RateSchema = z.object({
   submittedBy: z.string().optional()
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required' });
   }
@@ -31,4 +32,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = error instanceof Error ? error.message : 'Failed to submit rating';
     return res.status(500).json({ error: message });
   }
-}
+});

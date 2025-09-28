@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { isAdmin } from '../../src/lib/auth';
 import { listAgents } from '../../src/lib/registry';
 import type { ListAgentsQuery } from '../../packages/shared/src/agents';
+import { withCors } from '../_lib/cors';
 
 const QuerySchema = z.object({
   status: z.enum(['draft', 'active', 'deprecated', 'disabled']).optional(),
@@ -24,7 +25,7 @@ function normalizeQuery(input: QueryInput): ListAgentsQuery {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required' });
   }
@@ -45,4 +46,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = error instanceof Error ? error.message : 'Failed to list agents';
     return res.status(500).json({ error: message });
   }
-}
+});

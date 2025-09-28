@@ -4,6 +4,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { withCors } from '../_lib/cors';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
@@ -43,7 +44,7 @@ function sanitizeNextParam(nextParam?: string | string[]): string {
   return value;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -82,4 +83,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('OAuth start exception:', error);
     res.status(500).json({ error: 'Failed to initiate Google sign-in' });
   }
-}
+});

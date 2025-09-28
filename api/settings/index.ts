@@ -5,6 +5,7 @@ import { listModels, type ModelRow } from '../../src/lib/models';
 import { query } from '../../src/lib/db';
 import { isAdmin } from '../../src/lib/auth';
 import { configureAutoBackup } from '../../src/lib/autobackup';
+import { withCors } from '../_lib/cors';
 
 type RuleRow = {
   table_name: string;
@@ -12,7 +13,7 @@ type RuleRow = {
   constraints: Record<string, unknown>
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   // Check authentication
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required', login: '/ui/login' });
@@ -79,4 +80,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-}
+});

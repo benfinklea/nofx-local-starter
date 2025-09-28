@@ -2,12 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { isAdmin } from '../../../src/lib/auth';
 import { rollbackTemplate } from '../../../src/lib/registry';
+import { withCors } from '../../_lib/cors';
 
 const BodySchema = z.object({
   targetVersion: z.string().min(1)
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required' });
   }
@@ -34,4 +35,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const status = message.includes('not found') ? 404 : 500;
     return res.status(status).json({ error: message });
   }
-}
+});

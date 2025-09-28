@@ -5,6 +5,7 @@ import { recordEvent } from '../../src/lib/events';
 import { buildPlanFromPrompt } from '../../src/api/planBuilder';
 import { setContext } from '../../src/lib/observability';
 import { enqueue } from '../../src/lib/queue';
+import { withCors } from '../_lib/cors';
 
 const CreateRunSchema = z.object({
   plan: z.any().refine(val => val !== undefined && val !== null, {
@@ -13,7 +14,7 @@ const CreateRunSchema = z.object({
   projectId: z.string().optional()
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     // List runs
     const lim = Math.max(1, Math.min(200, Number(req.query.limit || 50)));
@@ -89,4 +90,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-}
+});
