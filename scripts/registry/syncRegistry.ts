@@ -69,7 +69,14 @@ async function main() {
     }
     try {
       const result = await publishTemplate(template);
-      log.info({ templateId: result.templateId, version: result.currentVersion }, 'registry.sync.cli.template.published');
+      log.info({
+        templateId: result.templateId,
+        version: result.currentVersion,
+        ratingAverage: result.ratingAverage,
+        ratingCount: result.ratingCount,
+        usageCount30d: result.analytics?.usageCount30d,
+        successRate30d: result.analytics?.successRate30d
+      }, 'registry.sync.cli.template.published');
     } catch (err) {
       failures += 1;
       log.error({ templateId: template.templateId, err }, 'registry.sync.cli.template.failure');

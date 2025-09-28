@@ -65,7 +65,7 @@ export function requestObservability(req: Request, res: Response, next: NextFunc
   res.setHeader('x-correlation-id', correlationId);
 
   // Create child logger with all context
-  const logger = pinoLogger.child({
+  const logger = baseLogger.child({
     correlationId,
     requestId,
     runId,

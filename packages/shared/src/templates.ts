@@ -10,6 +10,8 @@ export interface TemplateSummary {
   tags: string[];
   category?: string;
   popularityScore?: number;
+  ratingAverage?: number;
+  ratingCount?: number;
   updatedAt: string;
 }
 
@@ -20,6 +22,8 @@ export interface TemplateDetail extends TemplateSummary {
   analytics?: TemplateAnalytics;
   metadata?: Record<string, unknown>;
 }
+
+export type TemplateSortOption = 'recent' | 'popular' | 'rating';
 
 export interface TemplateVersionSummary {
   id: string;
@@ -32,9 +36,12 @@ export interface TemplateVersionSummary {
 
 export interface TemplateAnalytics {
   usageCount30d: number;
+  successCount30d: number;
+  failureCount30d: number;
   successRate30d: number;
   averageDurationSeconds?: number;
   averageTokenUsage?: number;
+  lastRunAt?: string;
 }
 
 export interface PublishTemplateRequest {
@@ -57,6 +64,7 @@ export interface ListTemplatesQuery {
   tag?: string;
   category?: string;
   search?: string;
+  sort?: TemplateSortOption;
   limit?: number;
   cursor?: string;
 }
@@ -69,4 +77,16 @@ export interface ListTemplatesResponse {
 export interface ValidateTemplateResponse {
   valid: boolean;
   errors: { field: string; message: string }[];
+}
+
+export interface SubmitTemplateRatingRequest {
+  templateId: string;
+  rating: number;
+  comment?: string;
+  submittedBy?: string;
+}
+
+export interface SubmitTemplateRatingResponse {
+  averageRating: number;
+  ratingCount: number;
 }

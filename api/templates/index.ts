@@ -10,7 +10,8 @@ const QuerySchema = z.object({
   category: z.string().optional(),
   search: z.string().optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
-  cursor: z.string().optional()
+  cursor: z.string().optional(),
+  sort: z.enum(['recent', 'popular', 'rating']).optional()
 });
 
 type QueryInput = z.infer<typeof QuerySchema>;
@@ -19,11 +20,12 @@ function normalize(input: QueryInput): ListTemplatesQuery {
   return {
     status: input.status,
     tag: input.tag,
-    category: input.category,
-    search: input.search,
-    limit: input.limit ?? undefined,
-    cursor: input.cursor
-  };
+  category: input.category,
+  search: input.search,
+  limit: input.limit ?? undefined,
+  cursor: input.cursor,
+  sort: input.sort
+};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

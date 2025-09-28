@@ -29,6 +29,12 @@ describe('registry store', () => {
       if (sql.includes('select 1 from nofx.template_registry')) {
         return { rows: [{ ok: 1 }] };
       }
+      if (sql.includes('select 1 from nofx.template_usage_daily')) {
+        return { rows: [{ ok: 1 }] };
+      }
+      if (sql.includes('select 1 from nofx.template_feedback')) {
+        return { rows: [{ ok: 1 }] };
+      }
       if (sql.includes('from nofx.agent_registry')) {
         return {
           rows: [
@@ -103,6 +109,8 @@ describe('registry store', () => {
     queryMock.mockImplementation((sql: string, params: unknown[]) => {
       if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
       if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1') && params[0] === 'doc-writer') {
         lookupCount += 1;
         return lookupCount === 1 ? { rows: [] } : { rows: [registryRow] };
@@ -150,6 +158,8 @@ describe('registry store', () => {
     queryMock.mockImplementation((sql: string) => {
       if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
       if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1')) {
         return { rows: [] };
       }
@@ -164,6 +174,8 @@ describe('registry store', () => {
     queryMock.mockImplementation((sql: string) => {
       if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
       if (sql.includes('from nofx.template_registry')) {
         return {
           rows: [
@@ -184,6 +196,31 @@ describe('registry store', () => {
           ]
         };
       }
+      if (sql.includes('from nofx.template_usage_daily')) {
+        return {
+          rows: [
+            {
+              template_id: 'tmpl-row-id',
+              usage_count_30d: '5',
+              success_count_30d: '4',
+              total_duration_ms_30d: '60000',
+              total_token_usage_30d: '1000',
+              last_run_at: '2024-02-03T00:00:00.000Z'
+            }
+          ]
+        };
+      }
+      if (sql.includes('from nofx.template_feedback')) {
+        return {
+          rows: [
+            {
+              template_id: 'tmpl-row-id',
+              average_rating: '4.5',
+              rating_count: '2'
+            }
+          ]
+        };
+      }
       throw new Error(`Unexpected query: ${sql}`);
     });
 
@@ -192,7 +229,10 @@ describe('registry store', () => {
     expect(result.templates[0]).toMatchObject({
       templateId: 'readme',
       name: 'README',
-      category: 'documentation'
+      category: 'documentation',
+      popularityScore: 4,
+      ratingAverage: 4.5,
+      ratingCount: 2
     });
   });
 
@@ -236,6 +276,8 @@ describe('registry store', () => {
     queryMock.mockImplementation((sql: string, params: unknown[]) => {
       if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
       if (sql.startsWith('select * from nofx.template_registry where template_id = $1 limit 1') && params[0] === 'readme') {
         lookupCount += 1;
         return lookupCount === 1 ? { rows: [] } : { rows: [templateRow] };
@@ -251,6 +293,15 @@ describe('registry store', () => {
       }
       if (sql.startsWith('select * from nofx.template_versions where template_id = $1')) {
         return { rows: [versionRow] };
+      }
+      if (sql.toLowerCase().includes('sum(usage_count)')) {
+        return { rows: [] };
+      }
+      if (sql.toLowerCase().includes('template_usage_daily')) {
+        return { rows: [] };
+      }
+      if (sql.toLowerCase().includes('template_feedback')) {
+        return { rows: [] };
       }
       throw new Error(`Unexpected query: ${sql}`);
     });
@@ -303,6 +354,8 @@ describe('registry store', () => {
     queryMock.mockImplementation((sql: string, params: unknown[]) => {
       if (sql.includes('select 1 from nofx.agent_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
+      if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
       if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1')) {
         return { rows: [agentRow] };
       }
