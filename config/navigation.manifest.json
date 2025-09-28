@@ -1,0 +1,390 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2025-09-28T00:00:00Z",
+  "groups": [
+    {
+      "id": "main",
+      "label": "Main",
+      "order": 0,
+      "collapsible": false,
+      "defaultExpanded": true
+    },
+    {
+      "id": "operations",
+      "label": "Operations",
+      "order": 1,
+      "icon": "PlayArrow",
+      "collapsible": true,
+      "defaultExpanded": true
+    },
+    {
+      "id": "registry",
+      "label": "Registry",
+      "order": 2,
+      "icon": "Apps",
+      "collapsible": true,
+      "defaultExpanded": true,
+      "permissions": {
+        "featureFlag": "registryEnabled"
+      }
+    },
+    {
+      "id": "observability",
+      "label": "Observability",
+      "order": 3,
+      "icon": "Insights",
+      "collapsible": true,
+      "defaultExpanded": false
+    },
+    {
+      "id": "admin",
+      "label": "Administration",
+      "order": 4,
+      "icon": "Settings",
+      "collapsible": true,
+      "defaultExpanded": false,
+      "permissions": {
+        "roles": ["admin"]
+      }
+    },
+    {
+      "id": "developer",
+      "label": "Developer",
+      "order": 5,
+      "icon": "Code",
+      "collapsible": true,
+      "defaultExpanded": false,
+      "permissions": {
+        "featureFlag": "developerMode"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "path": "/",
+      "icon": "Dashboard",
+      "type": "route",
+      "status": "stable",
+      "groupId": "main",
+      "order": 0,
+      "telemetryId": "nav.dashboard",
+      "shortcut": "g d",
+      "owner": "platform"
+    },
+    {
+      "id": "runs",
+      "label": "Runs",
+      "path": "/runs",
+      "icon": "PlayArrow",
+      "type": "route",
+      "status": "stable",
+      "groupId": "operations",
+      "order": 0,
+      "telemetryId": "nav.runs",
+      "shortcut": "g r",
+      "owner": "platform",
+      "badge": {
+        "type": "count",
+        "value": 0
+      }
+    },
+    {
+      "id": "responses",
+      "label": "Responses",
+      "path": "/responses",
+      "icon": "Chat",
+      "type": "route",
+      "status": "beta",
+      "groupId": "operations",
+      "order": 1,
+      "telemetryId": "nav.responses",
+      "shortcut": "g o",
+      "owner": "ai-team",
+      "permissions": {
+        "featureFlag": "responsesEnabled"
+      },
+      "badge": {
+        "type": "dot",
+        "color": "error"
+      }
+    },
+    {
+      "id": "projects",
+      "label": "Projects",
+      "path": "/projects",
+      "icon": "Storage",
+      "type": "route",
+      "status": "stable",
+      "groupId": "operations",
+      "order": 2,
+      "telemetryId": "nav.projects",
+      "shortcut": "g p",
+      "owner": "platform"
+    },
+    {
+      "id": "agents",
+      "label": "Agents",
+      "path": "/registry/agents",
+      "icon": "SmartToy",
+      "type": "route",
+      "status": "stable",
+      "groupId": "registry",
+      "order": 0,
+      "telemetryId": "nav.agents",
+      "shortcut": "g a",
+      "owner": "ai-team",
+      "docsUrl": "https://docs.nofx.ai/registry/agents"
+    },
+    {
+      "id": "templates",
+      "label": "Templates",
+      "path": "/registry/templates",
+      "icon": "Description",
+      "type": "route",
+      "status": "stable",
+      "groupId": "registry",
+      "order": 1,
+      "telemetryId": "nav.templates",
+      "shortcut": "g t",
+      "owner": "ai-team",
+      "docsUrl": "https://docs.nofx.ai/registry/templates"
+    },
+    {
+      "id": "registry-catalog",
+      "label": "Catalog",
+      "path": "/registry/catalog",
+      "icon": "LibraryBooks",
+      "type": "route",
+      "status": "coming_soon",
+      "groupId": "registry",
+      "order": 2,
+      "telemetryId": "nav.catalog",
+      "owner": "ai-team"
+    },
+    {
+      "id": "metrics",
+      "label": "Metrics",
+      "path": "/observability/metrics",
+      "icon": "Analytics",
+      "type": "route",
+      "status": "stable",
+      "groupId": "observability",
+      "order": 0,
+      "telemetryId": "nav.metrics",
+      "owner": "platform"
+    },
+    {
+      "id": "logs",
+      "label": "Logs",
+      "path": "/observability/logs",
+      "icon": "Article",
+      "type": "route",
+      "status": "stable",
+      "groupId": "observability",
+      "order": 1,
+      "telemetryId": "nav.logs",
+      "owner": "platform"
+    },
+    {
+      "id": "traces",
+      "label": "Traces",
+      "path": "/observability/traces",
+      "icon": "Timeline",
+      "type": "route",
+      "status": "beta",
+      "groupId": "observability",
+      "order": 2,
+      "telemetryId": "nav.traces",
+      "owner": "platform",
+      "permissions": {
+        "featureFlag": "tracingEnabled"
+      }
+    },
+    {
+      "id": "models",
+      "label": "Models",
+      "path": "/models",
+      "icon": "Storage",
+      "type": "route",
+      "status": "stable",
+      "groupId": "admin",
+      "order": 0,
+      "telemetryId": "nav.models",
+      "owner": "ai-team"
+    },
+    {
+      "id": "settings",
+      "label": "Settings",
+      "path": "/settings",
+      "icon": "Settings",
+      "type": "route",
+      "status": "stable",
+      "groupId": "admin",
+      "order": 1,
+      "telemetryId": "nav.settings",
+      "shortcut": "g s",
+      "owner": "platform",
+      "children": [
+        {
+          "id": "settings-general",
+          "label": "General",
+          "path": "/settings/general",
+          "type": "route",
+          "status": "stable",
+          "order": 0
+        },
+        {
+          "id": "settings-billing",
+          "label": "Billing",
+          "path": "/settings/billing",
+          "type": "route",
+          "status": "stable",
+          "order": 1,
+          "permissions": {
+            "roles": ["admin", "billing"]
+          }
+        },
+        {
+          "id": "settings-teams",
+          "label": "Teams",
+          "path": "/settings/teams",
+          "type": "route",
+          "status": "stable",
+          "order": 2,
+          "permissions": {
+            "roles": ["admin"]
+          }
+        },
+        {
+          "id": "settings-security",
+          "label": "Security",
+          "path": "/settings/security",
+          "type": "route",
+          "status": "stable",
+          "order": 3,
+          "permissions": {
+            "roles": ["admin"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "dlq",
+      "label": "Dead Letter Queue",
+      "path": "/dlq",
+      "icon": "WarningAmber",
+      "type": "route",
+      "status": "stable",
+      "groupId": "admin",
+      "order": 2,
+      "telemetryId": "nav.dlq",
+      "owner": "platform",
+      "permissions": {
+        "roles": ["admin", "operator"]
+      },
+      "badge": {
+        "type": "count",
+        "value": 0,
+        "color": "warning"
+      }
+    },
+    {
+      "id": "dev-navigation",
+      "label": "Navigation Console",
+      "path": "/dev/navigation",
+      "icon": "DeveloperMode",
+      "type": "route",
+      "status": "stable",
+      "groupId": "developer",
+      "order": 0,
+      "telemetryId": "nav.dev.navigation",
+      "owner": "platform"
+    },
+    {
+      "id": "dev-playground",
+      "label": "API Playground",
+      "path": "/dev/playground",
+      "icon": "Science",
+      "type": "route",
+      "status": "beta",
+      "groupId": "developer",
+      "order": 1,
+      "telemetryId": "nav.dev.playground",
+      "owner": "platform"
+    },
+    {
+      "id": "dev-super-admin",
+      "label": "Super Admin",
+      "path": "/dev/super-admin",
+      "icon": "Shield",
+      "type": "route",
+      "status": "stable",
+      "groupId": "developer",
+      "order": 2,
+      "telemetryId": "nav.dev.super-admin",
+      "owner": "platform",
+      "permissions": {
+        "roles": ["super-admin"]
+      }
+    },
+    {
+      "id": "divider-external",
+      "label": "",
+      "type": "divider",
+      "groupId": "main",
+      "order": 100
+    },
+    {
+      "id": "docs",
+      "label": "Documentation",
+      "path": "https://docs.nofx.ai",
+      "icon": "MenuBook",
+      "type": "external",
+      "status": "stable",
+      "groupId": "main",
+      "order": 101,
+      "telemetryId": "nav.docs",
+      "shortcut": "g h"
+    },
+    {
+      "id": "support",
+      "label": "Support",
+      "path": "https://support.nofx.ai",
+      "icon": "Help",
+      "type": "external",
+      "status": "stable",
+      "groupId": "main",
+      "order": 102,
+      "telemetryId": "nav.support"
+    }
+  ],
+  "overrides": [
+    {
+      "environment": "development",
+      "itemId": "dev-super-admin",
+      "overrides": {
+        "permissions": {}
+      }
+    },
+    {
+      "environment": "production",
+      "itemId": "dev-playground",
+      "overrides": {
+        "status": "deprecated",
+        "permissions": {
+          "roles": ["super-admin"]
+        }
+      }
+    }
+  ],
+  "settings": {
+    "showBreadcrumbs": true,
+    "showSearch": true,
+    "enableShortcuts": true,
+    "sidebarCollapsed": false,
+    "mobileBreakpoint": 768,
+    "tabletBreakpoint": 1024
+  }
+}

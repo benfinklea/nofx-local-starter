@@ -1,0 +1,421 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2024-01-01T00:00:00Z",
+  "groups": [
+    {
+      "id": "main",
+      "label": "Main",
+      "order": 0,
+      "collapsed_by_default": false
+    },
+    {
+      "id": "operations",
+      "label": "Operations",
+      "icon": "PlayArrowIcon",
+      "order": 1,
+      "collapsed_by_default": false
+    },
+    {
+      "id": "registry",
+      "label": "Registry",
+      "icon": "StorageIcon",
+      "order": 2,
+      "collapsed_by_default": false
+    },
+    {
+      "id": "observability",
+      "label": "Observability",
+      "icon": "InsightsIcon",
+      "order": 3,
+      "collapsed_by_default": false
+    },
+    {
+      "id": "admin",
+      "label": "Administration",
+      "icon": "SettingsIcon",
+      "order": 4,
+      "collapsed_by_default": false
+    },
+    {
+      "id": "developer",
+      "label": "Developer",
+      "icon": "CodeIcon",
+      "order": 5,
+      "collapsed_by_default": true
+    }
+  ],
+  "entries": [
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "path": "/",
+      "icon": "DashboardIcon",
+      "group": "main",
+      "order": 0,
+      "description": "Main dashboard with system overview and key metrics",
+      "status": "stable",
+      "ownership": {
+        "team": "platform",
+        "slack": "#nofx-platform"
+      },
+      "telemetry": {
+        "event_name": "nav_dashboard_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      },
+      "keyboard_shortcut": "g+d"
+    },
+    {
+      "id": "runs",
+      "label": "Runs",
+      "path": "/runs",
+      "icon": "PlayArrowIcon",
+      "group": "operations",
+      "order": 0,
+      "description": "Manage and monitor run operations",
+      "status": "stable",
+      "ownership": {
+        "team": "operations",
+        "slack": "#nofx-ops"
+      },
+      "test_suite_path": "tests/integration/runs.test.ts",
+      "health_check_url": "/api/health/runs",
+      "sli_targets": {
+        "availability": 99.9,
+        "latency_p99_ms": 500,
+        "error_rate": 0.1
+      },
+      "telemetry": {
+        "event_name": "nav_runs_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      },
+      "keyboard_shortcut": "g+r"
+    },
+    {
+      "id": "new-run",
+      "label": "New Run",
+      "path": "/runs/new",
+      "icon": "AddIcon",
+      "group": "operations",
+      "order": 1,
+      "parent_id": "runs",
+      "description": "Create a new run operation",
+      "status": "stable",
+      "ownership": {
+        "team": "operations",
+        "slack": "#nofx-ops"
+      },
+      "telemetry": {
+        "event_name": "nav_new_run_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      },
+      "keyboard_shortcut": "g+n"
+    },
+    {
+      "id": "builder",
+      "label": "Plan Builder",
+      "path": "/builder",
+      "icon": "BuildIcon",
+      "group": "operations",
+      "order": 2,
+      "description": "Visual plan builder for creating operation workflows",
+      "status": "stable",
+      "ownership": {
+        "team": "platform",
+        "slack": "#nofx-platform"
+      },
+      "docs_url": "https://docs.nofx.io/builder",
+      "test_suite_path": "tests/integration/builder.test.ts",
+      "telemetry": {
+        "event_name": "nav_builder_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "responses",
+      "label": "Responses",
+      "path": "/responses",
+      "icon": "ChatIcon",
+      "group": "operations",
+      "order": 3,
+      "description": "AI response management and monitoring",
+      "status": "beta",
+      "badge": "BETA",
+      "ownership": {
+        "team": "ai",
+        "slack": "#nofx-ai"
+      },
+      "permissions": {
+        "feature_flag": "responses_feature"
+      },
+      "test_suite_path": "tests/integration/responses.test.ts",
+      "telemetry": {
+        "event_name": "nav_responses_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "agents",
+      "label": "Agents",
+      "path": "/agents",
+      "icon": "SmartToyIcon",
+      "group": "registry",
+      "order": 0,
+      "description": "Agent registry and management",
+      "status": "stable",
+      "ownership": {
+        "team": "registry",
+        "slack": "#nofx-registry",
+        "github": "@nofx/registry-team"
+      },
+      "docs_url": "https://docs.nofx.io/agents",
+      "test_suite_path": "tests/integration/agents.test.ts",
+      "health_check_url": "/api/health/agents",
+      "telemetry": {
+        "event_name": "nav_agents_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "templates",
+      "label": "Templates",
+      "path": "/templates",
+      "icon": "DescriptionIcon",
+      "group": "registry",
+      "order": 1,
+      "description": "Template library and version management",
+      "status": "stable",
+      "ownership": {
+        "team": "registry",
+        "slack": "#nofx-registry"
+      },
+      "docs_url": "https://docs.nofx.io/templates",
+      "test_suite_path": "tests/integration/templates.test.ts",
+      "telemetry": {
+        "event_name": "nav_templates_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "models",
+      "label": "Models",
+      "path": "/models",
+      "icon": "StorageIcon",
+      "group": "registry",
+      "order": 2,
+      "description": "AI model configuration and management",
+      "status": "stable",
+      "ownership": {
+        "team": "ai",
+        "slack": "#nofx-ai"
+      },
+      "telemetry": {
+        "event_name": "nav_models_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "projects",
+      "label": "Projects",
+      "path": "/projects",
+      "icon": "FolderIcon",
+      "group": "admin",
+      "order": 0,
+      "description": "Project management and configuration",
+      "status": "stable",
+      "ownership": {
+        "team": "platform",
+        "slack": "#nofx-platform"
+      },
+      "telemetry": {
+        "event_name": "nav_projects_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "settings",
+      "label": "Settings",
+      "path": "/settings",
+      "icon": "SettingsIcon",
+      "group": "admin",
+      "order": 1,
+      "description": "System settings and configuration",
+      "status": "stable",
+      "ownership": {
+        "team": "platform",
+        "slack": "#nofx-platform"
+      },
+      "telemetry": {
+        "event_name": "nav_settings_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      },
+      "keyboard_shortcut": "g+s"
+    },
+    {
+      "id": "billing",
+      "label": "Billing",
+      "path": "/billing",
+      "icon": "PaymentIcon",
+      "group": "admin",
+      "order": 2,
+      "description": "Billing and subscription management",
+      "status": "stable",
+      "ownership": {
+        "team": "billing",
+        "slack": "#nofx-billing",
+        "email": "billing@nofx.io"
+      },
+      "permissions": {
+        "role": "admin"
+      },
+      "docs_url": "https://docs.nofx.io/billing",
+      "support_url": "https://support.nofx.io/billing",
+      "telemetry": {
+        "event_name": "nav_billing_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "dlq",
+      "label": "Dead Letter Queue",
+      "path": "/dlq",
+      "icon": "WarningAmberIcon",
+      "group": "observability",
+      "order": 0,
+      "description": "Failed message handling and recovery",
+      "status": "stable",
+      "ownership": {
+        "team": "operations",
+        "slack": "#nofx-ops"
+      },
+      "health_check_url": "/api/health/dlq",
+      "telemetry": {
+        "event_name": "nav_dlq_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "logs",
+      "label": "Logs",
+      "path": "/logs",
+      "icon": "ArticleIcon",
+      "group": "observability",
+      "order": 1,
+      "description": "System logs and audit trail",
+      "status": "stable",
+      "ownership": {
+        "team": "observability",
+        "slack": "#nofx-observability"
+      },
+      "permissions": {
+        "role": "developer"
+      },
+      "telemetry": {
+        "event_name": "nav_logs_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "metrics",
+      "label": "Metrics",
+      "path": "/metrics",
+      "icon": "TimelineIcon",
+      "group": "observability",
+      "order": 2,
+      "description": "Performance metrics and analytics",
+      "status": "stable",
+      "ownership": {
+        "team": "observability",
+        "slack": "#nofx-observability"
+      },
+      "docs_url": "https://docs.nofx.io/metrics",
+      "telemetry": {
+        "event_name": "nav_metrics_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    },
+    {
+      "id": "dev-links",
+      "label": "Dev Links",
+      "path": "/dev",
+      "icon": "LinkIcon",
+      "group": "developer",
+      "order": 0,
+      "description": "Developer quick links and utilities",
+      "status": "stable",
+      "ownership": {
+        "team": "developer-experience",
+        "slack": "#nofx-dx"
+      },
+      "permissions": {
+        "role": "developer"
+      },
+      "telemetry": {
+        "event_name": "nav_dev_links_click",
+        "track_clicks": true
+      }
+    },
+    {
+      "id": "dev-tools",
+      "label": "Dev Tools",
+      "path": "/dev/tools",
+      "icon": "BuildCircleIcon",
+      "group": "developer",
+      "order": 1,
+      "parent_id": "dev-links",
+      "description": "Developer tools and debugging utilities",
+      "status": "stable",
+      "ownership": {
+        "team": "developer-experience",
+        "slack": "#nofx-dx"
+      },
+      "permissions": {
+        "role": "developer"
+      },
+      "telemetry": {
+        "event_name": "nav_dev_tools_click",
+        "track_clicks": true
+      }
+    },
+    {
+      "id": "navigation-console",
+      "label": "Navigation Console",
+      "path": "/dev/navigation",
+      "icon": "MapIcon",
+      "group": "developer",
+      "order": 2,
+      "description": "Navigation manifest diagnostics and health monitoring",
+      "status": "beta",
+      "badge": "NEW",
+      "ownership": {
+        "team": "platform",
+        "slack": "#nofx-platform"
+      },
+      "permissions": {
+        "role": "developer"
+      },
+      "docs_url": "https://docs.nofx.io/navigation",
+      "telemetry": {
+        "event_name": "nav_console_click",
+        "track_clicks": true,
+        "track_time_to_feature": true
+      }
+    }
+  ],
+  "metadata": {
+    "environment": "development"
+  }
+}

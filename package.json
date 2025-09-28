@@ -21,6 +21,8 @@
     "registry:agents:validate": "ts-node-dev --transpile-only scripts/registry/validateAgents.ts",
     "registry:agents:publish": "ts-node-dev --transpile-only scripts/registry/publishAgents.ts",
     "registry:sync": "ts-node-dev --transpile-only scripts/registry/syncRegistry.ts",
+    "nav:lint": "ts-node-dev --transpile-only scripts/validate-navigation.ts",
+    "nav:validate": "ts-node-dev --transpile-only scripts/validate-navigation.ts",
     "settings:set:order": "ts-node-dev --transpile-only scripts/setPreferredOrder.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --format=stylish --ext .ts src",

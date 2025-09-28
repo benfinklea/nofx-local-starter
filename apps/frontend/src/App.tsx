@@ -16,6 +16,7 @@ import DevTools from './pages/DevTools';
 import ResponsesDashboard from './pages/responses/ResponsesDashboard';
 import ResponsesRunDetail from './pages/responses/ResponsesRunDetail';
 import Builder from './pages/Builder';
+import NavigationConsole from './pages/NavigationConsole';
 import ResetPassword from './components/ResetPassword';
 import { uiFlags } from './config';
 
@@ -49,6 +50,7 @@ function AppRoutes() {
           <Route path="/builder" element={<Builder/>} />
           <Route path="/dev" element={<DevLinks/>} />
           <Route path="/dev/tools" element={<DevTools/>} />
+          <Route path="/dev/navigation" element={<NavigationConsole/>} />
         </Routes>
       </Shell>
     </AuthCheck>
