@@ -9,6 +9,7 @@ import {
   Link,
   CircularProgress,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { auth } from '../lib/auth';
 
 export default function SignupForm() {
@@ -165,7 +166,7 @@ export default function SignupForm() {
           sx={{ mt: 3 }}
         >
           Already have an account?{' '}
-          <Link href="/" underline="hover">
+          <Link component={RouterLink} to="/" underline="hover">
             Sign in
           </Link>
         </Typography>

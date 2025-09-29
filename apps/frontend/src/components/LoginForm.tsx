@@ -11,6 +11,7 @@ import {
   Divider
 } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
+import { Link as RouterLink } from 'react-router-dom';
 import { auth } from '../lib/auth';
 
 export default function LoginForm() {
@@ -218,7 +219,7 @@ export default function LoginForm() {
           sx={{ mt: 3 }}
         >
           Don't have an account?{' '}
-          <Link href="/signup" underline="hover">
+          <Link component={RouterLink} to="/signup" underline="hover">
             Create one
           </Link>
         </Typography>
