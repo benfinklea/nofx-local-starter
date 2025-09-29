@@ -1,1 +1,0 @@
-# Lefthook installed successfully
