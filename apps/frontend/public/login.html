@@ -286,12 +286,16 @@
                     successMessage.textContent = 'Login successful! Redirecting...';
                     successMessage.style.display = 'block';
 
-                    // Store tokens if provided
-                    if (data.session && data.session.accessToken) {
-                        // Store token in localStorage for AuthCheck component
-                        localStorage.setItem('sb-access-token', data.session.accessToken);
-                        // Also store a flag to indicate user is authenticated
-                        localStorage.setItem('authenticated', 'true');
+                    // Store session in format React app expects
+                    if (data.user && data.session) {
+                        localStorage.setItem('auth_session', JSON.stringify({
+                            user: data.user,
+                            session: {
+                                access_token: data.session.access_token || data.session.accessToken,
+                                refresh_token: data.session.refresh_token || data.session.refreshToken,
+                                expires_at: data.session.expires_at || data.session.expiresAt
+                            }
+                        }));
                     }
 
                     setTimeout(() => {
