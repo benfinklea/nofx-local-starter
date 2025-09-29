@@ -3,7 +3,7 @@
  * Phase 1.5 - Track C implementation
  */
 
-import { NavigationManifest } from '@nofx/shared/navigation/types';
+import { NavigationManifest } from '@shared/navigation';
 
 export const navigationManifest: NavigationManifest = {
   version: '1.0.0',

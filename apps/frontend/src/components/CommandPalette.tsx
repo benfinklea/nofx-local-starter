@@ -38,7 +38,7 @@ import {
   Code as CodeIcon,
 } from '@mui/icons-material';
 import { useNavigationSearch, useNavigation } from '../hooks/useNavigation';
-import { NavigationItem } from '@nofx/shared/navigation/types';
+import { NavigationItem } from '@shared/navigation';
 import { useNavigate } from 'react-router-dom';
 
 // Icon mapping

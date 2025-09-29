@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { NavigationManifest } from '../src/types/navigation-manifest';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface ValidationResult {
   valid: boolean;
@@ -191,7 +195,7 @@ class NavigationValidator {
   }
 
   private checkOrphanedEntries(): void {
-    const ids = new Set(this.manifest!.entries.map(e => e.id));
+    const ids = new Set(this.manifest!.entries.map((e: any) => e.id));
 
     for (const entry of this.manifest!.entries) {
       if (entry.parent_id && !ids.has(entry.parent_id)) {
@@ -215,7 +219,7 @@ class NavigationValidator {
       visited.add(id);
       recursionStack.add(id);
 
-      const entry = this.manifest!.entries.find(e => e.id === id);
+      const entry = this.manifest!.entries.find((e: any) => e.id === id);
       if (entry?.parent_id) {
         if (hasCycle(entry.parent_id)) {
           return true;
@@ -323,9 +327,9 @@ class NavigationValidator {
       byGroup[entry.group] = (byGroup[entry.group] || 0) + 1;
     }
 
-    const withTests = entries.filter(e => e.test_suite_path).length;
-    const withDocs = entries.filter(e => e.docs_url).length;
-    const withTelemetry = entries.filter(e => e.telemetry).length;
+    const withTests = entries.filter((e: any) => e.test_suite_path).length;
+    const withDocs = entries.filter((e: any) => e.docs_url).length;
+    const withTelemetry = entries.filter((e: any) => e.telemetry).length;
 
     return {
       totalEntries: total,
@@ -421,11 +425,9 @@ async function main() {
 }
 
 // Run if executed directly
-if (require.main === module) {
-  main().catch(error => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
-}
+main().catch((error: any) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
 
 export { NavigationValidator, ValidationResult };

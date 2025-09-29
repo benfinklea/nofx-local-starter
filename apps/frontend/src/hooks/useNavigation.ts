@@ -11,7 +11,7 @@ import {
   NavigationContext,
   NavigationAnalyticsEvent,
   NavigationMetrics
-} from '@nofx/shared/navigation/types';
+} from '@shared/navigation';
 import { navigationManifest } from '../navigation.manifest';
 import { uiFlags } from '../config';
 

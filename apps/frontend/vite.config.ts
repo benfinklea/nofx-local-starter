@@ -47,7 +47,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@shared': path.resolve(sharedDir, 'src')
-    }
+    },
+    dedupe: ['zod', 'react', 'react-dom']
   },
   server: {
     port: 5173,

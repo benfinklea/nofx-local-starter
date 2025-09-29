@@ -61,8 +61,8 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { alpha } from '@mui/material/styles';
 
+import { NavigationComposer, validateManifest } from '@shared/nav-composer';
 import {
-  NavigationComposer,
   NavigationManifest,
   NavigationItem,
   NavigationGroup,
@@ -70,7 +70,7 @@ import {
   NavigationItemType,
   NavigationItemStatus,
   NavigationEventType,
-} from '@nofx/shared';
+} from '@shared/navigation';
 
 import TopBar from './TopBar';
 import { useAuth } from '../hooks/useAuth';

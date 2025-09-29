@@ -9,7 +9,7 @@ import { useNavigationMetrics, useNavigation } from '../hooks/useNavigation';
 import {
   NavigationAnalyticsEvent,
   NavigationMetrics,
-} from '@nofx/shared/navigation/types';
+} from '@shared/navigation';
 
 // Performance observer for navigation timing
 const observeNavigationTiming = (callback: (metrics: NavigationMetrics) => void) => {

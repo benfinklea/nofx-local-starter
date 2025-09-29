@@ -4,7 +4,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { NavigationManifest, validateManifest } from '@nofx/shared';
+import { NavigationManifest } from '@shared/navigation';
+import { validateManifest } from '@shared/nav-composer';
 
 interface UseNavigationManifestReturn {
   manifest: NavigationManifest | null;
