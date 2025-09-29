@@ -1,5 +1,5 @@
 create table if not exists nofx.gate (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   tenant_id text not null default 'local',
   run_id uuid not null references nofx.run(id) on delete cascade,
   step_id uuid references nofx.step(id) on delete cascade,

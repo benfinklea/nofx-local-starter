@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS nofx.idempotency_cache (
 
 -- Index for efficient cleanup of expired entries
 CREATE INDEX IF NOT EXISTS idempotency_cache_expires_idx
-  ON nofx.idempotency_cache(expires_at) WHERE expires_at < now();
+  ON nofx.idempotency_cache(expires_at);
 
 -- Index for fast lookups during request processing
 CREATE INDEX IF NOT EXISTS idempotency_cache_lookup_idx
-  ON nofx.idempotency_cache(tenant_id, key, method, path) WHERE expires_at > now();
+  ON nofx.idempotency_cache(tenant_id, key, method, path);
 
 -- Optional: Create a function to automatically clean up expired entries
 CREATE OR REPLACE FUNCTION nofx.cleanup_expired_idempotency_cache()

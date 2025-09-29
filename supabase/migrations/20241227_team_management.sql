@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.teams (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name varchar(255) NOT NULL,
   slug varchar(255) UNIQUE,
   owner_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -47,7 +47,7 @@ CREATE INDEX idx_teams_created_at ON public.teams(created_at DESC);
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.team_members (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id uuid REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   role varchar(50) NOT NULL DEFAULT 'member',
@@ -76,7 +76,7 @@ CREATE INDEX idx_team_members_role ON public.team_members(role);
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.team_invites (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id uuid REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
   inviter_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
 
@@ -117,7 +117,7 @@ CREATE INDEX idx_team_invites_expires_at ON public.team_invites(expires_at);
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.team_activity_logs (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id uuid REFERENCES public.teams(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   action varchar(100) NOT NULL,
@@ -454,6 +454,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 
 -- Auto-create personal team for new users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW

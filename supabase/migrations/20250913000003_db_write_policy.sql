@@ -1,5 +1,5 @@
 create table if not exists nofx.db_write_rule (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   tenant_id text not null default 'local',
   table_name text not null,
   allowed_ops text[] not null,

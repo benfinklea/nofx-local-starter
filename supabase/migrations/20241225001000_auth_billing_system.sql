@@ -150,7 +150,7 @@ CREATE POLICY "Can only view own subs data." ON subscriptions FOR SELECT USING (
 * Users can manage their own API keys
 */
 CREATE TABLE IF NOT EXISTS api_keys (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   name TEXT NOT NULL,
   key_hash TEXT NOT NULL UNIQUE,
@@ -173,7 +173,7 @@ CREATE POLICY "Can manage own API keys." ON api_keys FOR ALL USING (auth.uid() =
 * Track usage for billing and rate limiting
 */
 CREATE TABLE IF NOT EXISTS usage_records (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   run_id TEXT,
   metric_name TEXT NOT NULL, -- 'runs', 'api_calls', 'compute_minutes', etc.
@@ -195,7 +195,7 @@ CREATE POLICY "Can view own usage." ON usage_records FOR SELECT USING (auth.uid(
 * Security audit trail for all actions
 */
 CREATE TABLE IF NOT EXISTS audit_logs (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users,
   action TEXT NOT NULL,
   resource_type TEXT,
@@ -213,38 +213,73 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 -- UPDATE EXISTING TABLES
 -- ============================================================================
 
--- Add user_id to existing run table for ownership
-ALTER TABLE run ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
-ALTER TABLE run ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own runs" ON run FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can create own runs" ON run FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own runs" ON run FOR UPDATE USING (auth.uid() = user_id);
+-- Add user_id to existing run table for ownership (if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'run') THEN
+    ALTER TABLE run ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
+    ALTER TABLE run ENABLE ROW LEVEL SECURITY;
 
--- Add user_id to existing project table
-ALTER TABLE project ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
-ALTER TABLE project ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own projects" ON project FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage own projects" ON project FOR ALL USING (auth.uid() = user_id);
+    -- Create RLS policies
+    DROP POLICY IF EXISTS "Users can view own runs" ON run;
+    CREATE POLICY "Users can view own runs" ON run FOR SELECT USING (auth.uid() = user_id);
 
--- Add user_id to existing step table for access control
-ALTER TABLE step ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
-ALTER TABLE step ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own steps" ON step
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM run WHERE run.id = step.run_id AND run.user_id = auth.uid()
-    )
-  );
+    DROP POLICY IF EXISTS "Users can create own runs" ON run;
+    CREATE POLICY "Users can create own runs" ON run FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Add user_id to events for audit trail
-ALTER TABLE event ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
-ALTER TABLE event ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own events" ON event
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM run WHERE run.id = event.run_id AND run.user_id = auth.uid()
-    )
-  );
+    DROP POLICY IF EXISTS "Users can update own runs" ON run;
+    CREATE POLICY "Users can update own runs" ON run FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Add user_id to existing project table (if exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'project') THEN
+    ALTER TABLE project ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
+    ALTER TABLE project ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "Users can view own projects" ON project;
+    CREATE POLICY "Users can view own projects" ON project FOR SELECT USING (auth.uid() = user_id);
+
+    DROP POLICY IF EXISTS "Users can manage own projects" ON project;
+    CREATE POLICY "Users can manage own projects" ON project FOR ALL USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Add user_id to existing step table for access control (if exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'step') THEN
+    ALTER TABLE step ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
+    ALTER TABLE step ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "Users can view own steps" ON step;
+    CREATE POLICY "Users can view own steps" ON step
+      FOR SELECT USING (
+        EXISTS (
+          SELECT 1 FROM run WHERE run.id = step.run_id AND run.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
+
+-- Add user_id to events for audit trail (if exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'event') THEN
+    ALTER TABLE event ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users;
+    ALTER TABLE event ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "Users can view own events" ON event;
+    CREATE POLICY "Users can view own events" ON event
+      FOR SELECT USING (
+        EXISTS (
+          SELECT 1 FROM run WHERE run.id = event.run_id AND run.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
 
 -- ============================================================================
 -- INDEXES FOR PERFORMANCE
@@ -259,8 +294,18 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash) WHERE is_acti
 CREATE INDEX IF NOT EXISTS idx_usage_records_user_period ON usage_records(user_id, period_start, period_end);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_run_user_id ON run(user_id);
-CREATE INDEX IF NOT EXISTS idx_project_user_id ON project(user_id);
+
+-- Conditional indexes for NOFX tables (if they exist)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'run') THEN
+    CREATE INDEX IF NOT EXISTS idx_run_user_id ON run(user_id);
+  END IF;
+
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'project') THEN
+    CREATE INDEX IF NOT EXISTS idx_project_user_id ON project(user_id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- HELPER FUNCTIONS

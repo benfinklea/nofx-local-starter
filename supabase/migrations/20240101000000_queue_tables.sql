@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS queue_jobs (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   locked_until TIMESTAMPTZ,
   error TEXT,
-  worker_id VARCHAR(255),
-
-  -- Indexes for performance
-  INDEX idx_queue_jobs_topic_status (topic, status),
-  INDEX idx_queue_jobs_locked_until (locked_until),
-  INDEX idx_queue_jobs_created_at (created_at)
+  worker_id VARCHAR(255)
 );
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_topic_status ON queue_jobs (topic, status);
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_locked_until ON queue_jobs (locked_until);
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_created_at ON queue_jobs (created_at);
 
 -- Function to claim the next available job atomically
 CREATE OR REPLACE FUNCTION claim_next_job(

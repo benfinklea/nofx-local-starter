@@ -1,5 +1,5 @@
 create table if not exists nofx.model (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   tenant_id text not null default 'local',
   name text not null,                    -- provider-specific model identifier
   display_name text,                     -- human label
