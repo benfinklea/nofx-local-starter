@@ -18,14 +18,19 @@ import ResponsesRunDetail from './pages/responses/ResponsesRunDetail';
 import Builder from './pages/Builder';
 import NavigationConsole from './pages/NavigationConsole';
 import ResetPassword from './components/ResetPassword';
+import SignupForm from './components/SignupForm';
 import { uiFlags } from './config';
 
 function AppRoutes() {
   const location = useLocation();
 
-  // Don't require auth for reset password page
+  // Don't require auth for reset password and signup pages
   if (location.pathname === '/reset-password') {
     return <ResetPassword />;
+  }
+
+  if (location.pathname === '/signup') {
+    return <SignupForm />;
   }
 
   // Auth check re-enabled with new server-side authentication
@@ -64,6 +69,7 @@ export default function App(){
       <HashRouter>
         <Routes>
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/signup" element={<SignupForm />} />
           <Route path="/*" element={<AppRoutes />} />
         </Routes>
       </HashRouter>
