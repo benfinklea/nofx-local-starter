@@ -40,17 +40,19 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
 
     // Handle authentication errors
     if (response.status === 401) {
-      console.error('[API] Authentication error - redirecting to login');
-      const currentPath = window.location.pathname + window.location.hash;
+      console.error('[API] Authentication error - clearing auth and staying in React app');
 
-      // Only redirect if we're not already on a public page
-      const publicPaths = ['/login', '/signup', '/reset-password', '/auth/callback'];
-      const isPublicPath = publicPaths.some(path => currentPath.includes(path));
-
-      if (!isPublicPath) {
-        window.location.href = '/login.html?next=' + encodeURIComponent(currentPath);
+      // Clear any stored auth data
+      try {
+        localStorage.removeItem('auth_session');
+        localStorage.removeItem('sb-access-token');
+        localStorage.removeItem('authenticated');
+      } catch (error) {
+        console.warn('Failed to clear localStorage:', error);
       }
 
+      // For React SPA, don't redirect to external pages
+      // The AuthCheck component will handle showing the login form
       throw new Error('Authentication required');
     }
 
