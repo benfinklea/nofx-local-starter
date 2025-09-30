@@ -46,13 +46,24 @@ import type { NavigationEntry, NavigationManifest } from '../../../shared/types/
 
 // Mock manifest loader (replace with actual API call)
 const loadManifest = async (): Promise<NavigationManifest> => {
-  const response = await fetch('/api/navigation/manifest');
-  if (!response.ok) {
-    // Fallback to local manifest for development
-    const localManifest = await import('../../../../config/navigation-manifest.json');
-    return localManifest.default as NavigationManifest;
+  try {
+    const response = await fetch('/api/navigation/manifest');
+    if (response.ok) {
+      return response.json();
+    }
+  } catch (error) {
+    console.warn('Failed to load navigation manifest from API');
   }
-  return response.json();
+
+  // Return empty manifest as fallback
+  return {
+    version: '1.0.0',
+    entries: [],
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      totalEntries: 0
+    }
+  };
 };
 
 // Health check for navigation entries
