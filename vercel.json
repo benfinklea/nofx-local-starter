@@ -80,10 +80,6 @@
     {
       "source": "/health",
       "destination": "/api/health"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
     }
   ],
   "cleanUrls": true,
