@@ -7,82 +7,21 @@
       "maxDuration": 60
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/reset-password",
-      "destination": "/reset-password.html"
+      "src": "/reset-password",
+      "dest": "/reset-password.html"
     },
     {
-      "source": "/login",
-      "destination": "/login.html"
+      "src": "/login",
+      "dest": "/login.html"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "handle": "filesystem"
     },
     {
-      "source": "/runs",
-      "destination": "/api/runs"
-    },
-    {
-      "source": "/runs/(.*)",
-      "destination": "/api/runs/$1"
-    },
-    {
-      "source": "/projects",
-      "destination": "/api/projects"
-    },
-    {
-      "source": "/projects/(.*)",
-      "destination": "/api/projects/$1"
-    },
-    {
-      "source": "/models",
-      "destination": "/api/models"
-    },
-    {
-      "source": "/models/(.*)",
-      "destination": "/api/models/$1"
-    },
-    {
-      "source": "/settings",
-      "destination": "/api/settings"
-    },
-    {
-      "source": "/settings/(.*)",
-      "destination": "/api/settings/$1"
-    },
-    {
-      "source": "/gates",
-      "destination": "/api/gates"
-    },
-    {
-      "source": "/gates/(.*)",
-      "destination": "/api/gates/$1"
-    },
-    {
-      "source": "/builder",
-      "destination": "/api/builder"
-    },
-    {
-      "source": "/builder/(.*)",
-      "destination": "/api/builder/$1"
-    },
-    {
-      "source": "/backups",
-      "destination": "/api/backups"
-    },
-    {
-      "source": "/backups/(.*)",
-      "destination": "/api/backups/$1"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/health"
-    },
-    {
-      "source": "/((?!api).*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "env": {
