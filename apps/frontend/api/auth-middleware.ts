@@ -7,17 +7,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 
-// Initialize Supabase client
+// Initialize Supabase client (optional - if not configured, auth will be disabled)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-// Create service client for server-side auth
-const supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
+// Create service client for server-side auth (only if configured)
+const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey)
+  : null;
 
 /**
  * Extract JWT token from request
@@ -46,6 +44,12 @@ function getTokenFromRequest(req: VercelRequest): string | null {
  */
 export async function verifyAuth(req: VercelRequest): Promise<{ user: any } | { error: string }> {
   try {
+    // If Supabase is not configured, skip auth
+    if (!supabase) {
+      console.warn('Supabase not configured - auth disabled');
+      return { user: { id: 'anonymous', role: 'anon' } };
+    }
+
     const token = getTokenFromRequest(req);
 
     if (!token) {
