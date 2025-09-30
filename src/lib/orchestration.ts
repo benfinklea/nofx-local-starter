@@ -167,14 +167,14 @@ export async function listOrchestrationSessions(
       values.push(queryParams.startedBefore);
     }
 
-    const whereClause = conditions.length > 0 ? `where ${conditions.join(' and ')}` : '';
-    const limit = queryParams.limit || 20;
-
     // Add cursor pagination if provided
     if (queryParams.cursor) {
       conditions.push(`created_at < $${paramCount++}`);
       values.push(queryParams.cursor);
     }
+
+    const whereClause = conditions.length > 0 ? `where ${conditions.join(' and ')}` : '';
+    const limit = queryParams.limit || 20;
 
     values.push(limit + 1); // Fetch one extra to determine if there's a next page
 
@@ -248,40 +248,125 @@ async function findAgentsWithCapabilities(
 ): Promise<SelectedAgent[]> {
   if (requirements.length === 0) return [];
 
-  // Build query to find agents with all required capabilities
+  // Try structured agent_capabilities table first (Phase 2 schema)
+  const structuredAgents = await findAgentsWithStructuredCapabilities(requirements);
+  if (structuredAgents.length > 0) {
+    return structuredAgents;
+  }
+
+  // Fallback to registry JSONB capabilities (Phase 1 schema)
+  return findAgentsWithJSONBCapabilities(requirements);
+}
+
+async function findAgentsWithStructuredCapabilities(
+  requirements: CapabilityRequirement[]
+): Promise<SelectedAgent[]> {
   const skillIds = requirements.map(r => r.skillId);
+
+  try {
+    const result = await query(
+      `
+      select
+        a.id as agent_id,
+        a.name as agent_name,
+        json_agg(
+          json_build_object(
+            'id', c.id,
+            'agentId', c.agent_id,
+            'skillId', c.skill_id,
+            'proficiencyLevel', c.proficiency_level,
+            'successRate', c.success_rate,
+            'averageLatencyMs', c.average_latency_ms,
+            'costPerOperation', c.cost_per_operation
+          )
+        ) as capabilities
+      from nofx.agent_registry a
+      join nofx.agent_capabilities c on c.agent_id = a.id
+      where c.skill_id = any($1)
+        and a.status = 'active'
+      group by a.id, a.name
+      having count(distinct c.skill_id) = $2
+      `,
+      [skillIds, skillIds.length]
+    );
+
+    return result.rows.map(row => ({
+      agentId: row.agent_id,
+      agentName: row.agent_name,
+      role: 'worker',
+      capabilities: row.capabilities
+    }));
+  } catch (error) {
+    // Table might not exist or be empty, fall through to JSONB method
+    log.debug({ error }, 'Structured capabilities query failed, falling back to JSONB');
+    return [];
+  }
+}
+
+async function findAgentsWithJSONBCapabilities(
+  requirements: CapabilityRequirement[]
+): Promise<SelectedAgent[]> {
+  const skillIds = requirements.map(r => r.skillId);
+
+  // Query agents where JSONB capabilities array contains objects with matching IDs
   const result = await query(
     `
     select
       a.id as agent_id,
       a.name as agent_name,
-      json_agg(
-        json_build_object(
-          'id', c.id,
-          'agentId', c.agent_id,
-          'skillId', c.skill_id,
-          'proficiencyLevel', c.proficiency_level,
-          'successRate', c.success_rate,
-          'averageLatencyMs', c.average_latency_ms,
-          'costPerOperation', c.cost_per_operation
-        )
-      ) as capabilities
+      a.capabilities
     from nofx.agent_registry a
-    join nofx.agent_capabilities c on c.agent_id = a.id
-    where c.skill_id = any($1)
-      and a.status = 'active'
-    group by a.id, a.name
-    having count(distinct c.skill_id) = $2
+    where a.status = 'active'
+      and a.capabilities is not null
     `,
-    [skillIds, skillIds.length]
+    []
   );
 
-  return result.rows.map(row => ({
-    agentId: row.agent_id,
-    agentName: row.agent_name,
-    role: 'worker', // Will be assigned based on orchestration type
-    capabilities: row.capabilities
-  }));
+  // Filter in-memory to match required capabilities
+  const matchingAgents = result.rows
+    .filter(row => {
+      const capabilities = Array.isArray(row.capabilities) ? row.capabilities : [];
+      const agentCapabilityIds = capabilities.map((cap: any) => cap.id).filter(Boolean);
+
+      // Check if agent has all required skill IDs
+      return skillIds.every(skillId => agentCapabilityIds.includes(skillId));
+    })
+    .map(row => {
+      const capabilities = Array.isArray(row.capabilities) ? row.capabilities : [];
+
+      // Map JSONB capabilities to structured format for compatibility
+      const mappedCapabilities = capabilities
+        .filter((cap: any) => skillIds.includes(cap.id))
+        .map((cap: any) => ({
+          id: cap.id || '',
+          agentId: row.agent_id,
+          skillId: cap.id || '', // Use capability ID as skill ID
+          proficiencyLevel: 5, // Default proficiency (can be enhanced later)
+          resourceRequirements: {}, // Default empty resource requirements
+          successRate: undefined,
+          averageLatencyMs: undefined,
+          costPerOperation: undefined,
+          updatedAt: new Date().toISOString()
+        }));
+
+      return {
+        agentId: row.agent_id,
+        agentName: row.agent_name,
+        role: 'worker' as const,
+        capabilities: mappedCapabilities
+      };
+    });
+
+  log.info(
+    {
+      skillIds,
+      totalAgents: result.rows.length,
+      matchingAgents: matchingAgents.length
+    },
+    'Found agents using JSONB capabilities'
+  );
+
+  return matchingAgents;
 }
 
 function selectByOrchestrationPattern(
@@ -317,8 +402,9 @@ function selectByOrchestrationPattern(
 
     case 'swarm':
       // Select multiple collaborative agents
-      agents.forEach(a => a.role = 'worker');
-      return agents.slice(0, 10); // Limit swarm size
+      const swarmAgents = agents.slice(0, 10); // Limit swarm size
+      swarmAgents.forEach(a => a.role = 'worker');
+      return swarmAgents;
 
     default:
       return agents;

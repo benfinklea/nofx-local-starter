@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppTheme } from './theme';
 import AuthCheck from './AuthCheck';
 import ManifestShell from './components/ManifestShell';
+import SimpleShell from './components/SimpleShell';
 import Dashboard from './pages/Dashboard';
 import Runs from './pages/Runs';
 import NewRun from './pages/NewRun';
@@ -36,7 +37,7 @@ function AppRoutes() {
   // Auth check re-enabled with new server-side authentication
   return (
     <AuthCheck>
-      <ManifestShell>
+      <SimpleShell>
         <Routes>
           <Route path="/" element={<Dashboard/>} />
           <Route path="/runs" element={<Runs/>} />
@@ -57,7 +58,7 @@ function AppRoutes() {
           <Route path="/dev/tools" element={<DevTools/>} />
           <Route path="/dev/navigation" element={<NavigationConsole/>} />
         </Routes>
-      </ManifestShell>
+      </SimpleShell>
     </AuthCheck>
   );
 }

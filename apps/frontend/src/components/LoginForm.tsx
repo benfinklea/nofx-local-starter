@@ -61,10 +61,11 @@ export default function LoginForm() {
       if (result.error) {
         setError(result.error);
       } else {
-        setMessage('Login successful! Refreshing...');
-        // Refresh the page to reload the app with authentication
+        setMessage('Login successful! Redirecting...');
+        // Redirect to the requested page or default to runs
+        const nextUrl = getNextUrl();
         setTimeout(() => {
-          window.location.reload();
+          window.location.href = nextUrl;
         }, 500);
       }
     } catch (err) {

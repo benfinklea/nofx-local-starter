@@ -1,405 +1,410 @@
-# NOFX Worker Troubleshooting Guide
+# NOFX Control Plane Troubleshooting Guide
+
+**Updated:** September 29, 2025 (Post-cloud migration & Agent SDK integration)
+
+## System Overview
+
+NOFX Control Plane runs on:
+- **Production:** Vercel (https://nofx-control-plane.vercel.app) + Supabase
+- **Local Development:** Node.js with Supabase connection
 
 ## Quick Diagnostics
 
-### 1. Worker Not Processing Jobs
+### Production Issues
 
-**Symptoms:**
-- Jobs stuck in "pending" state
-- Queue depth increasing
-- No activity in worker logs
-
-**Check:**
+#### API Not Responding
 ```bash
-# Check worker health
-curl http://localhost:3001/health
+# Check API health
+curl https://nofx-control-plane.vercel.app/api/health
 
-# Check Redis connection
-docker exec nofx-redis redis-cli ping
+# Check Vercel status
+vercel whoami
+vercel ls
 
-# Check queue depth
-docker exec nofx-redis redis-cli LLEN step.ready
-
-# View worker logs
-docker logs -f nofx-worker --tail 100
+# View deployment logs
+vercel logs
 ```
 
-**Common Causes & Solutions:**
+**Common causes:**
+- Vercel function timeout (max 60s for Hobby, 300s for Pro)
+- Environment variables not set in Vercel dashboard
+- Supabase connection issues
 
-#### Redis Connection Issues
+#### Database Connection Issues
 ```bash
-# Test Redis connection
-npm run test:redis
+# Test Supabase connection
+curl https://YOUR-PROJECT.supabase.co/rest/v1/?apikey=YOUR-ANON-KEY
 
-# Check Redis URL in .env
-grep REDIS_URL .env
-
-# Verify Redis is running
-docker ps | grep redis
+# Check Supabase project status (dashboard)
+open https://supabase.com/dashboard/project/YOUR-PROJECT-ID
 ```
 
-#### Worker Crashed
+**Solutions:**
+- Verify `DATABASE_URL` in Vercel environment variables
+- Check Supabase project is not paused
+- Verify connection pooling settings (6543 for pooler, 5432 for direct)
+
+#### Jobs Not Processing
 ```bash
-# Check worker status
-docker ps -a | grep worker
+# Check queue status via API
+curl https://nofx-control-plane.vercel.app/api/queue/status
 
-# Restart worker
-docker restart nofx-worker
-
-# Check for OOM kills
-dmesg | grep -i "killed process"
+# Check for stuck jobs in database
+# (Use Supabase SQL Editor)
+SELECT * FROM nofx.queue_jobs WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10;
 ```
 
-#### Configuration Issues
-```bash
-# Verify environment variables
-docker exec nofx-worker env | grep -E "QUEUE|REDIS|WORKER"
+**Common causes:**
+- PostgreSQL queue not properly migrated
+- Worker function not deployed
+- Idempotency key conflicts
 
-# Check queue driver setting
-grep QUEUE_DRIVER .env
+### Local Development Issues
+
+#### "Cannot connect to Supabase"
+```bash
+# Check environment variables
+grep -E "SUPABASE_URL|DATABASE_URL" .env
+
+# Test connection
+npm run dev:api
+# Should see "✅ Database connected" in logs
 ```
 
-### 2. Jobs Failing Repeatedly
+**Solutions:**
+- Copy `.env.example` to `.env`
+- Get Supabase credentials from project dashboard
+- Use pooler URL (port 6543) not direct connection (port 5432)
 
-**Symptoms:**
-- High error rate in metrics
-- Jobs moving to DLQ
-- Error logs showing consistent failures
-
-**Debug Steps:**
+#### TypeScript Errors
 ```bash
-# Check error logs
-docker logs nofx-worker 2>&1 | grep -i error | tail -20
+# Run typecheck
+npm run typecheck
 
-# Inspect DLQ
-docker exec nofx-redis redis-cli LRANGE step.dlq 0 10
-
-# Check specific job
-curl http://localhost:3001/health/job/:jobId
+# Common fixes
+npm install  # Ensure dependencies are installed
+rm -rf node_modules package-lock.json && npm install  # Clean install
 ```
 
-**Common Issues:**
-
-#### Timeout Errors
+#### Test Failures
 ```bash
-# Check timeout setting
-grep STEP_TIMEOUT_MS .env
+# Run specific test suites
+npm run test:unit
+npm run test:integration
 
-# Monitor long-running jobs
-docker logs nofx-worker | grep "step timeout"
-
-# Increase timeout if needed
-export STEP_TIMEOUT_MS=60000
-```
-
-#### Memory Issues
-```bash
-# Check memory usage
-docker stats nofx-worker
-
-# Check Node heap
-docker exec nofx-worker node -e "console.log(process.memoryUsage())"
-
-# Increase memory limit
-docker update --memory="2g" nofx-worker
-```
-
-#### Database Connection Pool Exhaustion
-```bash
-# Check active connections
-docker exec nofx-postgres psql -U postgres -c "SELECT count(*) FROM pg_stat_activity;"
-
-# Kill idle connections
-docker exec nofx-postgres psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle' AND state_change < NOW() - INTERVAL '10 minutes';"
-```
-
-### 3. Performance Degradation
-
-**Symptoms:**
-- Slow job processing
-- Increasing queue latency
-- High CPU usage
-
-**Performance Analysis:**
-```bash
-# Profile CPU usage
-docker exec nofx-worker node --prof worker.js
-# After 1 minute, stop and analyze
-docker exec nofx-worker node --prof-process isolate-*.log > profile.txt
-
-# Check event loop lag
-curl http://localhost:3001/metrics | grep event_loop_lag
-
-# Monitor Redis operations
-docker exec nofx-redis redis-cli --stat
-```
-
-**Optimization Steps:**
-
-#### Increase Concurrency
-```bash
-# Check current concurrency
-grep WORKER_CONCURRENCY .env
-
-# Update for more parallel processing
-export WORKER_CONCURRENCY=8
-docker restart nofx-worker
-```
-
-#### Redis Optimization
-```bash
-# Check Redis memory
-docker exec nofx-redis redis-cli INFO memory
-
-# Clear old data
-docker exec nofx-redis redis-cli --scan --pattern "inbox:*" | xargs docker exec nofx-redis redis-cli DEL
-
-# Optimize Redis config
-docker exec nofx-redis redis-cli CONFIG SET maxmemory-policy allkeys-lru
-```
-
-### 4. Memory Leaks
-
-**Symptoms:**
-- Steadily increasing memory usage
-- Worker crashes with OOM
-- Performance degradation over time
-
-**Detection:**
-```bash
-# Monitor memory over time
-while true; do
-  docker stats nofx-worker --no-stream | tee -a memory.log
-  sleep 60
-done
-
-# Analyze heap dumps
-docker exec nofx-worker node --expose-gc --inspect=0.0.0.0:9229 worker.js
-# Connect Chrome DevTools to localhost:9229
-```
-
-**Fixes:**
-```bash
-# Force garbage collection (temporary)
-docker exec nofx-worker node -e "global.gc()"
-
-# Restart worker periodically (workaround)
-echo "0 */6 * * * docker restart nofx-worker" | crontab -
-
-# Update Node.js memory limits
-docker run -e NODE_OPTIONS="--max-old-space-size=2048" nofx-worker
-```
-
-### 5. Queue Stuck/Corrupted
-
-**Symptoms:**
-- Jobs not moving between states
-- Inconsistent queue counts
-- Redis errors in logs
-
-**Recovery Steps:**
-```bash
-# Backup current state
-docker exec nofx-redis redis-cli BGSAVE
-
-# Check queue integrity
-npm run queue:check
-
-# Move stuck jobs back to ready
-docker exec nofx-redis redis-cli LRANGE step.processing 0 -1 | \
-  xargs -I {} docker exec nofx-redis redis-cli LPUSH step.ready {}
-
-# Clear processing list
-docker exec nofx-redis redis-cli DEL step.processing
-
-# Restart worker
-docker restart nofx-worker
-```
-
-### 6. Health Check Failures
-
-**Symptoms:**
-- Deployment rollbacks
-- Load balancer removing instances
-- Alerts firing
-
-**Debug:**
-```bash
-# Test all health endpoints
-curl http://localhost:3001/health
-curl http://localhost:3001/health/live
-curl http://localhost:3001/health/ready
-
-# Check dependencies
-curl http://localhost:3001/health/dependencies
-
-# View detailed metrics
-curl http://localhost:3001/metrics
-```
-
-**Common Fixes:**
-```bash
-# Increase health check timeout
-export HEALTH_CHECK_TIMEOUT=10000
-
-# Disable strict readiness
-export HEALTH_CHECK_STRICT=false
-
-# Check port availability
-lsof -i :3001
-```
-
-## Emergency Procedures
-
-### Complete System Reset
-```bash
-#!/bin/bash
-# Emergency reset script
-
-echo "⚠️  Emergency Reset - This will clear all queue data!"
-read -p "Continue? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  # Stop services
-  docker-compose down
-
-  # Clear Redis data
-  docker volume rm nofx_redis_data
-
-  # Clear logs
-  rm -rf logs/*.log
-
-  # Restart clean
-  docker-compose up -d
-
-  echo "✅ System reset complete"
-fi
-```
-
-### Production Rollback
-```bash
-# Quick rollback procedure
-kubectl rollout undo deployment/worker
-# or
-railway rollback --service worker
-# or
-flyctl releases rollback
-```
-
-### Data Recovery
-```bash
-# Restore from Redis backup
-docker exec nofx-redis redis-cli --rdb /data/dump.rdb
-
-# Replay from event log
-npm run queue:replay --from="2024-01-01" --to="2024-01-02"
-
-# Restore from DLQ
-npm run queue:restore-dlq --limit=100
-```
-
-## Monitoring Commands
-
-### Real-time Monitoring
-```bash
-# Watch queue depth
-watch -n 1 'docker exec nofx-redis redis-cli LLEN step.ready'
-
-# Monitor worker logs
-docker logs -f nofx-worker
-
-# Track error rate
-while true; do
-  curl -s http://localhost:3001/metrics | grep error_rate
-  sleep 5
-done
-```
-
-### Performance Profiling
-```bash
-# CPU profiling
-docker exec nofx-worker node --cpu-prof worker.js
-
-# Memory profiling
-docker exec nofx-worker node --heap-prof worker.js
-
-# Trace events
-docker exec nofx-worker node --trace-events-enabled worker.js
+# Check for environment issues
+RESPONSES_RUNTIME_MODE=stub npm test
 ```
 
 ## Common Error Messages
 
-### "ECONNREFUSED" Redis Connection
+### "ECONNREFUSED" or Connection Errors
+
+**Production:**
+- Check Supabase project is active (not paused)
+- Verify `DATABASE_URL` in Vercel dashboard
+- Ensure connection string uses pooler (port 6543)
+
+**Local:**
+- Verify `.env` has correct `SUPABASE_URL` and `DATABASE_URL`
+- Check internet connection (local connects to cloud Supabase)
+
+### "Worker timeout after 30000ms"
+
+**Production:**
+- Vercel function timeout limits:
+  - Hobby plan: 10s (API), 60s (background)
+  - Pro plan: 300s maximum
+- Consider breaking long-running jobs into smaller steps
+- Use status polling instead of long-running connections
+
+**Local:**
+- Adjust timeout in code if needed for development
+- Check for infinite loops or hanging operations
+
+### "Idempotency key conflict"
+
+```sql
+-- Find duplicate idempotency keys
+SELECT idempotency_key, COUNT(*)
+FROM nofx.step
+GROUP BY idempotency_key
+HAVING COUNT(*) > 1;
 ```
-Error: Redis connection to localhost:6379 failed - connect ECONNREFUSED
+
+**Solution:**
+- This is usually correct behavior (prevents duplicate execution)
+- If stuck, check step status and manually update if needed
+- Ensure proper cleanup of completed steps
+
+### "Agent SDK initialization failed"
+
+```bash
+# Check Agent SDK is installed
+npm list @anthropic-ai/claude-agent-sdk
+
+# Verify API key
+grep ANTHROPIC_API_KEY .env
+
+# Check logs for detailed error
+npm run dev:api 2>&1 | grep -A 5 "Agent SDK"
 ```
-**Solution:** Start Redis container or check REDIS_URL
 
-### "Step timeout after 30000ms"
+**Solutions:**
+- Ensure `@anthropic-ai/claude-agent-sdk@^0.1.0` is in dependencies
+- Set `ANTHROPIC_API_KEY` in environment variables
+- Review Agent SDK migration docs: `Docs/AGENT_SDK_PHASE1_COMPLETE.md`
+
+## Performance Issues
+
+### Slow Response Times
+
+**Check Performance Monitoring:**
+```bash
+# Access super admin dashboard (local dev)
+npm run admin:super
+# Or production: https://your-app.vercel.app/admin/super-admin/dashboard
+
+# Check specific metrics
+curl https://nofx-control-plane.vercel.app/api/public/performance/current
 ```
-Error: step timeout
+
+**Common Solutions:**
+- Review database queries (use Supabase dashboard to analyze slow queries)
+- Check for N+1 query problems
+- Ensure proper indexes on frequently queried columns
+- Consider caching for repeated requests
+
+### High Memory Usage (Local)
+
+```bash
+# Monitor Node.js memory
+node --max-old-space-size=4096 src/api/main.ts
+
+# Profile memory usage
+npm run profile
+npm run profile:analyze
 ```
-**Solution:** Increase STEP_TIMEOUT_MS or optimize step processing
 
-### "Cannot allocate memory"
+## Debugging Workflow
+
+### 1. Check System Health
+```bash
+# Production
+curl https://nofx-control-plane.vercel.app/api/health
+
+# Local
+curl http://localhost:3000/health
 ```
-FATAL ERROR: CALL_AND_RETRY_LAST Allocation failed - JavaScript heap out of memory
+
+### 2. Review Logs
+
+**Production (Vercel):**
+```bash
+vercel logs --follow
+# Or use Vercel dashboard: https://vercel.com/dashboard
 ```
-**Solution:** Increase Node memory limit or fix memory leak
 
-### "Queue depth exceeds threshold"
+**Local:**
+```bash
+# API logs
+npm run dev:api
+
+# Worker logs
+npm run dev:worker
+
+# With debug mode
+DEBUG=nofx:* npm run dev:api
 ```
-Warning: Queue depth 1000 exceeds threshold
+
+### 3. Check Database State
+
+**Use Supabase SQL Editor:**
+```sql
+-- Check recent runs
+SELECT id, status, created_at FROM nofx.run ORDER BY created_at DESC LIMIT 10;
+
+-- Check pending steps
+SELECT r.id as run_id, s.name, s.status, s.started_at
+FROM nofx.step s
+JOIN nofx.run r ON s.run_id = r.id
+WHERE s.status IN ('pending', 'running')
+ORDER BY s.created_at DESC;
+
+-- Check queue depth
+SELECT status, COUNT(*) FROM nofx.queue_jobs GROUP BY status;
 ```
-**Solution:** Scale workers or investigate processing bottleneck
 
-## Prevention Best Practices
+### 4. Test Specific Components
 
-1. **Regular Monitoring**
-   - Set up alerts for queue depth > 1000
-   - Monitor error rate > 5%
-   - Track memory usage trends
-   - Watch response time percentiles
+```bash
+# Test API endpoints
+npm run ai-test:auth  # Authentication
+npm run ai-test:run   # Run creation
+npm run ai-test:status  # Status checking
 
-2. **Capacity Planning**
-   - Load test before major releases
-   - Plan for 2x peak traffic
-   - Have auto-scaling configured
-   - Keep 30% headroom on resources
+# Run specific test suites
+npm run test:unit -- --testPathPattern=orchestration
+npm run test:integration -- --testPathPattern=agent-sdk
+```
 
-3. **Operational Hygiene**
-   - Regular backup testing
-   - Quarterly disaster recovery drills
-   - Keep dependencies updated
-   - Document all custom configurations
+## Environment-Specific Issues
 
-4. **Debugging Tools**
-   - Keep profiling tools ready
-   - Have heap dump analysis setup
-   - Maintain query debugging access
-   - Use distributed tracing
+### Production Only
 
-## Support Escalation
+**Issue:** Works locally but fails in production
 
-### Level 1: Self-Service
-- Check this troubleshooting guide
-- Review logs and metrics
-- Try standard recovery procedures
+**Checklist:**
+- [ ] All environment variables set in Vercel dashboard
+- [ ] Same Node.js version (check `package.json` engines field)
+- [ ] Dependencies properly installed (check Vercel build logs)
+- [ ] No reliance on local file system (use Supabase Storage)
+- [ ] Timeout limits respected (Vercel has strict limits)
 
-### Level 2: Team Support
-- Post in #nofx-support Slack channel
-- Include error logs and metrics
-- Describe attempted solutions
+### Local Only
 
-### Level 3: On-Call
-- Page via PagerDuty for production issues
-- Include severity and business impact
-- Provide access credentials if needed
+**Issue:** Works in production but fails locally
 
-## Useful Resources
+**Checklist:**
+- [ ] `.env` file exists and has all required variables
+- [ ] Node.js version matches production (use nvm)
+- [ ] Database migrations applied to Supabase
+- [ ] No CORS issues with localhost
 
-- [Redis Commands Reference](https://redis.io/commands)
-- [Node.js Debugging Guide](https://nodejs.org/en/docs/guides/debugging-getting-started/)
-- [Docker Troubleshooting](https://docs.docker.com/config/containers/logging/)
-- [BullMQ Documentation](https://docs.bullmq.io/)
-- [Production Readiness Checklist](./PRODUCTION_CHECKLIST.md)
+## Emergency Procedures
+
+### Production Incident Response
+
+1. **Check status dashboard:**
+   ```bash
+   curl https://nofx-control-plane.vercel.app/api/health
+   ```
+
+2. **Review recent deployments:**
+   ```bash
+   vercel ls
+   vercel inspect [deployment-url]
+   ```
+
+3. **Rollback if needed:**
+   ```bash
+   # Revert to previous deployment
+   vercel rollback [previous-deployment-url]
+   ```
+
+4. **Check Supabase:**
+   - Dashboard: https://supabase.com/dashboard
+   - Verify no service disruptions
+   - Check connection pooler status
+
+### Data Recovery
+
+**PostgreSQL Queue:**
+```sql
+-- Reset stuck jobs (use carefully!)
+UPDATE nofx.queue_jobs
+SET status = 'pending', processing_started_at = NULL
+WHERE status = 'processing'
+  AND processing_started_at < NOW() - INTERVAL '10 minutes';
+```
+
+**Run Recovery:**
+```sql
+-- Find failed runs
+SELECT * FROM nofx.run WHERE status = 'failed' ORDER BY created_at DESC;
+
+-- Check associated errors
+SELECT * FROM nofx.event WHERE run_id = 'YOUR-RUN-ID' AND event_type LIKE '%.failed';
+```
+
+## Useful Commands Reference
+
+```bash
+# Development
+npm run dev                 # Start API + Worker
+npm run dev:api             # API only
+npm run dev:worker          # Worker only
+npm run fe:dev              # Frontend dev server
+
+# Testing
+npm test                    # All tests
+npm run test:unit           # Unit tests only
+npm run test:integration    # Integration tests
+npm run test:bulletproof    # Full test suite
+
+# Deployment
+vercel                      # Deploy to preview
+vercel --prod               # Deploy to production
+vercel logs                 # View production logs
+
+# Database
+npm run create:bucket       # Create Supabase storage bucket
+npm run seed:dbwrite        # Seed db_write rules
+
+# Validation
+npm run typecheck           # TypeScript check
+npm run lint                # Lint code
+npm run gates               # Run all quality gates
+
+# Registry
+npm run registry:agents:validate     # Validate agent definitions
+npm run registry:templates:validate  # Validate templates
+
+# Navigation
+npm run nav:validate        # Validate navigation structure
+```
+
+## Getting More Help
+
+1. **Check Documentation:**
+   - Main guide: `/AI_CODER_GUIDE.md`
+   - API reference: `/Docs/control-plane/API_REFERENCE.md`
+   - Setup guides: `/Docs/setup/`
+
+2. **Review Recent Changes:**
+   ```bash
+   git log --oneline --since="1 week ago"
+   ```
+
+3. **Check for Known Issues:**
+   - GitHub issues (if public repo)
+   - Recent commits for bug fixes
+
+4. **Debug Mode:**
+   ```bash
+   DEBUG=nofx:* npm run dev:api
+   ```
+
+## Architecture Reference
+
+### Production Stack
+```
+┌──────────────────────────────────┐
+│      Vercel Edge Network         │
+│  ┌──────────┐   ┌──────────┐   │
+│  │ API      │   │ Worker   │   │
+│  │ Functions│   │ Functions│   │
+│  └────┬─────┘   └────┬─────┘   │
+└───────┼──────────────┼──────────┘
+        │              │
+        └──────┬───────┘
+               │
+        ┌──────▼────────┐
+        │   Supabase    │
+        ├───────────────┤
+        │ • PostgreSQL  │
+        │ • Queue       │
+        │ • Storage     │
+        │ • Auth        │
+        └───────────────┘
+```
+
+### Key Principles
+- **No Redis in production** - Uses PostgreSQL queue
+- **No Docker in production** - Serverless functions
+- **All data in Supabase** - Single source of truth
+- **Agent SDK for AI** - @anthropic-ai/claude-agent-sdk
+
+---
+
+*For historical reference (pre-migration troubleshooting), see `archive/TROUBLESHOOTING_OLD.md`*

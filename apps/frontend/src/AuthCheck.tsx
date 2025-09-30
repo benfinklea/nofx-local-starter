@@ -36,6 +36,20 @@ export default function AuthCheck({ children }: AuthCheckProps) {
     };
 
     checkAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = auth.supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[AuthCheck] Auth state changed:', event, session?.user?.email);
+      if (session?.user) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Show loading while checking auth

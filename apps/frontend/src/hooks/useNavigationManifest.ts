@@ -46,38 +46,51 @@ export function useNavigationManifest(): UseNavigationManifestReturn {
         return;
       }
 
-      // Fetch from server
-      const response = await fetch('/api/navigation/manifest');
-      if (!response.ok) {
-        throw new Error(`Failed to load manifest: ${response.statusText}`);
+      // Fetch from server with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+      try {
+        const response = await fetch('/api/navigation/manifest', {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`Failed to load manifest: ${response.statusText}`);
+        }
+
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Manifest endpoint returned non-JSON response');
+        }
+
+        const data = await response.json();
+
+        // Validate manifest
+        const validation = validateManifest(data);
+        if (!validation.valid) {
+          console.error('Manifest validation errors:', validation.errors);
+          throw new Error('Invalid manifest format');
+        }
+
+        if (validation.warnings) {
+          console.warn('Manifest validation warnings:', validation.warnings);
+        }
+
+        // Update cache
+        manifestCache = {
+          data,
+          timestamp: Date.now(),
+        };
+
+        setManifest(data);
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        // If fetch failed, throw to outer catch
+        throw fetchErr;
       }
-
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Manifest endpoint returned non-JSON response');
-      }
-
-      const data = await response.json();
-
-      // Validate manifest
-      const validation = validateManifest(data);
-      if (!validation.valid) {
-        console.error('Manifest validation errors:', validation.errors);
-        throw new Error('Invalid manifest format');
-      }
-
-      if (validation.warnings) {
-        console.warn('Manifest validation warnings:', validation.warnings);
-      }
-
-      // Update cache
-      manifestCache = {
-        data,
-        timestamp: Date.now(),
-      };
-
-      setManifest(data);
     } catch (err) {
       console.error('Failed to load navigation manifest:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');

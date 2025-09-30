@@ -1,6 +1,6 @@
 # NOFX Control Plane — Multi‑Agent & Orchestration Research Summary (Sep 2025)
 
-This document consolidates findings from analyzing 20 GitHub repositories focused on multi‑agent orchestration, workflow automation, swarm intelligence, developer productivity, testing, and observability. It maps ideas to NOFX’s architecture and proposes concrete, implementable steps.
+This document consolidates findings from analyzing 20 GitHub repositories focused on multi‑agent orchestration, workflow automation, swarm intelligence, developer productivity, testing, and observability. It maps  ideas to NOFX’s architecture and proposes concrete, implementable steps.
 
 Note on code reuse: All patterns below are described for clean‑room re‑implementation. Do not copy AGPL/proprietary code into NOFX. Concepts are attributed; implementations should be original and TypeScript‑first.
 

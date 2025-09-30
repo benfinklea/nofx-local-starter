@@ -446,12 +446,16 @@ export default function ManifestShell({ children }: ManifestShellProps) {
     );
   }
 
-  // Error state
+  // Error state - gracefully degrade to simple layout
   if (error) {
+    console.warn('Navigation manifest failed to load, using fallback layout:', error);
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">Failed to load navigation: {error}</Alert>
-      </Box>
+      <>
+        <TopBar onMenuToggle={() => {}} />
+        <Box sx={{ pt: 8, p: 3 }}>
+          {children}
+        </Box>
+      </>
     );
   }
 

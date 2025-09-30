@@ -19,19 +19,20 @@ import NewRunDialog from './NewRunDialog';
 import { Link as RouterLink } from 'react-router-dom';
 import { auth } from '../lib/auth';
 
-export default function TopBar(){
+interface TopBarProps {
+  onMenuToggle?: () => void;
+}
+
+export default function TopBar({ onMenuToggle }: TopBarProps = {}){
   const color = React.useContext(ColorModeContext);
   const theme = useTheme();
   const [openRun, setOpenRun] = React.useState(false);
 
   const handleLogout = async () => {
     await auth.logout();
-    // Clear all auth-related items from localStorage
-    localStorage.removeItem('auth_session');
-    localStorage.removeItem('sb-access-token');
-    localStorage.removeItem('authenticated');
-    // Redirect to login page
-    window.location.href = '/login.html';
+    // Cookies are cleared by the auth service
+    // Redirect to root - AuthCheck will show login form
+    window.location.href = '/';
   };
   return (
     <AppBar position="sticky" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', backdropFilter: 'blur(8px)' }}>
@@ -54,7 +55,7 @@ export default function TopBar(){
             </IconButton>
           </Tooltip>
           <Tooltip title="Logout">
-            <IconButton color="inherit" onClick={handleLogout}>
+            <IconButton color="inherit" onClick={handleLogout} aria-label="Logout">
               <LogoutIcon fontSize="small" />
             </IconButton>
           </Tooltip>

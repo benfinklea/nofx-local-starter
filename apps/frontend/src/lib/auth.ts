@@ -16,7 +16,7 @@ interface AuthResponse {
 }
 
 class AuthService {
-  private supabase = createBrowserClient();
+  public supabase = createBrowserClient();
 
   /**
    * Sign up a new user
@@ -150,8 +150,13 @@ class AuthService {
    */
   async getCurrentUser(): Promise<User | null> {
     try {
-      const { data: { session } } = await this.supabase.auth.getSession();
-      return session?.user || null;
+      // Use getUser() to properly read cookies and validate session
+      const { data: { user }, error } = await this.supabase.auth.getUser();
+      if (error) {
+        console.error('Get current user error:', error);
+        return null;
+      }
+      return user;
     } catch (error) {
       console.error('Get current user error:', error);
       return null;

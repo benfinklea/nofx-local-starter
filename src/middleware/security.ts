@@ -140,7 +140,7 @@ export function configureSizeLimits(app: Express): void {
  * SQL injection prevention middleware
  * This validates common query parameters
  */
-export function preventSqlInjection(req: Request, res: Response, next: NextFunction): void {
+export function preventSqlInjection(req: Request, res: Response, next: NextFunction): void | Response {
   const suspiciousPatterns = [
     /(\b)(DELETE|DROP|EXEC|EXECUTE|INSERT|SELECT|UNION|UPDATE)(\b)/gi,
     /(\-\-|\/\*|\*\/|xp_|sp_|0x)/gi,
@@ -247,7 +247,7 @@ export function preventXss(req: Request, res: Response, next: NextFunction): voi
  * CSRF protection
  * Note: This is a basic implementation. Consider using csurf package for production
  */
-export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
+export function csrfProtection(req: Request, res: Response, next: NextFunction): void | Response {
   // Skip CSRF for GET requests and API calls with valid API keys
   if (req.method === 'GET' || req.headers['x-api-key']) {
     return next();

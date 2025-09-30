@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { NavigationManifest } from '../src/types/navigation-manifest';
 
+// @ts-expect-error - import.meta is available in Node.js ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
