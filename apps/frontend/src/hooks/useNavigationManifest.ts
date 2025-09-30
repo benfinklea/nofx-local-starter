@@ -52,6 +52,12 @@ export function useNavigationManifest(): UseNavigationManifestReturn {
         throw new Error(`Failed to load manifest: ${response.statusText}`);
       }
 
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Manifest endpoint returned non-JSON response');
+      }
+
       const data = await response.json();
 
       // Validate manifest
