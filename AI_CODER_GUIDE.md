@@ -2,17 +2,6 @@
 
 This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly understand and work with the NOFX Control Plane codebase.
 
-## CRITICAL: Verification Before Reporting Completion
-
-**Never report work as complete until you verify it yourself.** Always use available tools to check your work:
-- Run tests to confirm they pass
-- Execute scripts to verify functionality
-- Read files to confirm changes are correct
-- Test endpoints to validate behavior
-- Use browser preview for UI changes
-
-If you cannot verify directly, explicitly state this limitation.
-
 ## IMPORTANT: Worktree Usage for AI Development
 
 **ALWAYS use Git worktrees when working on this codebase with AI assistance.** This prevents conflicts and keeps the main repository clean.
