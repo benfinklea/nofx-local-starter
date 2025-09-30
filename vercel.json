@@ -2,6 +2,12 @@
   "buildCommand": "npm install --production=false && cd apps/frontend && npm install && cd ../.. && npm run fe:build",
   "outputDirectory": "apps/frontend/dist",
   "framework": null,
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 60,
+      "includeFiles": "src/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/reset-password",
