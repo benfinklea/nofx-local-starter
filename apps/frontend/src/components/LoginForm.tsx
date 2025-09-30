@@ -27,15 +27,25 @@ export default function LoginForm() {
     return params.get('next') || '/#/runs';
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setError('');
     setMessage('');
     setSocialLoading(true);
 
-    const next = getNextUrl();
-    const url = `/api/auth/oauth-start?provider=google&next=${encodeURIComponent(next)}`;
+    try {
+      const result = await auth.signInWithOAuth('google');
 
-    window.location.href = url;
+      if (result.error) {
+        setError(result.error);
+        setSocialLoading(false);
+      }
+      // If successful, browser will redirect to Google OAuth
+      // Then back to /auth/callback which will complete the flow
+    } catch (err) {
+      console.error('OAuth error:', err);
+      setError('Failed to initiate Google sign-in');
+      setSocialLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
