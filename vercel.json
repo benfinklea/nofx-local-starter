@@ -23,11 +23,11 @@
     },
     {
       "source": "/runs/:id",
-      "destination": "/api/runs/:id"
+      "destination": "/api/runs/[id]"
     },
     {
       "source": "/runs/:id/:path*",
-      "destination": "/api/runs/:id/:path*"
+      "destination": "/api/runs/[id]/:path*"
     },
     {
       "source": "/projects",
