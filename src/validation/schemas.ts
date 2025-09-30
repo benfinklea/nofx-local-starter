@@ -113,7 +113,10 @@ export const RetryStepRequestSchema = z.object({
 // ============================================================================
 
 export const DatabaseConnectionSchema = z.object({
-  DATABASE_URL: z.string().url().or(z.string().startsWith('postgres://')),
+  DATABASE_URL: z.string().refine(
+    (val) => val.startsWith('postgres://') || val.startsWith('postgresql://'),
+    { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
+  ),
   DATABASE_POOL_MAX: z.coerce.number().min(1).max(100).default(20),
   DATABASE_POOL_IDLE_TIMEOUT: z.coerce.number().min(1000).default(30000),
   DATABASE_CONNECTION_TIMEOUT: z.coerce.number().min(1000).default(2000)
