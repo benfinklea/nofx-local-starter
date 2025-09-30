@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const PROD_URL = 'https://nofx-local-starter-k2czxdnbb-volacci.vercel.app';
+const PROD_URL = 'https://nofx-local-starter-rimaqj2mq-volacci.vercel.app';
 const TEST_USER = {
   email: 'ben+nofx1@volacci.com',
   password: 'dabgub-raCgu5-watrut'
@@ -148,5 +148,109 @@ test.describe('Production App - Full Test Suite', () => {
     networkErrors.forEach(err => console.log('  ❌', err));
 
     await page.screenshot({ path: 'prod-test-6-errors.png', fullPage: true });
+  });
+
+  test('7. Test navigation links after login', async ({ page }) => {
+    await page.goto(PROD_URL);
+    await page.waitForLoadState('networkidle');
+
+    // Login
+    await page.getByLabel(/email/i).fill(TEST_USER.email);
+    await page.getByLabel(/password/i).fill(TEST_USER.password);
+    await page.locator('button[type="submit"]').click();
+
+    await page.waitForTimeout(5000);
+
+    console.log('Testing navigation links...');
+
+    // Try common navigation links
+    const links = ['Runs', 'Teams', 'Settings', 'Dashboard'];
+    for (const linkText of links) {
+      try {
+        const link = page.getByRole('link', { name: new RegExp(linkText, 'i') });
+        const isVisible = await link.isVisible({ timeout: 2000 });
+        console.log(`  ${linkText} link: ${isVisible ? '✅' : '❌'}`);
+      } catch (e) {
+        console.log(`  ${linkText} link: ❌ Not found`);
+      }
+    }
+
+    await page.screenshot({ path: 'prod-test-7-navigation.png', fullPage: true });
+  });
+
+  test('8. Test logout functionality', async ({ page }) => {
+    await page.goto(PROD_URL);
+    await page.waitForLoadState('networkidle');
+
+    // Login first
+    await page.getByLabel(/email/i).fill(TEST_USER.email);
+    await page.getByLabel(/password/i).fill(TEST_USER.password);
+    await page.locator('button[type="submit"]').click();
+
+    await page.waitForTimeout(5000);
+    await page.screenshot({ path: 'prod-test-8a-logged-in.png', fullPage: true });
+
+    // Try to find and click logout
+    try {
+      const logoutButton = page.getByRole('button', { name: /logout|sign out/i });
+      await logoutButton.click({ timeout: 5000 });
+      await page.waitForTimeout(2000);
+      console.log('✅ Logout button found and clicked');
+      await page.screenshot({ path: 'prod-test-8b-after-logout.png', fullPage: true });
+
+      // Check if back to login
+      const emailField = page.getByLabel(/email/i);
+      const isBackToLogin = await emailField.isVisible({ timeout: 5000 });
+      console.log(`Back to login page: ${isBackToLogin ? '✅' : '❌'}`);
+    } catch (e) {
+      console.log('❌ Logout button not found or not working');
+      await page.screenshot({ path: 'prod-test-8-logout-failed.png', fullPage: true });
+    }
+  });
+
+  test('9. Test Google OAuth button click', async ({ page }) => {
+    await page.goto(PROD_URL);
+    await page.waitForLoadState('networkidle');
+
+    const googleButton = page.getByRole('button', { name: /sign in with google/i });
+    await expect(googleButton).toBeVisible({ timeout: 10000 });
+
+    // Click and see what happens (don't complete OAuth)
+    await googleButton.click();
+    await page.waitForTimeout(2000);
+
+    console.log('URL after Google button click:', page.url());
+    await page.screenshot({ path: 'prod-test-9-google-oauth.png', fullPage: true });
+  });
+
+  test('10. Check for blank screen after login', async ({ page }) => {
+    await page.goto(PROD_URL);
+    await page.waitForLoadState('networkidle');
+
+    // Login
+    await page.getByLabel(/email/i).fill(TEST_USER.email);
+    await page.getByLabel(/password/i).fill(TEST_USER.password);
+    await page.locator('button[type="submit"]').click();
+
+    await page.waitForTimeout(5000);
+
+    // Check if page has meaningful content
+    const bodyText = await page.textContent('body');
+    const hasContent = bodyText && bodyText.trim().length > 100;
+
+    console.log('Page has content:', hasContent ? '✅' : '❌');
+    console.log('Body text length:', bodyText?.length);
+    console.log('First 200 chars:', bodyText?.substring(0, 200));
+
+    await page.screenshot({ path: 'prod-test-10-blank-screen-check.png', fullPage: true });
+
+    // Check for common elements
+    const hasHeader = await page.locator('header').isVisible({ timeout: 2000 }).catch(() => false);
+    const hasNav = await page.locator('nav').isVisible({ timeout: 2000 }).catch(() => false);
+    const hasMain = await page.locator('main').isVisible({ timeout: 2000 }).catch(() => false);
+
+    console.log('Has header:', hasHeader ? '✅' : '❌');
+    console.log('Has nav:', hasNav ? '✅' : '❌');
+    console.log('Has main:', hasMain ? '✅' : '❌');
   });
 });

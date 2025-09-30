@@ -15,7 +15,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   if (projectId) headers.set('x-project-id', projectId);
 
   // Add auth token if available
-  const session = auth.getSession();
+  const session = await auth.getSession();
   if (session?.access_token) {
     headers.set('Authorization', `Bearer ${session.access_token}`);
   }
