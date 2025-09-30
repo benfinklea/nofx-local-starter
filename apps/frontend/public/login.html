@@ -271,7 +271,7 @@
             document.getElementById('login-form').classList.add('loading');
 
             try {
-                const response = await fetch('/api/auth/login', {
+                const response = await fetch('/api/auth-v2/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -333,7 +333,7 @@
             }
 
             try {
-                const response = await fetch('/api/auth/reset-password', {
+                const response = await fetch('/api/auth-v2/reset-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
