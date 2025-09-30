@@ -1,21 +1,12 @@
 /**
- * Authentication service for frontend
- * Uses server-side auth endpoints instead of direct Supabase client
+ * Modern Authentication Service for Frontend
+ * Uses @supabase/ssr with cookie-based sessions (no localStorage)
+ *
+ * This replaces the old auth service with production-grade patterns
  */
 
-import { apiBase } from '../config';
-
-interface User {
-  id: string;
-  email?: string;
-  user_metadata?: any;
-}
-
-interface Session {
-  access_token: string;
-  refresh_token?: string;
-  expires_at?: number;
-}
+import { createBrowserClient } from './supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthResponse {
   user?: User;
@@ -25,190 +16,231 @@ interface AuthResponse {
 }
 
 class AuthService {
-  private user: User | null = null;
-  private session: Session | null = null;
+  private supabase = createBrowserClient();
 
-  constructor() {
-    // Try to restore session from localStorage
-    this.restoreSession();
-  }
-
-  private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = apiBase ? `${apiBase}${endpoint}` : endpoint;
-
-    const headers = new Headers(options.headers);
-
-    // Add auth token if available
-    if (this.session?.access_token) {
-      headers.set('Authorization', `Bearer ${this.session.access_token}`);
-    }
-
-    return fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include', // Include cookies
-    });
-  }
-
-  private restoreSession() {
-    try {
-      const storedSession = localStorage.getItem('auth_session');
-      if (storedSession) {
-        const parsed = JSON.parse(storedSession);
-        this.session = parsed.session;
-        this.user = parsed.user;
-      }
-    } catch (error) {
-      console.error('Failed to restore session:', error);
-    }
-  }
-
-  private saveSession(user: User | null, session: Session | null) {
-    this.user = user;
-    this.session = session;
-
-    if (user && session) {
-      localStorage.setItem('auth_session', JSON.stringify({ user, session }));
-    } else {
-      localStorage.removeItem('auth_session');
-    }
-  }
-
-  async login(email: string, password: string): Promise<AuthResponse> {
-    try {
-      const response = await this.request('/api/auth-v2/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: data.error || 'Login failed' };
-      }
-
-      this.saveSession(data.user, data.session);
-      return data;
-    } catch (error) {
-      console.error('Login error:', error);
-      return { error: 'Network error during login' };
-    }
-  }
-
+  /**
+   * Sign up a new user
+   */
   async signup(email: string, password: string, fullName?: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth-v2/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName }),
+      const { data, error } = await this.supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName
+          }
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: data.error || 'Signup failed' };
+      if (error) {
+        return { error: error.message };
       }
 
-      // If auto-confirmed, save session
-      if (data.session) {
-        this.saveSession(data.user, data.session);
+      if (!data.user) {
+        return { error: 'Signup failed' };
       }
 
-      return data;
+      // Check if email confirmation is required
+      if (!data.session) {
+        return {
+          message: 'Please check your email to confirm your account',
+          user: data.user
+        };
+      }
+
+      return {
+        user: data.user,
+        session: data.session
+      };
     } catch (error) {
       console.error('Signup error:', error);
       return { error: 'Network error during signup' };
     }
   }
 
-  async logout(): Promise<void> {
+  /**
+   * Sign in with email and password
+   */
+  async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      await this.request('/api/auth-v2/logout', { method: 'POST' });
+      const { data, error } = await this.supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      if (!data.user || !data.session) {
+        return { error: 'Login failed' };
+      }
+
+      return {
+        user: data.user,
+        session: data.session
+      };
     } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      this.saveSession(null, null);
+      console.error('Login error:', error);
+      return { error: 'Network error during login' };
     }
   }
 
+  /**
+   * Sign out the current user
+   */
+  async logout(): Promise<void> {
+    try {
+      await this.supabase.auth.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  /**
+   * Request password reset email
+   */
   async resetPassword(email: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth-v2/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: data.error || 'Password reset failed' };
+      if (error) {
+        return { error: error.message };
       }
 
-      return data;
+      return {
+        message: 'Password reset email sent. Please check your inbox.'
+      };
     } catch (error) {
       console.error('Password reset error:', error);
       return { error: 'Network error during password reset' };
     }
   }
 
-  async updatePassword(password: string, accessToken: string): Promise<AuthResponse> {
+  /**
+   * Update user password (must be authenticated)
+   */
+  async updatePassword(newPassword: string): Promise<AuthResponse> {
     try {
-      const response = await this.request('/api/auth-v2/reset-password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, access_token: accessToken }),
+      const { data, error } = await this.supabase.auth.updateUser({
+        password: newPassword
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: data.error || 'Password update failed' };
+      if (error) {
+        return { error: error.message };
       }
 
-      // Save the new session if provided
-      if (data.session) {
-        this.saveSession(data.user, data.session);
-      }
-
-      return data;
+      return {
+        message: 'Password updated successfully',
+        user: data.user
+      };
     } catch (error) {
       console.error('Password update error:', error);
       return { error: 'Network error during password update' };
     }
   }
 
+  /**
+   * Get current user from session
+   * Fast read from cookies, doesn't validate with server
+   * Use this for UI display only
+   */
   async getCurrentUser(): Promise<User | null> {
-    // If we have a cached user, return it
-    if (this.user) {
-      return this.user;
-    }
-
-    // Otherwise fetch from server
     try {
-      const response = await this.request('/api/auth-v2/me');
-
-      if (!response.ok) {
-        this.saveSession(null, null);
-        return null;
-      }
-
-      const data = await response.json();
-      this.user = data.user;
-      return data.user;
+      const { data: { session } } = await this.supabase.auth.getSession();
+      return session?.user || null;
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
     }
   }
 
-  getSession(): Session | null {
-    return this.session;
+  /**
+   * Get current session
+   */
+  async getSession(): Promise<Session | null> {
+    try {
+      const { data: { session } } = await this.supabase.auth.getSession();
+      return session;
+    } catch (error) {
+      console.error('Get session error:', error);
+      return null;
+    }
   }
 
-  isAuthenticated(): boolean {
-    return !!this.session?.access_token;
+  /**
+   * Check if user is authenticated
+   */
+  async isAuthenticated(): Promise<boolean> {
+    const session = await this.getSession();
+    return !!session?.access_token;
+  }
+
+  /**
+   * Listen to auth state changes
+   * Use this in React components to stay in sync
+   */
+  onAuthStateChange(callback: (event: string, session: Session | null) => void) {
+    const { data: { subscription } } = this.supabase.auth.onAuthStateChange(
+      (event, session) => {
+        callback(event, session);
+      }
+    );
+
+    // Return unsubscribe function
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Sign in with OAuth provider
+   */
+  async signInWithOAuth(provider: 'google' | 'github' | 'azure') {
+    try {
+      const { data, error } = await this.supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      // Browser will redirect to OAuth provider
+      return { success: true, url: data.url };
+    } catch (error) {
+      console.error('OAuth error:', error);
+      return { error: 'Failed to initiate OAuth login' };
+    }
+  }
+
+  /**
+   * Sign in with magic link (passwordless)
+   */
+  async signInWithMagicLink(email: string): Promise<AuthResponse> {
+    try {
+      const { error } = await this.supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return {
+        message: 'Magic link sent! Please check your email.'
+      };
+    } catch (error) {
+      console.error('Magic link error:', error);
+      return { error: 'Failed to send magic link' };
+    }
   }
 }
 

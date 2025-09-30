@@ -1,6 +1,8 @@
 /**
- * Login endpoint with modern Supabase SSR patterns
- * Handles email/password authentication
+ * Auth Callback Handler for PKCE Flow
+ * Handles OAuth and magic link callbacks
+ *
+ * This endpoint exchanges the authorization code for a session
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -52,15 +54,12 @@ function formatSetCookie(name: string, value: string, options: any): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    const { email, password } = req.body;
+    // Extract code from query parameters
+    const code = Array.isArray(req.query.code) ? req.query.code[0] : req.query.code;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!code) {
+      return res.status(400).json({ error: 'Missing authorization code' });
     }
 
     // Store cookies to be set
@@ -81,18 +80,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    // Sign in with password
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    // Exchange code for session (PKCE flow)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
+      console.error('Code exchange error:', error);
       return res.status(400).json({ error: error.message });
     }
 
-    if (!data.user || !data.session) {
-      return res.status(400).json({ error: 'Login failed' });
+    if (!data.session) {
+      return res.status(400).json({ error: 'Failed to create session' });
     }
 
     // Set cookies in response
@@ -100,13 +97,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.setHeader('Set-Cookie', cookiesToSet);
     }
 
+    // Redirect to dashboard or return to app
+    const redirectTo = Array.isArray(req.query.redirectTo)
+      ? req.query.redirectTo[0]
+      : req.query.redirectTo || '/';
+
+    // Return success with redirect
     return res.status(200).json({
       success: true,
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        emailConfirmed: !!data.user.confirmed_at
-      },
+      redirectTo,
+      user: data.user,
       session: {
         accessToken: data.session.access_token,
         expiresAt: data.session.expires_at
@@ -114,7 +114,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Auth callback error:', error);
+    return res.status(500).json({
+      error: 'Internal server error during authentication'
+    });
   }
 }

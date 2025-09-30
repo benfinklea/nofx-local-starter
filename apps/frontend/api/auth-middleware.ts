@@ -1,63 +1,88 @@
 /**
- * Authentication middleware for Vercel serverless functions
- * Validates JWT tokens from Supabase Auth
+ * Modern Authentication Middleware for Vercel Serverless Functions
+ * Uses @supabase/ssr patterns for secure authentication
+ *
+ * This replaces the old manual JWT verification with modern patterns
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
+import { createServerClient } from '@supabase/ssr';
+import type { User } from '@supabase/supabase-js';
 
-// Initialize Supabase client (optional - if not configured, auth will be disabled)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Create service client for server-side auth (only if configured)
-const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey)
-  : null;
-
-/**
- * Extract JWT token from request
- */
-function getTokenFromRequest(req: VercelRequest): string | null {
-  // Try Authorization header first
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-
-  // Try cookie
-  const cookies = req.headers.cookie?.split('; ') || [];
-  for (const cookie of cookies) {
-    const [name, value] = cookie.split('=');
-    if (name === 'sb-access-token' || name === 'supabase-auth-token') {
-      return value;
-    }
-  }
-
-  return null;
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
 }
 
 /**
- * Verify JWT token and get user
+ * Parse cookies from request
  */
-export async function verifyAuth(req: VercelRequest): Promise<{ user: any } | { error: string }> {
+function getCookieFromRequest(req: VercelRequest, name: string): string | undefined {
+  const cookieHeader = req.headers.cookie || '';
+  const cookies = cookieHeader.split('; ');
+  const cookie = cookies.find(c => c.startsWith(`${name}=`));
+  return cookie?.split('=')[1];
+}
+
+/**
+ * Format Set-Cookie header
+ */
+function formatSetCookie(name: string, value: string, options: any): string {
+  let cookie = `${name}=${value}`;
+
+  if (options?.maxAge !== undefined) {
+    cookie += `; Max-Age=${options.maxAge}`;
+  }
+  if (options?.path) {
+    cookie += `; Path=${options.path}`;
+  }
+  if (options?.domain) {
+    cookie += `; Domain=${options.domain}`;
+  }
+  if (options?.sameSite) {
+    cookie += `; SameSite=${options.sameSite}`;
+  }
+  if (options?.secure) {
+    cookie += '; Secure';
+  }
+  if (options?.httpOnly) {
+    cookie += '; HttpOnly';
+  }
+
+  return cookie;
+}
+
+/**
+ * Verify authentication and get user
+ * ALWAYS use getUser() not getSession() for server-side auth
+ *
+ * @returns User object if authenticated, null otherwise
+ */
+export async function verifyAuth(req: VercelRequest): Promise<{ user: User } | { error: string }> {
   try {
-    // If Supabase is not configured, skip auth
-    if (!supabase) {
-      console.warn('Supabase not configured - auth disabled');
-      return { user: { id: 'anonymous', role: 'anon' } };
-    }
+    // Store cookies to be set
+    const cookiesToSet: string[] = [];
 
-    const token = getTokenFromRequest(req);
+    // Create Supabase client with cookie handling
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return getCookieFromRequest(req, name);
+        },
+        set(name: string, value: string, options: any) {
+          cookiesToSet.push(formatSetCookie(name, value, options));
+        },
+        remove(name: string, options: any) {
+          cookiesToSet.push(formatSetCookie(name, '', { ...options, maxAge: 0 }));
+        }
+      }
+    });
 
-    if (!token) {
-      return { error: 'No authentication token provided' };
-    }
-
-    // Verify token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // CRITICAL: Use getUser() not getSession()
+    // getUser() validates the JWT with Supabase Auth server
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
       return { error: 'Invalid or expired token' };
@@ -72,16 +97,23 @@ export async function verifyAuth(req: VercelRequest): Promise<{ user: any } | { 
 
 /**
  * Middleware wrapper for protected endpoints
+ * Use this to wrap API handlers that require authentication
  */
 export function withAuth(
-  handler: (req: VercelRequest, res: VercelResponse, user: any) => Promise<void>
+  handler: (req: VercelRequest, res: VercelResponse, user: User) => Promise<void>
 ) {
   return async (req: VercelRequest, res: VercelResponse) => {
     const authResult = await verifyAuth(req);
 
     if ('error' in authResult) {
-      return res.status(401).json({ error: authResult.error });
+      return res.status(401).json({
+        error: authResult.error,
+        login: '/login'
+      });
     }
+
+    // Add user to request for convenience
+    (req as any).user = authResult.user;
 
     return handler(req, res, authResult.user);
   };
