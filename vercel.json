@@ -8,6 +8,12 @@
       "includeFiles": "src/**"
     }
   },
+  "crons": [
+    {
+      "path": "/api/worker",
+      "schedule": "* * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/reset-password",
