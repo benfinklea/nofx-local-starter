@@ -116,11 +116,11 @@ export interface ResponsesArchive {
 }
 
 // Import extracted services
-import { RunManagementService } from '../../services/responses/archiveStore/RunManagementService';
-import { EventManagementService } from '../../services/responses/archiveStore/EventManagementService';
-import { SafetyManagementService } from '../../services/responses/archiveStore/SafetyManagementService';
-import { DelegationManagementService } from '../../services/responses/archiveStore/DelegationManagementService';
-import { RollbackService } from '../../services/responses/archiveStore/RollbackService';
+import { RunManagementService } from './archive/RunManagementService';
+import { EventManagementService } from './archive/EventManagementService';
+import { SafetyManagementService } from './archive/SafetyManagementService';
+import { DelegationManagementService } from './archive/DelegationManagementService';
+import { RollbackService } from './archive/RollbackService';
 
 export class InMemoryResponsesArchive implements ResponsesArchive {
   private runs = new Map<string, RunRecord>();
@@ -199,4 +199,4 @@ export class InMemoryResponsesArchive implements ResponsesArchive {
 }
 
 // Re-export applyRollbackToTimeline for backwards compatibility
-export { applyRollbackToTimeline } from '../../services/responses/archiveStore/RollbackService';
+export { applyRollbackToTimeline } from './archive/RollbackService';

@@ -1,11 +1,17 @@
 import { store, type StepRow, type RunRow } from "../lib/store";
 import { recordEvent } from "../lib/events";
 import { log } from "../lib/logger";
-import { loadHandlers } from "./handlers/loader";
+import { loadHandlers as loadHandlersDynamic } from "./handlers/loader";
+import { loadHandlers as loadHandlersStatic } from "./handlers/static-loader";
 import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
 import type { Step } from "./handlers/types";
 import { metrics } from "../lib/metrics";
 import { runAtomically } from "../lib/tx";
+
+// Use static loader in production/Vercel, dynamic loader in development
+const loadHandlers = process.env.VERCEL || process.env.NODE_ENV === 'production'
+  ? loadHandlersStatic
+  : loadHandlersDynamic;
 
 function attemptLoadHandlers(forceAll: boolean): ReturnType<typeof loadHandlers> {
   const prev = process.env.LOAD_ALL_HANDLERS;
