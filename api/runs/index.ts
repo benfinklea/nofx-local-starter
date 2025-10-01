@@ -100,14 +100,14 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 });
 
 // Helper function to process run steps (similar to local API)
-async function processRunSteps(plan: { steps: { name: string; inputs?: Record<string, unknown> }[] }, runId: string) {
+async function processRunSteps(plan: { steps: { name: string; tool?: string; inputs?: Record<string, unknown> }[] }, runId: string) {
   for (const s of plan.steps) {
     try {
       const baseInputs = s.inputs ?? {};
       const hash = crypto.createHash('sha256').update(JSON.stringify(baseInputs)).digest('hex').slice(0, 12);
       const idemKey = `${runId}:${s.name}:${hash}`;
 
-      const created = await store.createStep(runId, s.name, s.tool, baseInputs, idemKey);
+      const created = await store.createStep(runId, s.name, s.tool || 'unknown', baseInputs, idemKey);
       let stepId = created?.id;
 
       if (!stepId) {
