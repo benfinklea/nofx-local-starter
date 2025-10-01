@@ -53,6 +53,13 @@
       "outputs": ["dist/**"],
       "inputs": ["src/**"],
       "cache": true
+    },
+    "fe:build": {
+      "dependsOn": [],
+      "outputs": ["apps/frontend/dist/**"],
+      "inputs": ["apps/frontend/**", "!apps/frontend/dist/**", "!apps/frontend/node_modules/**"],
+      "cache": true,
+      "env": ["NODE_ENV"]
     }
   }
 }
