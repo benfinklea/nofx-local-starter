@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { isAdmin } from '../../src/lib/auth';
 import { store } from '../../src/lib/store';
 import { recordEvent } from '../../src/lib/events';
 import { buildPlanFromPrompt } from '../../src/api/planBuilder';
@@ -17,6 +18,12 @@ const CreateRunSchema = z.object({
 });
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
+  // Check authentication
+  const isDev = process.env.NODE_ENV === 'development' || process.env.ENABLE_ADMIN === 'true';
+  if (!isDev && !isAdmin(req)) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
   if (req.method === 'GET') {
     // List runs
     const lim = Math.max(1, Math.min(200, Number(req.query.limit || 50)));
@@ -93,7 +100,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 });
 
 // Helper function to process run steps (similar to local API)
-async function processRunSteps(plan: any, runId: string) {
+async function processRunSteps(plan: { steps: { name: string; inputs?: Record<string, unknown> }[] }, runId: string) {
   for (const s of plan.steps) {
     try {
       const baseInputs = s.inputs ?? {};
