@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install --production=false && cd apps/frontend && npm install && cd ../.. && npm run fe:build:actual",
+  "buildCommand": "cd apps/frontend && npm run build",
   "outputDirectory": "apps/frontend/dist",
   "framework": null,
   "git": {

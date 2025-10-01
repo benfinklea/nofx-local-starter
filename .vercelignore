@@ -1,0 +1,31 @@
+# Test files
+tests/
+*.test.ts
+*.spec.ts
+**/__tests__/
+
+# Development files
+.env.local
+.env.development
+local_data/
+worktrees/
+
+# Documentation
+*.md
+!README.md
+
+# Development configs
+.lefthook*
+.git/
+.github/
+.vscode/
+
+# Build artifacts not needed for deployment
+node_modules/.cache/
+.turbo/
+dist/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
