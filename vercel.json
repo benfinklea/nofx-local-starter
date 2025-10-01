@@ -2,6 +2,15 @@
   "buildCommand": "npm install --production=false && cd apps/frontend && npm install && cd ../.. && npm run fe:build",
   "outputDirectory": "apps/frontend/dist",
   "framework": null,
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "github": {
+    "autoJobCancelation": true,
+    "silent": true
+  },
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60,
