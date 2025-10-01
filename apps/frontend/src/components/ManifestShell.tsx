@@ -83,16 +83,25 @@ import { useNavigationManifest } from '../hooks/useNavigationManifest';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Dashboard,
+  DashboardIcon: Dashboard,
   PlayArrow,
+  PlayArrowIcon: PlayArrow,
   Storage,
+  StorageIcon: Storage,
   Settings,
+  SettingsIcon: Settings,
   WarningAmber,
+  WarningAmberIcon: WarningAmber,
   Chat,
+  ChatIcon: Chat,
   SmartToy,
+  SmartToyIcon: SmartToy,
   Description,
+  DescriptionIcon: Description,
   LibraryBooks,
   Analytics,
   Article,
+  ArticleIcon: Article,
   Timeline,
   DeveloperMode,
   Science,
@@ -101,7 +110,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Help,
   Apps,
   Insights,
+  InsightsIcon: Insights,
   Code,
+  CodeIcon: Code,
 };
 
 const getIcon = (iconName?: string): React.ReactNode => {
