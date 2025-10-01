@@ -5,9 +5,6 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { runStep } from '../src/worker/runner';
-import { log } from '../src/lib/logger';
-import { store } from '../src/lib/store';
 
 // Security: Only allow cron jobs or authenticated requests
 function isAuthorized(req: VercelRequest): boolean {
@@ -42,10 +39,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let failed = 0;
     const errors: string[] = [];
 
-    log.info({ batchSize, trigger: req.headers['x-vercel-cron'] ? 'cron' : 'manual' }, 'Worker triggered');
+    console.log('Worker triggered', { batchSize, trigger: req.headers['x-vercel-cron'] ? 'cron' : 'manual' });
+
+    // Lazy load dependencies to avoid module issues
+    const { query } = await import('../src/lib/db');
+    const { store } = await import('../src/lib/store');
+    const { runStep } = await import('../src/worker/runner');
 
     // Get pending steps from database
-    const { query } = await import('../src/lib/db');
     const pendingSteps = await query(
       `SELECT s.id, s.run_id
        FROM nofx.step s
@@ -58,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     if (!pendingSteps || !pendingSteps.rows || pendingSteps.rows.length === 0) {
-      log.info('No pending steps to process');
+      console.log('No pending steps to process');
       return res.status(200).json({
         success: true,
         processed: 0,
@@ -70,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const step of pendingSteps.rows) {
       // Check if we're approaching timeout
       if (Date.now() - startTime > maxProcessingTime) {
-        log.warn({ processed }, 'Approaching timeout, stopping processing');
+        console.warn('Approaching timeout, stopping processing', { processed });
         break;
       }
 
@@ -83,28 +84,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         succeeded++;
         processed++;
-        log.info({
+        console.log('Step processed successfully', {
           runId: step.run_id,
           stepId: step.id
-        }, 'Step processed successfully');
+        });
       } catch (error: unknown) {
         failed++;
         processed++;
         const errorMsg = error instanceof Error ? error.message : String(error);
         errors.push(`${step.id}: ${errorMsg}`);
-        log.error({ error, runId: step.run_id, stepId: step.id }, 'Step processing failed');
+        console.error('Step processing failed', { error, runId: step.run_id, stepId: step.id });
       }
     }
 
     const duration = Date.now() - startTime;
 
-    log.info({
+    console.log('Worker batch completed', {
       processed,
       succeeded,
       failed,
       duration,
       remaining: pendingSteps.rows.length - processed
-    }, 'Worker batch completed');
+    });
 
     return res.status(200).json({
       success: true,
@@ -118,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log.error({ error }, 'Worker function failed');
+    console.error('Worker function failed', { error });
 
     return res.status(500).json({
       success: false,
