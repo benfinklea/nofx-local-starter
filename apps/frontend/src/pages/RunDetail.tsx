@@ -9,14 +9,15 @@ import Alert from '@mui/material/Alert';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import { useParams, Link as RouterLink } from 'react-router-dom';
+import Tooltip from '@mui/material/Tooltip';
+import { useParams } from 'react-router-dom';
 import { getRun, getTimeline, getArtifact, type Event } from '../lib/api';
 import StatusChip from '../components/StatusChip';
-import StepOutput from '../components/StepOutput';
-import { apiBase } from '../config';
+import RunOutputSummary from '../components/RunOutputSummary';
 import Button from '@mui/material/Button';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import Collapse from '@mui/material/Collapse';
+import { formatCost, formatDuration } from '../lib/outputParser';
 
 function ArtifactViewer({ artifact }: { artifact: any }) {
   const [content, setContent] = React.useState<string | null>(null);
@@ -112,17 +113,15 @@ export default function RunDetail(){
 
     loadData();
 
-    // Poll for timeline updates instead of SSE to avoid authentication issues
-    // EventSource doesn't support custom headers, so we'll poll the timeline endpoint
+    // Poll for timeline updates
     const pollInterval = setInterval(async () => {
       try {
         const timelineData = await getTimeline(id!);
         setTimeline(timelineData);
       } catch (err) {
-        // Silently ignore polling errors to avoid disrupting the UI
         console.debug('Timeline polling error:', err);
       }
-    }, 2000); // Poll every 2 seconds
+    }, 2000);
 
     return () => clearInterval(pollInterval);
   }, [id]);
@@ -147,40 +146,77 @@ export default function RunDetail(){
     );
   }
 
+  // Extract cost from run metadata or plan
+  const cost = run?.run?.metadata?.cost || run?.run?.plan?.cost || 0;
+  const costDisplay = formatCost(cost);
+
+  // Calculate duration
+  const duration = formatDuration(
+    run?.run?.started_at || run?.run?.created_at,
+    run?.run?.ended_at || run?.run?.completed_at
+  );
+
+  // Generate lifecycle timeline if no events
+  const effectiveTimeline = timeline.length > 0 ? timeline : generateLifecycleTimeline(run?.run);
+
   return (
-    <Container sx={{ mt: 2 }}>
-      <Box mb={2}>
+    <Container sx={{ mt: 2, mb: 4 }}>
+      {/* Header with status */}
+      <Box mb={3}>
         <Typography variant="h5" gutterBottom>
           {run?.run?.plan?.goal || `Run ${id}`}
         </Typography>
-        <Box display="flex" gap={1} alignItems="center">
+        <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
           <StatusChip status={run?.run?.status || 'unknown'} />
           <Typography variant="body2" color="text.secondary">
             ID: {id}
           </Typography>
+          <Tooltip title="Actual API cost (5 decimal precision)">
+            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+              {costDisplay}
+            </Typography>
+          </Tooltip>
+          <Typography variant="body2" color="text.secondary">
+            {duration}
+          </Typography>
         </Box>
       </Box>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
+        {/* Main content - Output first */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>Timeline</Typography>
-            {timeline.length === 0 ? (
-              <Typography color="text.secondary">No events yet</Typography>
+          {/* Primary Output */}
+          {run?.steps && run.steps.length > 0 && (
+            <RunOutputSummary steps={run.steps} />
+          )}
+
+          {/* Timeline */}
+          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+            <Typography variant="h6" gutterBottom>⏱️ Activity Timeline</Typography>
+            {effectiveTimeline.length === 0 ? (
+              <Typography color="text.secondary">No activity recorded</Typography>
             ) : (
               <List dense>
-                {timeline.map((event, idx) => (
-                  <ListItem key={idx} divider>
+                {effectiveTimeline.map((event, idx) => (
+                  <ListItem key={idx} divider={idx < effectiveTimeline.length - 1}>
                     <ListItemText
-                      primary={event.type}
+                      primary={formatEventType(event.type)}
                       secondary={
                         <Box>
                           <Typography variant="body2" color="text.secondary">
                             {event.created_at ? new Date(event.created_at).toLocaleString() : ''}
                           </Typography>
-                          {event.payload && (
-                            <Typography component="div" variant="body2" sx={{ fontSize: '0.75rem', margin: '4px 0', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                              {JSON.stringify(event.payload, null, 2)}
+                          {event.payload && shouldShowPayload(event.type) && (
+                            <Typography
+                              component="div"
+                              variant="body2"
+                              sx={{
+                                fontSize: '0.8rem',
+                                mt: 0.5,
+                                color: 'text.secondary'
+                              }}
+                            >
+                              {formatEventPayload(event.payload)}
                             </Typography>
                           )}
                         </Box>
@@ -193,62 +229,125 @@ export default function RunDetail(){
           </Paper>
         </Grid>
 
+        {/* Sidebar */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>Run Details</Typography>
+          {/* Output Documents (formerly Artifacts) */}
+          {run?.artifacts && run.artifacts.length > 0 && (
+            <Box mb={2}>
+              <Typography variant="h6" gutterBottom>📄 Output Documents</Typography>
+              {run.artifacts.map((artifact: any) => (
+                <ArtifactViewer key={artifact.id || artifact.path} artifact={artifact} />
+              ))}
+            </Box>
+          )}
+
+          {/* Additional Run Info */}
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>Additional Details</Typography>
             {run?.run && (
               <Box>
-                <Typography component="div" variant="body2" gutterBottom>
-                  <strong>Status:</strong> <StatusChip status={run.run.status} />
-                </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>Goal:</strong> {run.run.plan?.goal || 'N/A'}
-                </Typography>
                 <Typography variant="body2" gutterBottom>
                   <strong>Created:</strong> {run.run.created_at ? new Date(run.run.created_at).toLocaleString() : 'N/A'}
                 </Typography>
+                {run.run.started_at && (
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Started:</strong> {new Date(run.run.started_at).toLocaleString()}
+                  </Typography>
+                )}
+                {run.run.ended_at && (
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Completed:</strong> {new Date(run.run.ended_at).toLocaleString()}
+                  </Typography>
+                )}
                 <Typography variant="body2" gutterBottom>
                   <strong>Steps:</strong> {run.run.plan?.steps?.length || 0}
                 </Typography>
               </Box>
             )}
           </Paper>
-
-          {run?.steps && (
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>Steps</Typography>
-              <List dense>
-                {run.steps.map((step: any) => (
-                  <ListItem key={step.id}>
-                    <ListItemText
-                      primary={step.name}
-                      secondary={
-                        <Box>
-                          <StatusChip status={step.status} />
-                          <Typography variant="body2" color="text.secondary">
-                            Tool: {step.tool}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          )}
-
-          {run?.steps && run.steps.filter((s: any) => s.outputs || s.output || s.result).map((step: any) => (
-            <Paper key={`output-${step.id}`} variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>Output: {step.name}</Typography>
-              <StepOutput step={step} />
-            </Paper>
-          ))}
-
-          {run?.artifacts && run.artifacts.length > 0 && run.artifacts.map((artifact: any) => (
-            <ArtifactViewer key={artifact.id || artifact.path} artifact={artifact} />
-          ))}
         </Grid>
       </Grid>
     </Container>
   );
+}
+
+/**
+ * Generate lifecycle timeline from run data if no events exist
+ */
+function generateLifecycleTimeline(run: any): Event[] {
+  if (!run) return [];
+
+  const events: Event[] = [];
+
+  if (run.created_at) {
+    events.push({
+      type: 'run.created',
+      created_at: run.created_at,
+      payload: null
+    });
+  }
+
+  if (run.started_at) {
+    events.push({
+      type: 'run.started',
+      created_at: run.started_at,
+      payload: null
+    });
+  }
+
+  if (run.ended_at || run.completed_at) {
+    events.push({
+      type: run.status === 'succeeded' ? 'run.succeeded' : 'run.completed',
+      created_at: run.ended_at || run.completed_at,
+      payload: null
+    });
+  }
+
+  return events;
+}
+
+/**
+ * Format event type for display
+ */
+function formatEventType(type: string): string {
+  const formatted = type
+    .replace(/\./g, ' ')
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  // Add emoji for common events
+  if (type.includes('created')) return '✨ ' + formatted;
+  if (type.includes('started')) return '🚀 ' + formatted;
+  if (type.includes('succeeded') || type.includes('completed')) return '✅ ' + formatted;
+  if (type.includes('failed')) return '❌ ' + formatted;
+  if (type.includes('enqueued')) return '📥 ' + formatted;
+
+  return formatted;
+}
+
+/**
+ * Check if payload should be shown for this event type
+ */
+function shouldShowPayload(type: string): boolean {
+  // Don't show payload for lifecycle events
+  const lifecycleEvents = ['run.created', 'run.started', 'run.succeeded', 'run.completed', 'run.failed'];
+  return !lifecycleEvents.includes(type);
+}
+
+/**
+ * Format event payload for display
+ */
+function formatEventPayload(payload: any): string {
+  if (!payload || typeof payload !== 'object') return '';
+
+  // Extract useful info
+  const parts: string[] = [];
+
+  if (payload.name) parts.push(payload.name);
+  if (payload.tool) parts.push(`Tool: ${payload.tool}`);
+  if (payload.message) parts.push(payload.message);
+
+  return parts.join(' • ');
 }

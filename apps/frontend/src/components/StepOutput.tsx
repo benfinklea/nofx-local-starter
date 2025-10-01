@@ -1,11 +1,11 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { parseStepOutput } from '../lib/outputParser';
 
 interface StepOutputProps {
   step: any;
@@ -17,76 +17,11 @@ export default function StepOutput({ step }: StepOutputProps) {
 
   if (!output) return null;
 
-  // Handle different output formats
-  const renderOutput = () => {
-    // If it's a string, display it directly
-    if (typeof output === 'string') {
-      return (
-        <Typography
-          component="pre"
-          sx={{
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'inherit',
-            fontSize: '0.95rem',
-            lineHeight: 1.6
-          }}
-        >
-          {output}
-        </Typography>
-      );
-    }
-
-    // If it has a content field (common for text outputs)
-    if (output.content) {
-      return (
-        <Typography
-          component="pre"
-          sx={{
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'inherit',
-            fontSize: '0.95rem',
-            lineHeight: 1.6
-          }}
-        >
-          {output.content}
-        </Typography>
-      );
-    }
-
-    // If it has a text field
-    if (output.text) {
-      return (
-        <Typography
-          component="pre"
-          sx={{
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'inherit',
-            fontSize: '0.95rem',
-            lineHeight: 1.6
-          }}
-        >
-          {output.text}
-        </Typography>
-      );
-    }
-
-    // Otherwise show as formatted JSON
-    return (
-      <Typography
-        component="pre"
-        sx={{
-          whiteSpace: 'pre-wrap',
-          fontFamily: 'monospace',
-          fontSize: '0.85rem'
-        }}
-      >
-        {JSON.stringify(output, null, 2)}
-      </Typography>
-    );
-  };
+  // Parse output intelligently
+  const parsed = parseStepOutput(output);
 
   return (
-    <Accordion defaultExpanded>
+    <Accordion defaultExpanded={false}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Typography variant="subtitle2">
           {step.name || 'Step Output'}
@@ -94,7 +29,44 @@ export default function StepOutput({ step }: StepOutputProps) {
       </AccordionSummary>
       <AccordionDetails>
         <Box sx={{ width: '100%' }}>
-          {renderOutput()}
+          <Typography
+            component="pre"
+            sx={{
+              whiteSpace: 'pre-wrap',
+              fontFamily: parsed.type === 'text' ? 'inherit' : 'monospace',
+              fontSize: parsed.type === 'text' ? '0.95rem' : '0.85rem',
+              lineHeight: 1.6,
+              margin: 0,
+              color: 'text.primary'
+            }}
+          >
+            {parsed.summary}
+          </Typography>
+
+          {/* Show raw data in collapsed section if available */}
+          {parsed.raw && parsed.type !== 'unknown' && (
+            <Accordion sx={{ mt: 2, bgcolor: 'grey.50' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="caption" color="text.secondary">
+                  Raw Output
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography
+                  component="pre"
+                  sx={{
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                    margin: 0,
+                    color: 'text.secondary'
+                  }}
+                >
+                  {JSON.stringify(parsed.raw, null, 2)}
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
+          )}
         </Box>
       </AccordionDetails>
     </Accordion>
