@@ -8,23 +8,30 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Security: Only allow cron jobs or authenticated requests
 function isAuthorized(req: VercelRequest): boolean {
-  // Allow Vercel cron jobs (check multiple possible headers)
+  // Check if request is from Vercel's infrastructure
+  // Vercel cron jobs and internal requests have specific user-agent patterns
+  const userAgent = req.headers['user-agent'] || '';
+  const isVercelInternal = userAgent.includes('vercel') || userAgent.includes('Vercel');
+
+  // Allow Vercel cron jobs (they set this header)
   if (req.headers['x-vercel-cron'] === '1') {
     return true;
   }
 
-  // Vercel also uses this authorization header for cron jobs
-  const authHeader = req.headers['authorization'];
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+  // For manual testing/triggering, require secret in header (not query param for security)
+  const secret = process.env.WORKER_SECRET || process.env.ADMIN_PASSWORD;
+  const providedSecret = req.headers['x-worker-secret'];
+
+  if (secret && providedSecret === secret) {
     return true;
   }
 
-  // Allow manual trigger with secret key
-  const secret = process.env.WORKER_SECRET || process.env.ADMIN_PASSWORD;
-  const providedSecret = req.headers['x-worker-secret'] || req.query.secret;
+  // Allow if from Vercel infrastructure (fallback for cron)
+  if (isVercelInternal) {
+    return true;
+  }
 
-  return Boolean(secret && providedSecret === secret);
+  return false;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
