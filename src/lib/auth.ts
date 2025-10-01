@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
-const COOKIE_NAME = 'nofx_admin';
 
-function parseCookies(cookieHeader: string | undefined): Record<string,string> {
+export const COOKIE_NAME = 'nofx_admin';
+
+export function parseCookies(cookieHeader: string | undefined): Record<string,string> {
   const out: Record<string,string> = {};
   if (!cookieHeader) return out;
   const parts = cookieHeader.split(';');
@@ -13,7 +14,7 @@ function parseCookies(cookieHeader: string | undefined): Record<string,string> {
   return out;
 }
 
-function hmac(value: string, secret: string): string {
+export function hmac(value: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(value).digest('hex');
 }
 
