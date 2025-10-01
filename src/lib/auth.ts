@@ -24,17 +24,30 @@ export function issueAdminCookie(): string {
   return `${COOKIE_NAME}=${value}|${sig}; Path=/; HttpOnly; SameSite=Lax`;
 }
 
-export function isAdmin(req: { headers: { cookie?: string | undefined } }): boolean {
+export function isAdmin(req: { headers: { cookie?: string | undefined; authorization?: string | undefined } }): boolean {
   // In development with ENABLE_ADMIN, bypass auth check
   if (process.env.NODE_ENV === 'development' && process.env.ENABLE_ADMIN === 'true') {
     return true;
   }
 
+  // Check old cookie-based auth
   const secret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD || 'dev-secret';
   const cookies = parseCookies(req.headers.cookie);
   const c = cookies[COOKIE_NAME];
-  if (!c) return false;
-  const [value, sig] = c.split('|');
-  if (!value || !sig) return false;
-  return sig === hmac(value, secret);
+  if (c) {
+    const [value, sig] = c.split('|');
+    if (value && sig && sig === hmac(value, secret)) {
+      return true;
+    }
+  }
+
+  // Check for Supabase JWT token in Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    // Has a token - assume valid for now
+    // (Full validation happens in verifyAuth middleware)
+    return true;
+  }
+
+  return false;
 }

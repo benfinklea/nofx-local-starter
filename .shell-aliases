@@ -1,0 +1,45 @@
+# NOFX Development Shell Aliases
+#
+# Add this to your ~/.zshrc or ~/.bashrc:
+#   source /Volumes/Development/nofx-local-starter/.shell-aliases
+#
+# Or run this once to add it automatically:
+#   echo "source $(pwd)/.shell-aliases" >> ~/.zshrc
+
+# Quick navigation
+alias nofx="cd /Volumes/Development/nofx-local-starter"
+alias nofx-dash="cd /Volumes/Development/nofx-local-starter && npm run help"
+
+# Development shortcuts
+alias nofx-dev="cd /Volumes/Development/nofx-local-starter && npm run d"
+alias nofx-api="cd /Volumes/Development/nofx-local-starter && npm run d:api"
+alias nofx-fe="cd /Volumes/Development/nofx-local-starter && npm run d:fe"
+
+# Testing shortcuts
+alias nofx-test="cd /Volumes/Development/nofx-local-starter && npm run t"
+alias nofx-test-watch="cd /Volumes/Development/nofx-local-starter && npm run t:watch"
+alias nofx-test-e2e="cd /Volumes/Development/nofx-local-starter && npm run t:e2e"
+
+# Deployment shortcuts
+alias nofx-ship="cd /Volumes/Development/nofx-local-starter && npm run ship"
+alias nofx-preview="cd /Volumes/Development/nofx-local-starter && npm run ship:preview"
+
+# Utility shortcuts
+alias nofx-fix="cd /Volumes/Development/nofx-local-starter && npm run fix"
+alias nofx-clean="cd /Volumes/Development/nofx-local-starter && npm run clean"
+alias nofx-help="cd /Volumes/Development/nofx-local-starter && npm run help"
+
+# Git shortcuts (work from any directory if you're in nofx repo)
+alias gst="git status"
+alias gco="git checkout"
+alias gcm="git commit -m"
+alias gp="git push"
+alias gpl="git pull"
+alias glog="git log --oneline --graph --decorate -10"
+
+# Super shortcut - dashboard from anywhere
+alias ?="cd /Volumes/Development/nofx-local-starter && npm run help"
+
+echo "✅ NOFX aliases loaded!"
+echo "   Type 'nofx-help' to see all commands"
+echo "   Type '?' for quick dashboard"

@@ -1,0 +1,65 @@
+# Google Cloud ignore file - excludes files from Docker build context
+# This speeds up builds and reduces container size
+
+# Git
+.git/
+.github/
+.gitignore
+
+# Dependencies (will be installed fresh in container)
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+dist/
+build/
+.turbo/
+.next/
+
+# Development files
+.env.local
+.env.development
+local_data/
+worktrees/
+
+# Test files (not needed in production worker)
+tests/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+**/__tests__/
+coverage/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel/
+.vercelignore
+
+# Frontend build output (not needed for worker)
+apps/frontend/dist/
+
+# Temp files
+tmp/
+temp/
+*.tmp
