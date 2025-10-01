@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { isAdmin } from '../../src/lib/auth';
+import { getTenantContext } from '../../src/lib/tenant-auth';
 import { listAgents } from '../../src/lib/registry';
 import type { ListAgentsQuery } from '../../packages/shared/src/agents';
 import { withCors } from '../_lib/cors';
@@ -26,8 +26,11 @@ function normalizeQuery(input: QueryInput): ListAgentsQuery {
 }
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!isAdmin(req)) {
-    return res.status(401).json({ error: 'auth required' });
+  // Get tenant context from auth token
+  const tenantContext = await getTenantContext(req);
+
+  if (!tenantContext) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   if (req.method !== 'GET') {
@@ -40,7 +43,8 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   }
 
   try {
-    const result = await listAgents(normalizeQuery(parsed.data));
+    // Pass tenant ID to listAgents for filtering
+    const result = await listAgents(normalizeQuery(parsed.data), tenantContext.tenantId);
     return res.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to list agents';

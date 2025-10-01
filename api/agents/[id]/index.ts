@@ -1,11 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isAdmin } from '../../../src/lib/auth';
+import { getTenantContext } from '../../../src/lib/tenant-auth';
 import { getAgent, deleteAgent } from '../../../src/lib/registry';
 import { withCors } from '../../_lib/cors';
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!isAdmin(req)) {
-    return res.status(401).json({ error: 'auth required' });
+  // Get tenant context from auth token
+  const tenantContext = await getTenantContext(req);
+
+  if (!tenantContext) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   const agentId = req.query.id;
@@ -15,7 +18,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
   try {
     if (req.method === 'GET') {
-      const agent = await getAgent(agentId);
+      const agent = await getAgent(agentId, tenantContext.tenantId);
       if (!agent) {
         return res.status(404).json({ error: 'agent not found' });
       }
@@ -23,7 +26,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
     }
 
     if (req.method === 'DELETE') {
-      await deleteAgent(agentId);
+      await deleteAgent(agentId, tenantContext.tenantId);
       return res.json({ success: true });
     }
 

@@ -51,6 +51,7 @@ type AgentRow = {
   capabilities: unknown[];
   metadata: Record<string, unknown>;
   owner_id: string | null;
+  tenant_id: string;
   created_at: string;
   updated_at: string;
 };
@@ -321,10 +322,14 @@ function decodeTemplateCursor(cursor: string): { updatedAt: string; id: string }
   }
 }
 
-export async function listAgents(queryParams: ListAgentsQuery = {}): Promise<ListAgentsResponse> {
+export async function listAgents(queryParams: ListAgentsQuery = {}, tenantId: string = 'local'): Promise<ListAgentsResponse> {
   await ensureSchema();
   const conditions: string[] = [];
   const params: any[] = [];
+
+  // Add tenant filter
+  params.push(tenantId);
+  conditions.push(`tenant_id = $${params.length}`);
 
   if (queryParams.status) {
     params.push(queryParams.status);
@@ -356,10 +361,10 @@ export async function listAgents(queryParams: ListAgentsQuery = {}): Promise<Lis
   };
 }
 
-export async function getAgent(agentId: string): Promise<AgentDetail | null> {
+export async function getAgent(agentId: string, tenantId: string = 'local'): Promise<AgentDetail | null> {
   await ensureSchema();
   const { result: agentRes, latencyMs } = await timeIt('registry.getAgent', async () =>
-    query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 limit 1`, [agentId])
+    query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 and tenant_id = $2 limit 1`, [agentId, tenantId])
   );
   try { metrics.registryOperationDuration.observe({ entity: 'agent', action: 'get' }, latencyMs); } catch {}
   const agent = agentRes.rows[0];
@@ -372,10 +377,10 @@ export async function getAgent(agentId: string): Promise<AgentDetail | null> {
   return mapAgentDetail(agent, versions);
 }
 
-export async function publishAgent(payload: PublishAgentRequest): Promise<AgentDetail> {
+export async function publishAgent(payload: PublishAgentRequest, tenantId: string = 'local'): Promise<AgentDetail> {
   await ensureSchema();
   const { result, latencyMs } = await timeIt('registry.publishAgent', async () => withTransaction(async () => {
-    const existingRes = await query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 limit 1`, [payload.agentId]);
+    const existingRes = await query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 and tenant_id = $2 limit 1`, [payload.agentId, tenantId]);
     const tags = payload.tags ?? [];
     const capabilities = payload.capabilities ?? [];
     const metadata = payload.metadata ?? {};
@@ -392,18 +397,18 @@ export async function publishAgent(payload: PublishAgentRequest): Promise<AgentD
              capabilities = $6,
              metadata = $7,
              updated_at = now()
-         where agent_id = $1
+         where agent_id = $1 and tenant_id = $8
          returning *`,
-        [payload.agentId, payload.name, payload.description ?? null, payload.version, tags, capabilities, metadata]
+        [payload.agentId, payload.name, payload.description ?? null, payload.version, tags, capabilities, metadata, tenantId]
       );
       agentRow = updatedRes.rows[0];
     } else {
       const inserted = await query<AgentRow>(
         `insert into nofx.agent_registry
-           (agent_id, name, description, status, current_version, tags, capabilities, metadata)
-         values ($1,$2,$3,'active',$4,$5,$6,$7)
+           (agent_id, name, description, status, current_version, tags, capabilities, metadata, tenant_id)
+         values ($1,$2,$3,'active',$4,$5,$6,$7,$8)
          returning *`,
-        [payload.agentId, payload.name, payload.description ?? null, payload.version, tags, capabilities, metadata]
+        [payload.agentId, payload.name, payload.description ?? null, payload.version, tags, capabilities, metadata, tenantId]
       );
       agentRow = inserted.rows[0];
     }
@@ -421,7 +426,7 @@ export async function publishAgent(payload: PublishAgentRequest): Promise<AgentD
       [agentRow.id, payload.version, payload.manifest ?? {}, null, payload.sourceCommit ?? null]
     );
 
-    const detail = await getAgent(payload.agentId);
+    const detail = await getAgent(payload.agentId, tenantId);
     if (!detail) throw new Error('failed to load agent after publish');
     return detail;
   }));
@@ -441,10 +446,10 @@ export async function validateAgent(payload: PublishAgentRequest): Promise<Valid
   return { valid: errors.length === 0, errors };
 }
 
-export async function deleteAgent(agentId: string): Promise<void> {
+export async function deleteAgent(agentId: string, tenantId: string = 'local'): Promise<void> {
   await ensureSchema();
   const { latencyMs } = await timeIt('registry.deleteAgent', async () => withTransaction(async () => {
-    const agentRes = await query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 limit 1`, [agentId]);
+    const agentRes = await query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 and tenant_id = $2 limit 1`, [agentId, tenantId]);
     const agentRow = agentRes.rows[0];
     if (!agentRow) throw new Error('agent not found');
 

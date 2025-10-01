@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { isAdmin } from '../../src/lib/auth';
+import { getTenantContext } from '../../src/lib/tenant-auth';
 import { publishAgent } from '../../src/lib/registry';
 import { store } from '../../src/lib/store';
 import type { PublishAgentRequest } from '../../packages/shared/src/agents';
@@ -26,8 +26,11 @@ const PublishSchema = z.object({
 });
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!isAdmin(req)) {
-    return res.status(401).json({ error: 'auth required' });
+  // Get tenant context from auth token
+  const tenantContext = await getTenantContext(req);
+
+  if (!tenantContext) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   if (req.method !== 'POST') {
@@ -55,10 +58,12 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   }
 
   try {
-    const agent = await publishAgent(payload);
+    // Pass tenant ID to publishAgent
+    const agent = await publishAgent(payload, tenantContext.tenantId);
     await recordRegistryUsage(req, 'registry:agent:publish', {
       agentId: payload.agentId,
-      version: payload.version
+      version: payload.version,
+      tenantId: tenantContext.tenantId
     });
     return res.status(201).json({ agent });
   } catch (error: unknown) {
