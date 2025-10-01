@@ -10,10 +10,78 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import { getRun, getTimeline, type Event } from '../lib/api';
+import { getRun, getTimeline, getArtifact, type Event } from '../lib/api';
 import StatusChip from '../components/StatusChip';
 import StepOutput from '../components/StepOutput';
 import { apiBase } from '../config';
+import Button from '@mui/material/Button';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import Collapse from '@mui/material/Collapse';
+
+function ArtifactViewer({ artifact }: { artifact: any }) {
+  const [content, setContent] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+
+  async function loadContent() {
+    if (content) {
+      setExpanded(!expanded);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await getArtifact(artifact.path);
+      if (data) {
+        setContent(data.content);
+        setExpanded(true);
+      }
+    } catch (err) {
+      console.error('Failed to load artifact:', err);
+      setContent('Failed to load artifact content');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+        <Typography variant="subtitle1">
+          📄 {artifact.path.split('/').pop() || artifact.path}
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<VisibilityIcon />}
+          onClick={loadContent}
+          disabled={loading}
+        >
+          {loading ? 'Loading...' : expanded ? 'Hide' : 'View'}
+        </Button>
+      </Box>
+      <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+        {artifact.path} • {artifact.size_bytes || 0} bytes
+      </Typography>
+      <Collapse in={expanded}>
+        {content && (
+          <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50', maxHeight: 400, overflow: 'auto' }}>
+            <Typography
+              component="pre"
+              sx={{
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace',
+                fontSize: '0.875rem',
+                margin: 0
+              }}
+            >
+              {content}
+            </Typography>
+          </Paper>
+        )}
+      </Collapse>
+    </Paper>
+  );
+}
 
 export default function RunDetail(){
   const { id } = useParams();
@@ -176,21 +244,9 @@ export default function RunDetail(){
             </Paper>
           ))}
 
-          {run?.artifacts && run.artifacts.length > 0 && (
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>Artifacts</Typography>
-              <List dense>
-                {run.artifacts.map((artifact: any) => (
-                  <ListItem key={artifact.id}>
-                    <ListItemText
-                      primary={artifact.path}
-                      secondary={`${artifact.size_bytes || 0} bytes`}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          )}
+          {run?.artifacts && run.artifacts.length > 0 && run.artifacts.map((artifact: any) => (
+            <ArtifactViewer key={artifact.id || artifact.path} artifact={artifact} />
+          ))}
         </Grid>
       </Grid>
     </Container>

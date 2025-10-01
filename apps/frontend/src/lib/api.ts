@@ -134,3 +134,9 @@ export async function createRun(plan: Plan): Promise<{ id: string; status: strin
   if (!rsp.ok) return null;
   return rsp.json();
 }
+
+export async function getArtifact(artifactPath: string): Promise<{ content: string; path: string; size: number } | null> {
+  const rsp = await apiFetch(`/artifacts/${encodeURIComponent(artifactPath)}`);
+  if (!rsp.ok) return null;
+  return rsp.json();
+}

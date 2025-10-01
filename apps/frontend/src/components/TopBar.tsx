@@ -6,17 +6,23 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Link from '@mui/material/Link';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Divider from '@mui/material/Divider';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import DeveloperModeIcon from '@mui/icons-material/DeveloperMode';
 import { ColorModeContext } from '../theme';
 import { useTheme } from '@mui/material/styles';
 import ProjectSwitcher from './ProjectSwitcher';
 import NewRunDialog from './NewRunDialog';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { auth } from '../lib/auth';
 
 interface TopBarProps {
@@ -26,14 +32,33 @@ interface TopBarProps {
 export default function TopBar({ onMenuToggle }: TopBarProps = {}){
   const color = React.useContext(ColorModeContext);
   const theme = useTheme();
+  const navigate = useNavigate();
   const [openRun, setOpenRun] = React.useState(false);
+  const [settingsMenuAnchor, setSettingsMenuAnchor] = React.useState<null | HTMLElement>(null);
 
   const handleLogout = async () => {
     await auth.logout();
-    // Cookies are cleared by the auth service
-    // Redirect to root - AuthCheck will show login form
     window.location.href = '/';
   };
+
+  const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
+    setSettingsMenuAnchor(event.currentTarget);
+  };
+
+  const handleSettingsClose = () => {
+    setSettingsMenuAnchor(null);
+  };
+
+  const handleThemeToggle = () => {
+    color.toggle();
+    handleSettingsClose();
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    handleSettingsClose();
+  };
+
   return (
     <AppBar position="sticky" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', backdropFilter: 'blur(8px)' }}>
       <Toolbar>
@@ -48,28 +73,45 @@ export default function TopBar({ onMenuToggle }: TopBarProps = {}){
           <Link component={RouterLink} to="/runs" underline="hover">Runs</Link>
           <Link component={RouterLink} to="/models" underline="hover">Models</Link>
           <Link component={RouterLink} to="/agents" underline="hover">Agents</Link>
-          <Link component={RouterLink} to="/settings" underline="hover">Settings</Link>
-          <Link href="/ui/dev" underline="hover" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Dev</Link>
-          <Tooltip title="Admin login">
-            <IconButton color="inherit" href="/ui/login" target="_self">
-              <AccountCircleIcon fontSize="small" />
+
+          {/* Theme Toggle - Lightbulb */}
+          <Tooltip title={`Switch to ${theme.palette.mode === 'dark' ? 'light' : 'dark'} mode`}>
+            <IconButton onClick={color.toggle} color="inherit" size="small">
+              {theme.palette.mode === 'dark' ? <LightbulbIcon fontSize="small" /> : <LightbulbOutlinedIcon fontSize="small" />}
             </IconButton>
           </Tooltip>
-          <Tooltip title="Logout">
-            <IconButton color="inherit" onClick={handleLogout} aria-label="Logout">
-              <LogoutIcon fontSize="small" />
+
+          {/* Settings Menu - Gear Icon */}
+          <Tooltip title="Settings">
+            <IconButton color="inherit" onClick={handleSettingsClick} size="small">
+              <SettingsIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Open Dev page">
-            <IconButton color="inherit" href="/ui/dev" target="_self">
-              <OpenInNewIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Toggle light/dark">
-            <IconButton onClick={color.toggle} color="inherit">
-              {theme.palette.mode === 'dark' ? <Brightness7Icon/> : <Brightness4Icon/>}
-            </IconButton>
-          </Tooltip>
+          <Menu
+            anchorEl={settingsMenuAnchor}
+            open={Boolean(settingsMenuAnchor)}
+            onClose={handleSettingsClose}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem onClick={() => handleNavigate('/settings')}>
+              <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Settings</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => handleNavigate('/projects')}>
+              <ListItemIcon><AccountCircleIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Projects</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => handleNavigate('/dev')}>
+              <ListItemIcon><DeveloperModeIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Developer Tools</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={handleLogout}>
+              <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Logout</ListItemText>
+            </MenuItem>
+          </Menu>
         </Stack>
         <NewRunDialog open={openRun} onClose={()=>setOpenRun(false)} />
       </Toolbar>
