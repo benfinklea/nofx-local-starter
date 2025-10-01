@@ -21,6 +21,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { apiFetch } from '../lib/api';
 
 interface AgentCapability {
   id: string;
@@ -54,7 +55,7 @@ export default function Agents() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/agents');
+      const response = await apiFetch('/api/agents');
       if (!response.ok) {
         throw new Error(`Failed to fetch agents: ${response.statusText}`);
       }
@@ -80,7 +81,7 @@ export default function Agents() {
       const content = await file.text();
       const agentData = JSON.parse(content);
 
-      const response = await fetch('/api/agents/publish', {
+      const response = await apiFetch('/api/agents/publish', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +147,7 @@ export default function Agents() {
     if (!agentToDelete) return;
 
     try {
-      const response = await fetch(`/api/agents/${agentToDelete.id}`, {
+      const response = await apiFetch(`/api/agents/${agentToDelete.agentId}`, {
         method: 'DELETE',
       });
 
