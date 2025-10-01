@@ -5,6 +5,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { query } from '../src/lib/db';
+import { store } from '../src/lib/store';
+import { runStep } from '../src/worker/runner';
 
 // Security: Only allow cron jobs or authenticated requests
 function isAuthorized(req: VercelRequest): boolean {
@@ -59,11 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const errors: string[] = [];
 
     console.log('Worker triggered', { batchSize, trigger: req.headers['x-vercel-cron'] ? 'cron' : 'manual' });
-
-    // Lazy load dependencies to avoid module issues
-    const { query } = await import('../src/lib/db');
-    const { store } = await import('../src/lib/store');
-    const { runStep } = await import('../src/worker/runner');
 
     // Get pending steps from database
     const pendingSteps = await query(
