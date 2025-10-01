@@ -5,6 +5,7 @@
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
 -- TEAMS TABLE
@@ -85,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.team_invites (
   role varchar(50) DEFAULT 'member',
 
   -- Token for accepting invite
-  token varchar(255) UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
+  token varchar(255) UNIQUE NOT NULL DEFAULT encode(extensions.gen_random_bytes(32), 'hex'),
 
   -- Status tracking
   status varchar(50) DEFAULT 'pending',

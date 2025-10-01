@@ -179,6 +179,16 @@ create table if not exists nofx.performance_benchmarks (
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 
+-- Add missing columns if they don't exist (for existing tables)
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema='nofx' and table_name='agent_sessions' and column_name='status') then
+    alter table nofx.agent_sessions add column status text not null default 'active' check (status in ('active', 'completed', 'failed', 'cancelled'));
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema='nofx' and table_name='agent_sessions' and column_name='created_at') then
+    alter table nofx.agent_sessions add column created_at timestamptz not null default now();
+  end if;
+end $$;
+
 -- Orchestration indexes
 create index if not exists agent_sessions_status_idx on nofx.agent_sessions (status, created_at desc);
 create index if not exists agent_sessions_type_idx on nofx.agent_sessions (orchestration_type);
