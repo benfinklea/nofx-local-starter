@@ -20,7 +20,7 @@
   },
   "crons": [
     {
-      "path": "/api/worker",
+      "path": "/api/worker?secret=${ADMIN_PASSWORD}",
       "schedule": "* * * * *"
     }
   ],

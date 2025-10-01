@@ -8,8 +8,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Security: Only allow cron jobs or authenticated requests
 function isAuthorized(req: VercelRequest): boolean {
-  // Allow Vercel cron jobs
+  // Allow Vercel cron jobs (check multiple possible headers)
   if (req.headers['x-vercel-cron'] === '1') {
+    return true;
+  }
+
+  // Vercel also uses this authorization header for cron jobs
+  const authHeader = req.headers['authorization'];
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
     return true;
   }
 
