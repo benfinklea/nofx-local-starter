@@ -96,6 +96,10 @@
     {
       "source": "/health",
       "destination": "/api/health"
+    },
+    {
+      "source": "/navigation/manifest",
+      "destination": "/api/navigation/manifest"
     }
   ],
   "cleanUrls": true,
