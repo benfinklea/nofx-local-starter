@@ -1,15 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isAdmin } from '../../../src/lib/auth';
-import { getAgent } from '../../../src/lib/registry';
+import { getAgent, deleteAgent } from '../../../src/lib/registry';
 import { withCors } from '../../_lib/cors';
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isAdmin(req)) {
     return res.status(401).json({ error: 'auth required' });
-  }
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const agentId = req.query.id;
@@ -18,13 +14,22 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   }
 
   try {
-    const agent = await getAgent(agentId);
-    if (!agent) {
-      return res.status(404).json({ error: 'agent not found' });
+    if (req.method === 'GET') {
+      const agent = await getAgent(agentId);
+      if (!agent) {
+        return res.status(404).json({ error: 'agent not found' });
+      }
+      return res.json({ agent });
     }
-    return res.json({ agent });
+
+    if (req.method === 'DELETE') {
+      await deleteAgent(agentId);
+      return res.json({ success: true });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to load agent';
+    const message = error instanceof Error ? error.message : 'Failed to process request';
     return res.status(500).json({ error: message });
   }
 });

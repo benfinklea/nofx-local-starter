@@ -5,14 +5,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-// Use compiled JavaScript from dist/ in production, TypeScript in development
-const isProduction = process.env.NODE_ENV === 'production';
-const basePath = isProduction ? '../dist' : '../src';
-
-const { query } = require(`${basePath}/lib/db`);
-const { store } = require(`${basePath}/lib/store`);
-const { runStep } = require(`${basePath}/worker/runner`);
+import { query } from '../src/lib/db';
+import { store } from '../src/lib/store';
+import { runStep } from '../src/worker/runner';
 
 // Security: Only allow cron jobs or authenticated requests
 function isAuthorized(req: VercelRequest): boolean {

@@ -63,7 +63,7 @@ export class EventManagementService {
     const events = this.fileManager.readJSON<SerializableEvent[]>(this.fileManager.eventsFile(runId), []).map((event) => this.serialization.deserializeEvent(event));
     const { run: updatedRun, events: trimmedEvents } = applyRollbackToTimeline(run, events, options);
     this.fileManager.writeJSON(this.fileManager.runFile(runId), this.serialization.serializeRun(updatedRun));
-    this.fileManager.writeJSON(this.fileManager.eventsFile(runId), trimmedEvents.map((event) => this.serialization.serializeEvent(event)));
+    this.fileManager.writeJSON(this.fileManager.eventsFile(runId), trimmedEvents.map((event: any) => this.serialization.serializeEvent(event)));
     return {
       run: updatedRun,
       events: trimmedEvents,

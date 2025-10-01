@@ -1,0 +1,29 @@
+{
+  "agentId": "example-code-generator",
+  "name": "Example Code Generator",
+  "description": "An example agent that generates TypeScript code based on requirements",
+  "manifest": {
+    "entry": "agents/code-generator/index.ts",
+    "model": "gpt-4o",
+    "capabilities": ["typescript", "react", "node"]
+  },
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "id": "typescript",
+      "label": "TypeScript",
+      "description": "Generate and work with TypeScript code"
+    },
+    {
+      "id": "react",
+      "label": "React",
+      "description": "Build React components and applications"
+    },
+    {
+      "id": "node",
+      "label": "Node.js",
+      "description": "Create Node.js backend services"
+    }
+  ],
+  "tags": ["code-generation", "typescript", "example"]
+}

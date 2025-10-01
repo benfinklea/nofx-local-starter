@@ -1,12 +1,13 @@
 import { apiBase } from '../config';
 import { auth } from './auth';
+import { safeLocalStorage } from './safeLocalStorage';
 
 export type Plan = { goal: string; steps: Array<{ name: string; tool: string; inputs?: any }> };
 export type Run = { id: string; status: string; created_at?: string; plan?: Plan };
 export type Project = { id: string; name: string; repo_url?: string|null; local_path?: string|null; workspace_mode?: string; default_branch?: string|null };
 
 function currentProjectId(): string | undefined {
-  try { return localStorage.getItem('projectId') || undefined; } catch { return undefined; }
+  return safeLocalStorage.getItem('projectId') || undefined;
 }
 
 export async function apiFetch(input: RequestInfo, init?: RequestInit) {
@@ -42,14 +43,10 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     if (response.status === 401) {
       console.error('[API] Authentication error - clearing auth and staying in React app');
 
-      // Clear any stored auth data
-      try {
-        localStorage.removeItem('auth_session');
-        localStorage.removeItem('sb-access-token');
-        localStorage.removeItem('authenticated');
-      } catch (error) {
-        console.warn('Failed to clear localStorage:', error);
-      }
+      // Clear any stored auth data (using safe wrapper)
+      safeLocalStorage.removeItem('auth_session');
+      safeLocalStorage.removeItem('sb-access-token');
+      safeLocalStorage.removeItem('authenticated');
 
       // For React SPA, don't redirect to external pages
       // The AuthCheck component will handle showing the login form

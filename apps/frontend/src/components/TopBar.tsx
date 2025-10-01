@@ -47,6 +47,7 @@ export default function TopBar({ onMenuToggle }: TopBarProps = {}){
           </Tooltip>
           <Link component={RouterLink} to="/runs" underline="hover">Runs</Link>
           <Link component={RouterLink} to="/models" underline="hover">Models</Link>
+          <Link component={RouterLink} to="/agents" underline="hover">Agents</Link>
           <Link component={RouterLink} to="/settings" underline="hover">Settings</Link>
           <Link href="/ui/dev" underline="hover" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Dev</Link>
           <Tooltip title="Admin login">

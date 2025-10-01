@@ -441,6 +441,21 @@ export async function validateAgent(payload: PublishAgentRequest): Promise<Valid
   return { valid: errors.length === 0, errors };
 }
 
+export async function deleteAgent(agentId: string): Promise<void> {
+  await ensureSchema();
+  const { latencyMs } = await timeIt('registry.deleteAgent', async () => withTransaction(async () => {
+    const agentRes = await query<AgentRow>(`select * from nofx.agent_registry where agent_id = $1 limit 1`, [agentId]);
+    const agentRow = agentRes.rows[0];
+    if (!agentRow) throw new Error('agent not found');
+
+    // Soft delete by setting status to 'disabled'
+    await query(`update nofx.agent_registry set status = 'disabled', updated_at = now() where id = $1`, [agentRow.id]);
+    await query(`update nofx.agent_versions set status = 'archived' where agent_id = $1`, [agentRow.id]);
+  }));
+  try { metrics.registryOperationDuration.observe({ entity: 'agent', action: 'delete' }, latencyMs); } catch {}
+  log.info({ event: 'registry.agent.deleted', agentId, latencyMs }, 'Agent deleted');
+}
+
 export async function rollbackAgent(agentId: string, targetVersion: string): Promise<AgentDetail> {
   await ensureSchema();
   const { result, latencyMs } = await timeIt('registry.rollbackAgent', async () => withTransaction(async () => {

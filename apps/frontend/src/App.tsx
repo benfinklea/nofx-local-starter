@@ -4,6 +4,7 @@ import { AppTheme } from './theme';
 import AuthCheck from './AuthCheck';
 import ManifestShell from './components/ManifestShell';
 import SimpleShell from './components/SimpleShell';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Runs from './pages/Runs';
 import NewRun from './pages/NewRun';
@@ -18,6 +19,7 @@ import ResponsesDashboard from './pages/responses/ResponsesDashboard';
 import ResponsesRunDetail from './pages/responses/ResponsesRunDetail';
 import Builder from './pages/Builder';
 import NavigationConsole from './pages/NavigationConsole';
+import Agents from './pages/Agents';
 import ResetPassword from './components/ResetPassword';
 import SignupForm from './components/SignupForm';
 import { uiFlags } from './config';
@@ -50,6 +52,7 @@ function AppRoutes() {
             </>
           )}
           <Route path="/models" element={<Models/>} />
+          <Route path="/agents" element={<Agents/>} />
           <Route path="/projects" element={<Projects/>} />
           <Route path="/settings" element={<Settings/>} />
           <Route path="/dlq" element={<DLQ/>} />
@@ -66,14 +69,16 @@ function AppRoutes() {
 export default function App(){
   // Use hash router to avoid server config; base path is set by Vite
   return (
-    <AppTheme>
-      <HashRouter>
-        <Routes>
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/signup" element={<SignupForm />} />
-          <Route path="/*" element={<AppRoutes />} />
-        </Routes>
-      </HashRouter>
-    </AppTheme>
+    <ErrorBoundary>
+      <AppTheme>
+        <HashRouter>
+          <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/signup" element={<SignupForm />} />
+            <Route path="/*" element={<AppRoutes />} />
+          </Routes>
+        </HashRouter>
+      </AppTheme>
+    </ErrorBoundary>
   );
 }
