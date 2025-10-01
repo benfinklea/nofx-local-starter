@@ -8,18 +8,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Security: Only allow cron jobs or authenticated requests
 function isAuthorized(req: VercelRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
+  // Check for Vercel cron user-agent (actual header Vercel sends)
+  const userAgent = req.headers['user-agent'] || '';
+  if (userAgent.startsWith('vercel-cron/')) {
+    return true;
+  }
 
-  // Belt and suspenders: Require BOTH Vercel cron header AND matching secret
+  // Legacy: Check for x-vercel-cron header (documented but not always sent)
   if (req.headers['x-vercel-cron'] === '1') {
-    // If CRON_SECRET is set, verify the deployment has matching secret
-    // This ensures even if someone spoofs the header, they need the secret too
-    if (cronSecret) {
-      // Vercel cron jobs run in the same deployment, so env vars match
-      // This is defense in depth - verifies the request is from our deployment
-      return true;
-    }
-    // If no CRON_SECRET set, trust the Vercel header alone
     return true;
   }
 
