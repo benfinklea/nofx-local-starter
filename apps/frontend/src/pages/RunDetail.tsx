@@ -32,14 +32,22 @@ function ArtifactViewer({ artifact }: { artifact: any }) {
 
     setLoading(true);
     try {
+      console.log('[ArtifactViewer] Loading artifact:', artifact.path);
       const data = await getArtifact(artifact.path);
+      console.log('[ArtifactViewer] Received data:', data);
+
       if (data) {
         setContent(data.content);
         setExpanded(true);
+      } else {
+        console.warn('[ArtifactViewer] No data returned for artifact:', artifact.path);
+        setContent('Artifact not found or could not be loaded');
+        setExpanded(true);
       }
     } catch (err) {
-      console.error('Failed to load artifact:', err);
-      setContent('Failed to load artifact content');
+      console.error('[ArtifactViewer] Failed to load artifact:', artifact.path, err);
+      setContent(`Failed to load artifact: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setExpanded(true);
     } finally {
       setLoading(false);
     }

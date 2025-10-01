@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isAdmin } from '../../src/lib/auth';
 import { withCors } from '../_lib/cors';
+import { supabase, ARTIFACT_BUCKET } from '../../src/lib/supabase';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
@@ -28,14 +29,35 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
       return res.status(403).json({ error: 'Invalid artifact path' });
     }
 
-    // Construct full path relative to project root
-    const fullPath = path.join(process.cwd(), normalizedPath);
+    // Try Supabase Storage first (if configured)
+    const storage = supabase?.storage;
+    if (storage && typeof storage.from === 'function') {
+      try {
+        const bucket = storage.from(ARTIFACT_BUCKET);
+        if (bucket && typeof bucket.download === 'function') {
+          const { data, error } = await bucket.download(normalizedPath);
+          if (!error && data) {
+            const content = await data.text();
+            return res.json({
+              path: artifactPath,
+              content,
+              size: data.size
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Artifacts] Supabase download failed, trying local filesystem:', err);
+      }
+    }
+
+    // Fallback to local filesystem
+    const fullPath = path.join(process.cwd(), 'local_data', normalizedPath);
 
     // Check if file exists
     try {
       await fs.access(fullPath);
     } catch {
-      return res.status(404).json({ error: 'Artifact not found' });
+      return res.status(404).json({ error: 'Artifact not found in storage' });
     }
 
     // Read file content
@@ -47,8 +69,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
     return res.json({
       path: artifactPath,
       content,
-      size: stats.size,
-      modified: stats.mtime.toISOString()
+      size: stats.size
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch artifact';
