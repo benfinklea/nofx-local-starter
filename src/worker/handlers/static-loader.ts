@@ -16,6 +16,7 @@ import manual from './manual';
 import projectInit from './project_init';
 import testEcho from './test_echo';
 import testFail from './test_fail';
+import workspaceWrite from './workspace_write';
 
 /**
  * Returns all handlers bundled at build time
@@ -34,5 +35,6 @@ export function loadHandlers(): StepHandler[] {
     projectInit,
     testEcho,
     testFail,
+    workspaceWrite,
   ];
 }
