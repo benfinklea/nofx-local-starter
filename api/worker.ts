@@ -63,13 +63,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('Worker triggered', { batchSize, trigger: req.headers['x-vercel-cron'] ? 'cron' : 'manual' });
 
-    // Get pending steps from database
+    // Get pending/queued steps from database
     const pendingSteps = await query(
       `SELECT s.id, s.run_id
        FROM nofx.step s
        JOIN nofx.run r ON r.id = s.run_id
-       WHERE s.status = 'pending'
-       AND r.status IN ('pending', 'running')
+       WHERE s.status IN ('pending', 'queued')
+       AND r.status IN ('pending', 'running', 'queued')
        ORDER BY s.created_at ASC
        LIMIT $1`,
       [batchSize]
