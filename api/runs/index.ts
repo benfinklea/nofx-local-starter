@@ -4,8 +4,10 @@ import { store } from '../../src/lib/store';
 import { recordEvent } from '../../src/lib/events';
 import { buildPlanFromPrompt } from '../../src/api/planBuilder';
 import { setContext } from '../../src/lib/observability';
-import { enqueue } from '../../src/lib/queue';
+import { enqueue, STEP_READY_TOPIC, hasSubscribers } from '../../src/lib/queue';
 import { withCors } from '../_lib/cors';
+import crypto from 'node:crypto';
+import { log } from '../../src/lib/logger';
 
 const CreateRunSchema = z.object({
   plan: z.any().refine(val => val !== undefined && val !== null, {
@@ -75,11 +77,9 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
       await recordEvent(runId, "run.created", { plan });
 
-      // Enqueue run for processing
-      await enqueue('run-plan', {
-        runId,
-        projectId,
-        startedAt: new Date().toISOString()
+      // Process steps asynchronously (similar to local API)
+      processRunSteps(plan, runId).catch(err => {
+        console.error('Failed to process run steps:', err);
       });
 
       return res.status(201).json({ ...run, id: runId });
@@ -91,3 +91,52 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
     return res.status(405).json({ error: 'Method not allowed' });
   }
 });
+
+// Helper function to process run steps (similar to local API)
+async function processRunSteps(plan: any, runId: string) {
+  for (const s of plan.steps) {
+    try {
+      const baseInputs = s.inputs ?? {};
+      const hash = crypto.createHash('sha256').update(JSON.stringify(baseInputs)).digest('hex').slice(0, 12);
+      const idemKey = `${runId}:${s.name}:${hash}`;
+
+      const created = await store.createStep(runId, s.name, s.tool, baseInputs, idemKey);
+      let stepId = created?.id;
+
+      if (!stepId) {
+        const existing = await store.getStepByIdempotencyKey(runId, idemKey);
+        stepId = existing?.id;
+      }
+
+      if (!stepId) continue;
+
+      try {
+        setContext({ stepId });
+      } catch { }
+
+      await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool, idempotency_key: idemKey }, stepId);
+
+      // Enqueue step for worker to pick up
+      await enqueue(STEP_READY_TOPIC, {
+        runId,
+        stepId,
+        idempotencyKey: idemKey,
+        __attempt: 1
+      });
+
+      // Inline execution fallback for memory queue
+      const usingMemoryQueue = (process.env.QUEUE_DRIVER || 'memory').toLowerCase() === 'memory';
+      if (usingMemoryQueue && !hasSubscribers(STEP_READY_TOPIC)) {
+        try {
+          const { runStep } = await import('../../src/worker/runner');
+          await runStep(runId, stepId);
+        } catch (error) {
+          log.error({ error, runId, stepId }, 'Inline step execution failed');
+        }
+      }
+
+    } catch (error) {
+      log.error({ error, runId, stepName: s.name }, 'Failed to process step');
+    }
+  }
+}
