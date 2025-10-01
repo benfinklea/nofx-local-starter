@@ -54,7 +54,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
         const built = await buildPlanFromPrompt(
           String(prompt || '').trim(),
-          { quality, openPr, filePath, summarizeQuery, summarizeTarget }
+          { quality, openPr, filePath, summarizeQuery, summarizeTarget, projectId: body.projectId }
         );
         body = { plan: built };
       } catch (e: unknown) {

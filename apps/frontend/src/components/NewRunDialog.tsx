@@ -13,6 +13,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
+import { safeLocalStorage } from '../lib/safeLocalStorage';
 
 export default function NewRunDialog({ open, onClose }: { open: boolean; onClose: ()=>void }){
   const [prompt, setPrompt] = React.useState('');
@@ -26,7 +27,11 @@ export default function NewRunDialog({ open, onClose }: { open: boolean; onClose
   async function submit(){
     setBusy(true);
     try {
-      const body = { standard: { prompt, quality, openPr, filePath: filePath || undefined } };
+      const projectId = safeLocalStorage.getItem('projectId') || 'default';
+      const body = {
+        standard: { prompt, quality, openPr, filePath: filePath || undefined },
+        projectId
+      };
       const rsp = await apiFetch('/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
       if (!rsp.ok) throw new Error('Failed');
       const j = await rsp.json();
