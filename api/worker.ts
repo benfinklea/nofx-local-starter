@@ -36,8 +36,17 @@ function isAuthorized(req: VercelRequest): boolean {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    // Debug: Log headers to see what cron is sending
+    console.log('Worker invoked with headers:', JSON.stringify({
+      'x-vercel-cron': req.headers['x-vercel-cron'],
+      'user-agent': req.headers['user-agent'],
+      'authorization': req.headers['authorization'] ? 'present' : 'missing',
+      'x-worker-secret': req.headers['x-worker-secret'] ? 'present' : 'missing'
+    }));
+
     // Security check
     if (!isAuthorized(req)) {
+      console.log('Authorization failed - rejecting request');
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Worker can only be triggered by Vercel Cron or with valid secret'
