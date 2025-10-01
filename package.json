@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "vercel-build": "npm run fe:build",
+    "vercel-build": "tsc && npm run fe:build",
     "start": "ts-node-dev --respawn --transpile-only src/simple.ts",
     "bootstrap:dev": "bash scripts/bootstrap-dev.sh",
     "dev:api": "ts-node-dev --respawn --transpile-only src/api/main.ts",

@@ -15,7 +15,7 @@
     "api/**/*.ts": {
       "maxDuration": 60,
       "memory": 1024,
-      "includeFiles": "src/**"
+      "includeFiles": "dist/**"
     }
   },
   "crons": [
