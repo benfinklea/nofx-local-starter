@@ -2,105 +2,107 @@
 
 ## Overview
 
-This guide explains how to configure GitHub OAuth for NOFX, enabling users to connect their GitHub accounts and select repositories directly from the UI.
+This guide explains how to configure GitHub OAuth for NOFX on **Vercel production**, enabling users to connect their GitHub accounts and select repositories directly from the UI.
 
 ## Prerequisites
 
 - GitHub account
-- Supabase project (local or cloud)
-- NOFX application running
+- **Supabase Cloud project** (required for production - local Supabase won't work with Vercel)
+- NOFX application deployed on Vercel
 
-## Step 1: Create GitHub OAuth App
+## ⚠️ Important: Supabase Cloud Required
+
+**Local Supabase will NOT work with GitHub OAuth on Vercel** because:
+- OAuth callbacks must be publicly accessible
+- Vercel deployments need a cloud-based auth provider
+- Local Supabase (127.0.0.1) cannot receive OAuth callbacks from GitHub
+
+**You MUST use Supabase Cloud for production deployments.**
+
+## Step 1: Set Up Supabase Cloud
+
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Create a new project (or use existing)
+3. Note your project URL: `https://xxxxx.supabase.co`
+4. Go to **Settings > API** and copy:
+   - Project URL
+   - `anon` public key
+   - `service_role` secret key (for backend)
+
+## Step 2: Create GitHub OAuth App
 
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Click **"New OAuth App"** (or "New GitHub App" for more features)
-3. Fill in the application details:
+2. Click **"New OAuth App"**
+3. Fill in the application details for **Vercel Production**:
 
-   **For Development (Local Supabase):**
    ```
-   Application name: NOFX Local Dev
-   Homepage URL: http://localhost:5173
-   Authorization callback URL: http://127.0.0.1:54321/auth/v1/callback
+   Application name: NOFX Production
+   Homepage URL: https://nofx-local-starter-pmjvpbr44-volacci.vercel.app
+   Authorization callback URL: https://xxxxx.supabase.co/auth/v1/callback
    ```
 
-   **For Production (Supabase Cloud):**
-   ```
-   Application name: NOFX
-   Homepage URL: https://your-domain.com
-   Authorization callback URL: https://your-supabase-project.supabase.co/auth/v1/callback
-   ```
+   **Replace:**
+   - `nofx-local-starter-pmjvpbr44-volacci.vercel.app` with your actual Vercel domain
+   - `xxxxx.supabase.co` with your actual Supabase project URL
 
 4. Click **"Register application"**
 5. Note down your **Client ID** and **Client Secret**
 
-## Step 2: Configure Supabase
+## Step 3: Configure Supabase GitHub Provider
 
-### Local Development (Supabase CLI)
-
-1. Open `supabase/config.toml` in your project
-2. Add GitHub provider configuration:
-
-```toml
-[auth.external.github]
-enabled = true
-client_id = "your_github_client_id"
-secret = "your_github_client_secret"
-redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
-```
-
-3. Restart Supabase:
-```bash
-supabase stop
-supabase start
-```
-
-### Production (Supabase Dashboard)
-
-1. Open your Supabase project dashboard
+1. Open your **Supabase Cloud project dashboard**
 2. Navigate to **Authentication > Providers**
 3. Find **GitHub** in the list
 4. Toggle **Enable GitHub**
-5. Enter your **Client ID** and **Client Secret**
-6. The callback URL is automatically set to:
+5. Enter your **Client ID** and **Client Secret** from Step 2
+6. Add the following scopes (comma-separated):
    ```
-   https://your-project.supabase.co/auth/v1/callback
+   repo,read:user,user:email
    ```
-7. Click **Save**
+7. The callback URL is automatically set to:
+   ```
+   https://xxxxx.supabase.co/auth/v1/callback
+   ```
+8. Click **Save**
 
-## Step 3: Update Environment Variables
+**Important Scopes:**
+- `repo` - Access to repositories (required for listing repos)
+- `read:user` - Read user profile
+- `user:email` - Read user email
 
-Add to your `.env` file:
+## Step 4: Update Vercel Environment Variables
+
+1. Go to your Vercel project dashboard
+2. Navigate to **Settings > Environment Variables**
+3. Add/Update these variables:
 
 ```bash
-# GitHub OAuth (optional - only needed for custom GitHub API usage)
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
+# Supabase Cloud (NOT local!)
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Backend variables
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-**Note:** When using Supabase OAuth, the client credentials are stored in Supabase config, not in your app's `.env`. The app uses Supabase's provider token to access GitHub APIs.
+4. **Redeploy** your Vercel app to apply changes
 
-## Step 4: Configure GitHub OAuth Scopes
+**Note:** GitHub OAuth credentials are stored in Supabase config, not in your app's environment variables. The app uses Supabase's `provider_token` to access GitHub APIs.
 
-By default, Supabase requests minimal GitHub permissions. To access repositories, you need to request additional scopes.
+## Step 5: Test the Integration on Vercel
 
-In your Supabase config or dashboard, add the following scopes:
-
-```
-repo          # Access to public and private repositories
-read:user     # Read user profile data
-user:email    # Read user email addresses
-```
-
-## Step 5: Test the Integration
-
-1. Start your NOFX application
+1. Open your Vercel deployment: `https://nofx-local-starter-pmjvpbr44-volacci.vercel.app`
 2. Navigate to **Projects** page
 3. Click **"Add from GitHub"** tab
-4. Click **"Connect GitHub"**
-5. You should be redirected to GitHub authorization
-6. Grant permissions
-7. You'll be redirected back to NOFX
-8. Your repositories should now appear in the dropdown
+4. Click **"Connect GitHub"** button
+5. You should be redirected to GitHub authorization page
+6. Grant permissions to NOFX
+7. You'll be redirected back to your Vercel app
+8. Your repositories should now appear in the dropdown selector!
+
+**Success!** You can now browse and select GitHub repositories without any manual text input.
 
 ## Troubleshooting
 
