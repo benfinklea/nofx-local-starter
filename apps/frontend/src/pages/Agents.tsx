@@ -21,6 +21,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DownloadIcon from '@mui/icons-material/Download';
 import { apiFetch } from '../lib/api';
 
 interface AgentCapability {
@@ -162,6 +163,44 @@ export default function Agents() {
       handleFileUpload(file);
     } else {
       setError('Please drop a valid JSON or Markdown (.md) file');
+    }
+  };
+
+  const handleExport = async (agent: Agent) => {
+    try {
+      // Fetch the full agent details including manifest
+      const response = await apiFetch(`/api/agents/${agent.agentId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch agent details');
+      }
+
+      const data = await response.json();
+      const fullAgent = data.agent;
+
+      // Create export payload
+      const exportData = {
+        agentId: fullAgent.agentId,
+        name: fullAgent.name,
+        description: fullAgent.description,
+        version: fullAgent.currentVersion,
+        manifest: fullAgent.versions?.[0]?.manifest || {},
+        capabilities: fullAgent.capabilities || [],
+        tags: fullAgent.tags || [],
+        metadata: fullAgent.metadata || {}
+      };
+
+      // Create downloadable JSON file
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${agent.agentId}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export agent');
     }
   };
 
@@ -331,6 +370,13 @@ export default function Agents() {
                   )}
                 </CardContent>
                 <CardActions>
+                  <Button
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleExport(agent)}
+                  >
+                    Export
+                  </Button>
                   <Button
                     size="small"
                     color="error"
