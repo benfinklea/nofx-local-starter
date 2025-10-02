@@ -72,6 +72,21 @@ export default function GitHubRepoSelector({ onSelect, disabled }: GitHubRepoSel
     // On return, the page will reload and checkConnection will run again
   }
 
+  async function handleDisconnect() {
+    setError(null);
+    const result = await github.disconnectGitHub();
+
+    if (result.success) {
+      setConnected(false);
+      setGithubUser(null);
+      setRepos([]);
+      setSelectedRepo(null);
+      setSelectedBranch('');
+    } else {
+      setError(result.error || 'Failed to disconnect from GitHub');
+    }
+  }
+
   async function handleRepoSelect(_event: any, repo: GitHubRepo | null) {
     setSelectedRepo(repo);
     setSelectedBranch('');
@@ -139,7 +154,13 @@ export default function GitHubRepoSelector({ onSelect, disabled }: GitHubRepoSel
           <Typography variant="body2" color="text.secondary">
             Connected as <strong>@{githubUser.login}</strong>
           </Typography>
-          <Chip label="GitHub" size="small" color="success" />
+          <Chip
+            label="GitHub"
+            size="small"
+            color="success"
+            onDelete={handleDisconnect}
+            deleteIcon={<span>×</span>}
+          />
         </Box>
       )}
 

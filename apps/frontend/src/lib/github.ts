@@ -43,6 +43,22 @@ class GitHubService {
   }
 
   /**
+   * Disconnect from GitHub by signing out
+   */
+  async disconnectGitHub(): Promise<{ success: boolean; error?: string }> {
+    try {
+      await auth.logout();
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to disconnect from GitHub:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to disconnect'
+      };
+    }
+  }
+
+  /**
    * Get GitHub access token from current user session
    */
   private async getAccessToken(): Promise<string | null> {
