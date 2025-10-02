@@ -190,6 +190,45 @@ export default function RunDetail(){
       <Grid container spacing={3}>
         {/* Main content - Output first */}
         <Grid size={{ xs: 12, md: 8 }}>
+          {/* Error Alert for Failed Runs */}
+          {run?.run?.status === 'failed' && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                <strong>Run Failed</strong>
+              </Typography>
+              {run?.steps && run.steps.length > 0 && (() => {
+                // Find the failed step
+                const failedStep = run.steps.find((s: any) => s.status === 'failed');
+                if (failedStep) {
+                  // Try to extract error from outputs
+                  const errorMessage = failedStep.outputs?.error ||
+                                      failedStep.outputs?.message ||
+                                      JSON.stringify(failedStep.outputs, null, 2);
+                  return (
+                    <Box>
+                      <Typography variant="body2">
+                        <strong>Step:</strong> {failedStep.name}
+                      </Typography>
+                      <Typography variant="body2" component="pre" sx={{
+                        mt: 1,
+                        p: 1,
+                        bgcolor: 'error.dark',
+                        borderRadius: 1,
+                        fontSize: '0.875rem',
+                        whiteSpace: 'pre-wrap',
+                        overflow: 'auto',
+                        maxHeight: 200
+                      }}>
+                        {errorMessage}
+                      </Typography>
+                    </Box>
+                  );
+                }
+                return <Typography variant="body2">No error details available</Typography>;
+              })()}
+            </Alert>
+          )}
+
           {/* Primary Output */}
           {run?.steps && run.steps.length > 0 && (
             <RunOutputSummary steps={run.steps} />
