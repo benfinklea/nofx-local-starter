@@ -1,5 +1,4 @@
 {
-  "buildCommand": "npm run build --prefix apps/frontend",
   "outputDirectory": "apps/frontend/dist",
   "framework": null,
   "git": {
