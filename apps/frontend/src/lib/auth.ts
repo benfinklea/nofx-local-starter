@@ -207,8 +207,7 @@ class AuthService {
       const { data, error } = await this.supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: provider === 'github' ? 'repo read:user user:email' : undefined
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
