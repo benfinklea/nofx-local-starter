@@ -2,9 +2,7 @@ import * as React from 'react';
 import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
@@ -19,8 +17,6 @@ import type { GitHubRepo } from '../lib/github';
 
 export default function Projects(){
   const [rows, setRows] = React.useState<Project[]>([]);
-  const [name, setName] = React.useState('My Project');
-  const [local, setLocal] = React.useState('');
   const [status, setStatus] = React.useState('');
   const [sel, setSel] = React.useState<string | null>(null);
   const [tab, setTab] = React.useState(0);
@@ -28,17 +24,10 @@ export default function Projects(){
   async function load(){
     const r = await listProjects();
     setRows(r);
-    const current = localStorage.getItem('projectId') || 'default';
+    const current = localStorage.getItem('projectId') || '';
     setSel(current);
   }
   React.useEffect(()=>{ load().catch(()=>{}); },[]);
-
-  async function addLocal(){
-    setStatus('Saving…');
-    const p = await createProject({ name, local_path: local, workspace_mode: 'local_path' });
-    setStatus(p ? 'Saved' : 'Error');
-    load();
-  }
 
   async function addFromGitHub(repo: GitHubRepo, branch: string) {
     setStatus('Adding GitHub project…');
@@ -75,7 +64,6 @@ export default function Projects(){
         <Tabs value={tab} onChange={(_e, val) => setTab(val)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="My Projects" />
           <Tab label="Add from GitHub" />
-          <Tab label="Add Local" />
         </Tabs>
 
         <Box sx={{ p: 2 }}>
@@ -119,31 +107,6 @@ export default function Projects(){
           {/* Tab 1: Add from GitHub */}
           {tab === 1 && (
             <GitHubRepoSelector onSelect={addFromGitHub} />
-          )}
-
-          {/* Tab 2: Add Local Project */}
-          {tab === 2 && (
-            <Stack spacing={2}>
-              <Typography variant="subtitle1">Add Local Project</Typography>
-              <TextField
-                label="Name"
-                size="small"
-                value={name}
-                onChange={e=>setName(e.target.value)}
-                fullWidth
-              />
-              <TextField
-                label="Local Path"
-                size="small"
-                placeholder="/path/to/repo"
-                value={local}
-                onChange={e=>setLocal(e.target.value)}
-                fullWidth
-              />
-              <Button variant="contained" onClick={addLocal} fullWidth>
-                Add Local Project
-              </Button>
-            </Stack>
           )}
         </Box>
       </Paper>
