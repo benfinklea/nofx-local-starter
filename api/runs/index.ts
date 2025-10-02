@@ -7,6 +7,7 @@ import { buildPlanFromPrompt } from '../../src/api/planBuilder';
 import { setContext } from '../../src/lib/observability';
 import { enqueue, STEP_READY_TOPIC, hasSubscribers } from '../../src/lib/queue';
 import { withCors } from '../_lib/cors';
+import { listProjects, createProject } from '../../src/lib/projects';
 import crypto from 'node:crypto';
 import { log } from '../../src/lib/logger';
 
@@ -75,6 +76,27 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
     const { plan, projectId = 'default' } = parsed.data;
 
     try {
+      // Ensure default project exists (create if needed)
+      if (projectId === 'default') {
+        try {
+          const projects = await listProjects();
+          const defaultExists = projects.some(p => p.id === 'default');
+
+          if (!defaultExists) {
+            await createProject({
+              id: 'default',
+              name: 'Default Project',
+              workspace_mode: 'local_path',
+              local_path: null,
+              default_branch: 'main'
+            });
+            log.info('Created default project');
+          }
+        } catch (projectErr) {
+          log.warn({ error: projectErr }, 'Failed to ensure default project exists');
+        }
+      }
+
       const run = await store.createRun(plan, projectId);
       const runId = String(run.id);
 
