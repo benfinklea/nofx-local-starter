@@ -79,7 +79,34 @@ export default function Agents() {
       setUploadSuccess(null);
 
       const content = await file.text();
-      const agentData = JSON.parse(content);
+      let agentData;
+
+      // Handle both JSON and Markdown files
+      if (file.name.endsWith('.json')) {
+        agentData = JSON.parse(content);
+      } else if (file.name.endsWith('.md')) {
+        // Convert markdown to agent JSON
+        const agentId = file.name.replace('.md', '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        agentData = {
+          agentId,
+          name: file.name.replace('.md', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          description: `Agent created from ${file.name}`,
+          version: '1.0.0',
+          manifest: {
+            entryPrompt: content,
+            model: 'gpt-4o-mini',
+            capabilities: []
+          },
+          capabilities: [],
+          tags: ['markdown', 'imported'],
+          metadata: {
+            source: file.name,
+            importedAt: new Date().toISOString()
+          }
+        };
+      } else {
+        throw new Error('Unsupported file type. Please upload .json or .md files.');
+      }
 
       const response = await apiFetch('/api/agents/publish', {
         method: 'POST',
@@ -131,10 +158,10 @@ export default function Agents() {
     setIsDragging(false);
 
     const file = event.dataTransfer.files[0];
-    if (file && file.name.endsWith('.json')) {
+    if (file && (file.name.endsWith('.json') || file.name.endsWith('.md'))) {
       handleFileUpload(file);
     } else {
-      setError('Please drop a valid JSON file');
+      setError('Please drop a valid JSON or Markdown (.md) file');
     }
   };
 
@@ -191,7 +218,7 @@ export default function Agents() {
         onDrop={handleDrop}
       >
         <input
-          accept=".json"
+          accept=".json,.md"
           style={{ display: 'none' }}
           id="agent-file-upload"
           type="file"
@@ -202,10 +229,10 @@ export default function Agents() {
           <Box sx={{ cursor: 'pointer' }}>
             <CloudUploadIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" gutterBottom>
-              {uploading ? 'Uploading...' : 'Drop agent.json file here or click to browse'}
+              {uploading ? 'Uploading...' : 'Drop agent file here or click to browse'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Upload a JSON file containing your agent definition
+              Upload a JSON agent definition or Markdown (.md) prompt file
             </Typography>
             {uploading && <CircularProgress sx={{ mt: 2 }} />}
           </Box>
