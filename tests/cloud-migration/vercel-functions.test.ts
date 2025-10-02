@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
-const PROD_URL = 'https://nofx-control-plane.vercel.app';
+const PROD_URL = 'https://nofx-local-starter.vercel.app';
 const API_BASE = `${PROD_URL}/api`;
 
 describe('Vercel Functions - Bulletproof Tests', () => {

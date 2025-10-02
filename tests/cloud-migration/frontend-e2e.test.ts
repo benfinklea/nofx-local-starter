@@ -5,7 +5,7 @@
 
 import { test, expect } from '@playwright/test';
 
-const PROD_URL = 'https://nofx-control-plane.vercel.app';
+const PROD_URL = 'https://nofx-local-starter.vercel.app';
 
 test.describe('Frontend Deployment - Bulletproof Tests', () => {
   test.describe('Page Loading', () => {
@@ -272,7 +272,7 @@ test.describe('Frontend Deployment - Bulletproof Tests', () => {
       await page.goto(PROD_URL);
 
       const getMemory = () => page.evaluate(() => {
-        // @ts-ignore
+        // @ts-expect-error - performance.memory is non-standard Chrome API
         return performance.memory?.usedJSHeapSize || 0;
       });
 

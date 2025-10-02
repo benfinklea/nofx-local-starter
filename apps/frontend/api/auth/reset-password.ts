@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.VITE_APP_URL || 'https://nofx-control-plane.vercel.app'}/reset-password`,
+        redirectTo: `${process.env.VITE_APP_URL || 'https://nofx-local-starter.vercel.app'}/reset-password`,
       });
 
       if (error) {

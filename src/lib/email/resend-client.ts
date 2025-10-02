@@ -11,8 +11,8 @@ const resend = new Resend(process.env.RESEND_API_KEY || (process.env.NODE_ENV ==
 
 // Email configuration
 export const EMAIL_CONFIG = {
-  from: process.env.EMAIL_FROM || 'NOFX <noreply@nofx-control-plane.com>',
-  replyTo: process.env.EMAIL_REPLY_TO || 'support@nofx-control-plane.com',
+  from: process.env.EMAIL_FROM || 'NOFX <noreply@nofx-local-starter.com>',
+  replyTo: process.env.EMAIL_REPLY_TO || 'support@nofx-local-starter.com',
   defaultSubject: 'NOFX Control Plane',
   maxRetries: 3,
   retryDelay: 1000, // ms

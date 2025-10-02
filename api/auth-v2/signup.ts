@@ -30,7 +30,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: `${process.env.VITE_APP_URL || 'https://nofx-control-plane.vercel.app'}/auth/callback`,
+        emailRedirectTo: `${process.env.VITE_APP_URL || 'https://nofx-local-starter.vercel.app'}/auth/callback`,
       },
     });
 

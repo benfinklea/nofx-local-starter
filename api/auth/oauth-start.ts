@@ -8,7 +8,7 @@ import { withCors } from '../_lib/cors';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
-const DEFAULT_APP_URL = 'https://nofx-control-plane.vercel.app';
+const DEFAULT_APP_URL = 'https://nofx-local-starter.vercel.app';
 const DEFAULT_NEXT = '/#/runs';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

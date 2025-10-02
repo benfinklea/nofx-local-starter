@@ -184,7 +184,7 @@ class ApiTestHelper {
       // If all else fails, provide helpful guidance
       console.log('\n🚨 Could not authenticate with any method.');
       console.log('💡 To use AI testing, please:');
-      console.log('   1. Create a test user manually at https://nofx-control-plane.vercel.app');
+      console.log('   1. Create a test user manually at https://nofx-local-starter.vercel.app');
       console.log('   2. Set environment variables:');
       console.log('      export TEST_EMAIL="your-test@email.com"');
       console.log('      export TEST_PASSWORD="your-password"');
@@ -339,7 +339,7 @@ class ApiTestHelper {
 
 async function main() {
   const command = process.argv[2] || 'comprehensive';
-  const baseUrl = process.env.API_URL || 'https://nofx-control-plane.vercel.app';
+  const baseUrl = process.env.API_URL || 'https://nofx-local-starter.vercel.app';
 
   const apiHelper = new ApiTestHelper(baseUrl);
 

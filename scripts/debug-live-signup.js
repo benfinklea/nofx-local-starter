@@ -14,7 +14,7 @@ const fetch = globalThis.fetch || (() => {
 })();
 
 async function debugLiveSignup() {
-  const baseUrl = 'https://nofx-control-plane.vercel.app';
+  const baseUrl = 'https://nofx-local-starter.vercel.app';
 
   console.log('🔍 Debugging live signup issue...');
   console.log(`📍 Base URL: ${baseUrl}\n`);

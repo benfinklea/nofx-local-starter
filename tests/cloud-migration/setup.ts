@@ -14,7 +14,7 @@ jest.setTimeout(30000);
 // Global setup
 beforeAll(async () => {
   console.log('🛡️ Starting Cloud Migration Bulletproof Tests');
-  console.log(`📍 Testing against: ${process.env.PROD_URL || 'https://nofx-control-plane.vercel.app'}`);
+  console.log(`📍 Testing against: ${process.env.PROD_URL || 'https://nofx-local-starter.vercel.app'}`);
   console.log(`🔍 Environment: ${process.env.NODE_ENV || 'test'}`);
 });
 

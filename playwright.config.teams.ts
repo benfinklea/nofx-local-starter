@@ -28,7 +28,7 @@ const config: PlaywrightTestConfig = {
 
   use: {
     // Base URL for tests
-    baseURL: process.env.APP_URL || 'https://nofx-control-plane.vercel.app',
+    baseURL: process.env.APP_URL || 'https://nofx-local-starter.vercel.app',
 
     // Collect trace on failure
     trace: 'on-first-retry',

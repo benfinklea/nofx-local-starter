@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: `${process.env.VITE_APP_URL || 'https://nofx-control-plane.vercel.app'}/auth/callback`,
+        emailRedirectTo: `${process.env.VITE_APP_URL || 'https://nofx-local-starter.vercel.app'}/auth/callback`,
       },
     });
 

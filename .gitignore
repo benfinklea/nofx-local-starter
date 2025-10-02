@@ -128,3 +128,4 @@ archive/
 .env.production.local
 .env.staging.local
 reference-starter/
+.env.vercel

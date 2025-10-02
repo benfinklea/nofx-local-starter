@@ -9,7 +9,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-const PROD_URL = 'https://nofx-control-plane.vercel.app';
+const PROD_URL = 'https://nofx-local-starter.vercel.app';
 
 describe('Deployment Validation - Bulletproof Tests', () => {
   describe('Production Environment Checks', () => {

@@ -37,7 +37,7 @@ export default defineConfig({
   use: {
     // Base URL for tests
     baseURL: process.env.PW_BASE_URL || process.env.NODE_ENV === 'production'
-      ? 'https://nofx-control-plane.vercel.app'
+      ? 'https://nofx-local-starter.vercel.app'
       : 'http://localhost:3000',
 
     // Browser settings

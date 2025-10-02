@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll } from '@jest/globals';
 import fetch from 'node-fetch';
 import { test } from '@playwright/test';
 
-const PROD_URL = 'https://nofx-control-plane.vercel.app';
+const PROD_URL = 'https://nofx-local-starter.vercel.app';
 const HEALTH_ENDPOINT = `${PROD_URL}/api/health`;
 
 describe('Health Monitoring - Bulletproof Tests', () => {

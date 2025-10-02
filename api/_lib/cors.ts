@@ -22,7 +22,7 @@ const DEFAULT_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
   process.env.NEXT_PUBLIC_FRONTEND_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
-  'https://nofx-control-plane.vercel.app',
+  'https://nofx-local-starter.vercel.app',
   'http://localhost:5175',
   'http://localhost:5173',
   'http://localhost:4173',

@@ -6,7 +6,7 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
 import { v4 as uuidv4 } from 'uuid';
 
-const BASE_URL = process.env.APP_URL || 'https://nofx-control-plane.vercel.app';
+const BASE_URL = process.env.APP_URL || 'https://nofx-local-starter.vercel.app';
 
 test.describe('Team Management E2E Tests', () => {
   let context: BrowserContext;

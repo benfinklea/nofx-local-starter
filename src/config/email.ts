@@ -7,9 +7,9 @@ export const EMAIL_SETTINGS = {
   // Company information
   company: {
     name: 'NOFX Control Plane',
-    website: 'https://nofx-control-plane.vercel.app',
-    supportEmail: 'support@nofx-control-plane.com',
-    logo: 'https://nofx-control-plane.vercel.app/logo.png',
+    website: 'https://nofx-local-starter.vercel.app',
+    supportEmail: 'support@nofx-local-starter.com',
+    logo: 'https://nofx-local-starter.vercel.app/logo.png',
     address: 'Your Company Address',
   },
 
@@ -119,10 +119,10 @@ export const EMAIL_SETTINGS = {
   // Footer links
   footer: {
     links: [
-      { text: 'Documentation', href: 'https://nofx-control-plane.vercel.app/docs' },
-      { text: 'Support', href: 'mailto:support@nofx-control-plane.com' },
-      { text: 'Privacy Policy', href: 'https://nofx-control-plane.vercel.app/privacy' },
-      { text: 'Terms of Service', href: 'https://nofx-control-plane.vercel.app/terms' },
+      { text: 'Documentation', href: 'https://nofx-local-starter.vercel.app/docs' },
+      { text: 'Support', href: 'mailto:support@nofx-local-starter.com' },
+      { text: 'Privacy Policy', href: 'https://nofx-local-starter.vercel.app/privacy' },
+      { text: 'Terms of Service', href: 'https://nofx-local-starter.vercel.app/terms' },
     ],
     social: [
       { platform: 'GitHub', href: 'https://github.com/nofx' },

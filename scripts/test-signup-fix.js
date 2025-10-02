@@ -14,7 +14,7 @@ const fetch = globalThis.fetch || (() => {
 })();
 
 async function testSignupFix() {
-  const baseUrl = 'https://nofx-control-plane.vercel.app';
+  const baseUrl = 'https://nofx-local-starter.vercel.app';
 
   console.log('🧪 Testing signup fix...');
   console.log(`📍 Base URL: ${baseUrl}\n`);
@@ -98,7 +98,7 @@ async function testSignupFix() {
 
     console.log('\n🎯 Fix Status: SUCCESS');
     console.log('💡 The "Create account" link should now work!');
-    console.log('🔗 Try clicking it at: https://nofx-control-plane.vercel.app');
+    console.log('🔗 Try clicking it at: https://nofx-local-starter.vercel.app');
 
     return { success: true };
 
