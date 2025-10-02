@@ -37,12 +37,26 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
         if (bucket && typeof bucket.download === 'function') {
           const { data, error } = await bucket.download(normalizedPath);
           if (!error && data) {
-            const content = await data.text();
-            return res.json({
-              path: artifactPath,
-              content,
-              size: data.size
-            });
+            try {
+              const content = await data.text();
+              return res.json({
+                path: artifactPath,
+                content,
+                size: data.size
+              });
+            } catch (textError) {
+              console.warn('[Artifacts] Failed to decode artifact as text:', textError);
+              // Try as binary/blob if text() fails
+              const arrayBuffer = await data.arrayBuffer();
+              const content = Buffer.from(arrayBuffer).toString('utf-8');
+              return res.json({
+                path: artifactPath,
+                content,
+                size: data.size
+              });
+            }
+          } else if (error) {
+            console.warn('[Artifacts] Supabase storage error:', error);
           }
         }
       } catch (err) {

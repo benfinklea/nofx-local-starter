@@ -69,14 +69,15 @@ function ArtifactViewer({ artifact }: { artifact: any }) {
       </Typography>
       <Collapse in={expanded}>
         {content && (
-          <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50', maxHeight: 400, overflow: 'auto' }}>
+          <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'background.default', maxHeight: 400, overflow: 'auto' }}>
             <Typography
               component="pre"
               sx={{
                 whiteSpace: 'pre-wrap',
                 fontFamily: 'monospace',
                 fontSize: '0.875rem',
-                margin: 0
+                margin: 0,
+                color: 'text.primary'
               }}
             >
               {content}
