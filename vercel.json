@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run fe:build:actual",
   "outputDirectory": "apps/frontend/dist",
   "framework": null,
   "git": {

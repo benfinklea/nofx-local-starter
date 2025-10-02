@@ -7,7 +7,6 @@
     "?": "node scripts/dashboard.mjs",
     "help": "node scripts/dashboard.mjs",
     "dashboard": "node scripts/dashboard.mjs",
-    "vercel-build": "npm run fe:build:actual",
     "start": "ts-node-dev --respawn --transpile-only src/simple.ts",
     "bootstrap:dev": "bash scripts/bootstrap-dev.sh",
     "d": "npm-run-all -p dev:api dev:worker fe:dev",
