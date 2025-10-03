@@ -178,6 +178,88 @@ class GitHubService {
       return { error: error instanceof Error ? error.message : 'Failed to fetch user info' };
     }
   }
+
+  /**
+   * Create a new repository in the user's GitHub account
+   */
+  async createRepository(options: {
+    name: string;
+    description?: string;
+    private?: boolean;
+    autoInit?: boolean;
+  }): Promise<{ repo?: GitHubRepo; error?: string }> {
+    const token = await this.getAccessToken();
+
+    if (!token) {
+      return { error: 'Not connected to GitHub' };
+    }
+
+    try {
+      const response = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: options.name,
+          description: options.description || '',
+          private: options.private ?? true,
+          auto_init: options.autoInit ?? true
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 422 && errorData.errors?.[0]?.message?.includes('already exists')) {
+          return { error: 'A repository with this name already exists in your account' };
+        }
+        throw new Error(errorData.message || `GitHub API error: ${response.statusText}`);
+      }
+
+      const repo: GitHubRepo = await response.json();
+      return { repo };
+    } catch (error) {
+      console.error('Failed to create repository:', error);
+      return { error: error instanceof Error ? error.message : 'Failed to create repository' };
+    }
+  }
+
+  /**
+   * Fork a repository to the user's GitHub account
+   */
+  async forkRepository(owner: string, repo: string): Promise<{ repo?: GitHubRepo; error?: string }> {
+    const token = await this.getAccessToken();
+
+    if (!token) {
+      return { error: 'Not connected to GitHub' };
+    }
+
+    try {
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/forks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 403 && errorData.message?.includes('forking is disabled')) {
+          return { error: 'This repository does not allow forking' };
+        }
+        throw new Error(errorData.message || `GitHub API error: ${response.statusText}`);
+      }
+
+      const forkedRepo: GitHubRepo = await response.json();
+      return { repo: forkedRepo };
+    } catch (error) {
+      console.error('Failed to fork repository:', error);
+      return { error: error instanceof Error ? error.message : 'Failed to fork repository' };
+    }
+  }
 }
 
 // Export singleton instance

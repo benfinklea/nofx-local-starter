@@ -204,11 +204,18 @@ class AuthService {
    */
   async signInWithOAuth(provider: 'google' | 'github' | 'azure') {
     try {
+      const options: any = {
+        redirectTo: `${window.location.origin}/auth/callback?next=/projects`
+      };
+
+      // Request GitHub repo access for creating/managing repositories
+      if (provider === 'github') {
+        options.scopes = 'repo read:user user:email';
+      }
+
       const { data, error } = await this.supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/projects`
-        }
+        options
       });
 
       if (error) {
