@@ -15,6 +15,7 @@ import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Alert from '@mui/material/Alert';
 import { apiFetch } from '../lib/api';
+import HelpText from '../components/HelpText';
 
 type Model = { id?: string; provider: string; name: string; display_name?: string; kind: string; base_url?: string; active?: boolean };
 
@@ -94,6 +95,19 @@ export default function Models(){
     <Container sx={{ mt: 2 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5">Models</Typography>
+      <HelpText title="AI Models">
+        <strong>Manage AI Models:</strong> Configure which AI models agents use for different tasks.
+<br /><br />
+<strong>Key concepts:</strong>
+<ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+  <li>Different models have different capabilities and costs</li>
+  <li>Claude models excel at code generation</li>
+  <li>GPT models provide alternative options</li>
+  <li>Model selection affects run cost and quality</li>
+</ul>
+<strong>Best practice:</strong> Use faster models for simple tasks, advanced models for complex work.
+      </HelpText>
+
         <Stack direction="row" spacing={1}>
           <Button onClick={()=>importVendor('openai')}>Import OpenAI</Button>
           <Button onClick={()=>importVendor('anthropic')}>Import Anthropic</Button>
