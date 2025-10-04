@@ -8,6 +8,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { buildMinimalEnv } from "../../lib/secrets";
+import { getProject } from "../../lib/projects";
+import { workspaceManager } from "../../lib/workspaces";
 
 function contentTypeFor(name: string) {
   const ext = path.extname(name).toLowerCase();
@@ -24,6 +26,23 @@ const handler: StepHandler = {
 
     await store.updateStep(stepId, { status: 'running', started_at: new Date().toISOString() });
     await recordEvent(runId, "step.started", { name: step.name, tool: step.tool }, stepId);
+
+    // Determine working directory - use project workspace if available
+    const run = await store.getRun(runId);
+    let cwd = process.cwd(); // Default to control plane directory
+
+    if (run?.project_id) {
+      try {
+        const project = await getProject(run.project_id);
+        if (project) {
+          // Get the project's workspace directory
+          cwd = await workspaceManager.ensureWorkspace(project);
+          log.info({ projectId: run.project_id, cwd }, 'Running gate in project workspace');
+        }
+      } catch (error) {
+        log.warn({ projectId: run.project_id, error: String(error) }, 'Failed to get project workspace, using control plane directory');
+      }
+    }
 
     const scriptPath = path.resolve(process.cwd(), "scripts", "runGate.mjs");
     if (!fs.existsSync(scriptPath)) {
@@ -55,7 +74,7 @@ const handler: StepHandler = {
     const envAllowed: string[] | undefined = policy.env_allowed;
     const baseEnv = buildMinimalEnv(envAllowed);
     const proc = spawnSync('npx', ['zx', scriptPath, gateName], {
-      cwd: process.cwd(),
+      cwd, // Use project workspace directory
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...baseEnv, COVERAGE_THRESHOLD: String(gates.coverageThreshold ?? 0.9) },
@@ -91,7 +110,8 @@ const handler: StepHandler = {
     }
 
     // Collect and upload evidence artifacts produced by the gate runner
-    const localDir = path.resolve(process.cwd(), "gate-artifacts");
+    // Look in the project workspace directory for artifacts
+    const localDir = path.resolve(cwd, "gate-artifacts");
     const lockFile = path.join(localDir, '.lock');
     const uploadedPaths: string[] = [];
 
