@@ -22,6 +22,13 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
 import { apiFetch } from '../lib/api';
 
 interface AgentCapability {
@@ -51,6 +58,7 @@ export default function Agents() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [agentToDelete, setAgentToDelete] = React.useState<Agent | null>(null);
   const [isDragging, setIsDragging] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
 
   const fetchAgents = React.useCallback(async () => {
     try {
@@ -291,9 +299,24 @@ export default function Agents() {
       )}
 
       {/* Agent List */}
-      <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
-        Registered Agents ({agents.length})
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4, mb: 2 }}>
+        <Typography variant="h5">
+          Registered Agents ({agents.length})
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(e, newMode) => newMode && setViewMode(newMode)}
+          size="small"
+        >
+          <ToggleButton value="grid" aria-label="grid view">
+            <ViewModuleIcon />
+          </ToggleButton>
+          <ToggleButton value="list" aria-label="list view">
+            <ViewListIcon />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -305,7 +328,7 @@ export default function Agents() {
             No agents registered yet. Upload an agent.json file to get started.
           </Typography>
         </Paper>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <Grid container spacing={3}>
           {agents.map((agent) => (
             <Grid item xs={12} md={6} key={agent.id}>
@@ -390,6 +413,75 @@ export default function Agents() {
             </Grid>
           ))}
         </Grid>
+      ) : (
+        <List>
+          {agents.map((agent, index) => (
+            <Paper key={agent.id} sx={{ mb: 1 }}>
+              <ListItem
+                sx={{ py: 2 }}
+                secondaryAction={
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => handleExport(agent)}
+                    >
+                      Export
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleDeleteClick(agent)}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
+                }
+              >
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <Typography variant="subtitle1" component="span" sx={{ fontWeight: 600 }}>
+                        {agent.name}
+                      </Typography>
+                      <Chip
+                        label={agent.status}
+                        size="small"
+                        color={agent.status === 'active' ? 'success' : 'default'}
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 0.5 }}>
+                      {agent.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {agent.description}
+                        </Typography>
+                      )}
+                      <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
+                        ID: {agent.agentId} • Version: {agent.currentVersion}
+                      </Typography>
+                      {agent.tags.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                          {agent.tags.map((tag) => (
+                            <Chip
+                              key={tag}
+                              label={tag}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  }
+                />
+              </ListItem>
+            </Paper>
+          ))}
+        </List>
       )}
 
       {/* Delete Confirmation Dialog */}
