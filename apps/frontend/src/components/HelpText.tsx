@@ -3,6 +3,7 @@ import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -22,25 +23,38 @@ export default function HelpText({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <Collapse in={open}>
-      <Alert
-        severity={severity}
-        icon={<HelpOutlineIcon />}
-        sx={{ mb: 2 }}
-        action={
-          <IconButton
-            aria-label="close"
-            color="inherit"
-            size="small"
-            onClick={() => setOpen(false)}
-          >
-            <CloseIcon fontSize="inherit" />
-          </IconButton>
-        }
-      >
-        {title && <AlertTitle>{title}</AlertTitle>}
-        {children}
-      </Alert>
-    </Collapse>
+    <>
+      {!open && (
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<HelpOutlineIcon />}
+          onClick={() => setOpen(true)}
+          sx={{ mb: 2 }}
+        >
+          Show Help
+        </Button>
+      )}
+      <Collapse in={open}>
+        <Alert
+          severity={severity}
+          icon={<HelpOutlineIcon />}
+          sx={{ mb: 2 }}
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => setOpen(false)}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          }
+        >
+          {title && <AlertTitle>{title}</AlertTitle>}
+          {children}
+        </Alert>
+      </Collapse>
+    </>
   );
 }
