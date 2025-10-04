@@ -275,6 +275,61 @@ export default function RunDetail(){
 
         {/* Sidebar */}
         <Grid size={{ xs: 12, md: 4 }}>
+          {/* Quality Gates */}
+          {run?.steps && run.steps.length > 0 && (() => {
+            const gates = extractGatesFromSteps(run.steps);
+            if (gates.length > 0) {
+              return (
+                <Box mb={2}>
+                  <Typography variant="h6" gutterBottom>🛡️ Quality Gates</Typography>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    {gates.map((gate, idx) => (
+                      <Box key={idx} mb={idx < gates.length - 1 ? 2 : 0}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                          {gate.passed ? (
+                            <Box component="span" sx={{ color: 'success.main', fontSize: '1.2rem' }}>✓</Box>
+                          ) : (
+                            <Box component="span" sx={{ color: 'error.main', fontSize: '1.2rem' }}>✗</Box>
+                          )}
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                            {gate.name}
+                          </Typography>
+                        </Box>
+                        {!gate.passed && gate.reason && (
+                          <Typography variant="body2" color="error.main" sx={{ ml: 3, mb: 1 }}>
+                            {gate.reason}
+                          </Typography>
+                        )}
+                        {gate.details && (
+                          <Typography
+                            variant="caption"
+                            component="pre"
+                            sx={{
+                              ml: 3,
+                              display: 'block',
+                              whiteSpace: 'pre-wrap',
+                              bgcolor: gate.passed ? 'success.light' : 'error.light',
+                              color: gate.passed ? 'success.contrastText' : 'error.contrastText',
+                              p: 1,
+                              borderRadius: 1,
+                              fontFamily: 'monospace',
+                              fontSize: '0.75rem',
+                              maxHeight: 200,
+                              overflow: 'auto'
+                            }}
+                          >
+                            {gate.details}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Paper>
+                </Box>
+              );
+            }
+            return null;
+          })()}
+
           {/* Output Documents (formerly Artifacts) */}
           {run?.artifacts && run.artifacts.length > 0 && (
             <Box mb={2}>
@@ -394,4 +449,77 @@ function formatEventPayload(payload: any): string {
   if (payload.message) parts.push(payload.message);
 
   return parts.join(' • ');
+}
+
+/**
+ * Extract gate results from steps
+ */
+interface GateResult {
+  name: string;
+  passed: boolean;
+  reason?: string;
+  details?: string;
+}
+
+function extractGatesFromSteps(steps: any[]): GateResult[] {
+  const gates: GateResult[] = [];
+
+  for (const step of steps) {
+    // Check if this step is a gate (has gate in the name or outputs)
+    const isGate = step.name?.includes('gate') ||
+                   step.tool?.includes('gate') ||
+                   step.outputs?.gate;
+
+    if (!isGate) continue;
+
+    const gateName = step.outputs?.gate || step.name || 'Unknown Gate';
+    const summary = step.outputs?.summary || {};
+    const passed = summary.passed === true;
+
+    // Extract failure reason and details
+    let reason: string | undefined;
+    let details: string | undefined;
+
+    if (!passed) {
+      // Try to get reason from various places
+      reason = summary.reason ||
+               summary.message ||
+               step.outputs?.error ||
+               'Gate check failed';
+
+      // Try to get detailed error info
+      if (summary.errors && Array.isArray(summary.errors)) {
+        details = summary.errors.map((err: any) => {
+          if (typeof err === 'string') return err;
+          if (err.message) return `${err.file || 'File'}: ${err.message}`;
+          return JSON.stringify(err);
+        }).join('\n');
+      } else if (summary.output) {
+        details = summary.output;
+      } else if (step.outputs?.stdout) {
+        details = step.outputs.stdout;
+      }
+    }
+
+    gates.push({
+      name: formatGateName(gateName),
+      passed,
+      reason,
+      details
+    });
+  }
+
+  return gates;
+}
+
+/**
+ * Format gate name for display
+ */
+function formatGateName(name: string): string {
+  // Convert "typecheck" -> "TypeCheck"
+  // Convert "security-scan" -> "Security Scan"
+  return name
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
