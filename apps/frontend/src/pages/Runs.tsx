@@ -105,6 +105,7 @@ export default function Runs(){
           <TableHead>
             <TableRow>
               <TableCell>Title</TableCell>
+              <TableCell>Agent</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Created</TableCell>
               <TableCell>ID</TableCell>
@@ -113,7 +114,7 @@ export default function Runs(){
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography component="div" color="text.secondary">
                     No runs found. <Link component={RouterLink} to="/runs/new">Create your first run</Link>
                   </Typography>
@@ -126,6 +127,11 @@ export default function Runs(){
                     <Link component={RouterLink} to={`/runs/${r.id}`}>
                       {(r as any).title || r.plan?.goal || 'ad-hoc run'}
                     </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.875rem', color: 'text.secondary' }}>
+                      {(r as any).agent_name || (r as any).agent_id || '—'}
+                    </Typography>
                   </TableCell>
                   <TableCell><Box component="span"><StatusChip status={r.status} /></Box></TableCell>
                   <TableCell>{r.created_at ? new Date(r.created_at).toLocaleString() : ''}</TableCell>
