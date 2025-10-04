@@ -136,7 +136,8 @@ export async function createRun(plan: Plan): Promise<{ id: string; status: strin
 }
 
 export async function getArtifact(artifactPath: string): Promise<{ content: string; path: string; size: number } | null> {
-  const rsp = await apiFetch(`/artifacts/${encodeURIComponent(artifactPath)}`);
+  // Don't encode the path - pass it through as-is for catch-all route
+  const rsp = await apiFetch(`/artifacts/${artifactPath}`);
   if (!rsp.ok) return null;
   return rsp.json();
 }

@@ -16,7 +16,9 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const artifactPath = req.query.id as string;
+  // Handle catch-all path parameter
+  const pathArray = req.query.path;
+  const artifactPath = Array.isArray(pathArray) ? pathArray.join('/') : pathArray as string;
 
   if (!artifactPath) {
     return res.status(400).json({ error: 'Artifact path is required' });
