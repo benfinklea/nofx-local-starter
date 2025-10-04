@@ -10,6 +10,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SaveIcon from '@mui/icons-material/Save';
+import HelpText from '../components/HelpText';
 
 interface BuilderTemplate {
   id: string;
@@ -184,6 +185,19 @@ export default function Builder() {
       <Typography variant="h4" gutterBottom>
         Agent Builder
       </Typography>
+      <HelpText title="Plan Builder">
+        <strong>Build Execution Plans:</strong> Create custom multi-step execution plans for complex workflows.
+<br /><br />
+<strong>How it works:</strong>
+<ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+  <li>Define steps that execute in sequence</li>
+  <li>Each step can use different tools</li>
+  <li>Pass outputs from one step to the next</li>
+  <li>Add quality gates between steps</li>
+</ul>
+<strong>Use cases:</strong> Complex workflows like "generate code, run tests, create docs, open PR".
+      </HelpText>
+
 
       <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ mb: 2 }}>
         <Tab label="Create New" />

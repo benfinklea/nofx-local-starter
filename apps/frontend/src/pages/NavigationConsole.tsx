@@ -43,6 +43,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import type { NavigationEntry, NavigationManifest } from '../../../shared/types/navigation-manifest';
+import HelpText from '../components/HelpText';
 
 // Mock manifest loader (replace with actual API call)
 const loadManifest = async (): Promise<NavigationManifest> => {
@@ -355,6 +356,18 @@ export default function NavigationConsole() {
       <Typography variant="h4" gutterBottom>
         Navigation Console
       </Typography>
+      <HelpText title="Navigation Console">
+        <strong>Command Palette:</strong> Quick keyboard-driven navigation throughout NOFX.
+<br /><br />
+<strong>How to use:</strong>
+<ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+  <li>Type to filter available pages and actions</li>
+  <li>Press Enter to navigate</li>
+  <li>Use arrow keys to select items</li>
+</ul>
+<strong>Pro tip:</strong> Access this console anytime with the keyboard shortcut.
+      </HelpText>
+
       <Typography variant="body2" color="textSecondary" paragraph>
         Developer diagnostics and health monitoring for the navigation manifest
       </Typography>

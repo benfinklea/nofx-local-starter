@@ -8,6 +8,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
+import HelpText from '../components/HelpText';
 
 type DlqItem = any;
 
@@ -30,6 +31,18 @@ export default function DLQ(){
   return (
     <Container sx={{ mt: 2 }}>
       <Typography variant="h5" gutterBottom>Dead-letter Queue</Typography>
+      <HelpText title="Dead Letter Queue (DLQ)">
+        <strong>Failed Message Queue:</strong> Messages that failed processing end up here for investigation and retry.
+<br /><br />
+<strong>What you'll find:</strong>
+<ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+  <li>Failed queue messages with error details</li>
+  <li>Retry attempts and timestamps</li>
+  <li>Ability to requeue or discard messages</li>
+</ul>
+<strong>Troubleshooting:</strong> Check error messages to diagnose queue processing issues.
+      </HelpText>
+
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Button variant="contained" onClick={rehydrate}>Rehydrate 50</Button>
         <Typography variant="body2" color="text.secondary" sx={{ ml: 2, display:'inline-block' }}>{status}</Typography>

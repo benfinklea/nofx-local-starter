@@ -39,6 +39,19 @@ export default function Dashboard(){
         NOFX Dashboard
       </Typography>
 
+      <HelpText title="Welcome to NOFX" defaultOpen={recentRuns.length === 0}>
+        <strong>Your AI Orchestration Hub:</strong> Monitor and control AI agents executing tasks on your codebase.
+        <br /><br />
+        <strong>Quick actions:</strong>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li>View recent runs and their status</li>
+          <li>Create new runs with the "New Run" button</li>
+          <li>Monitor system health and worker status</li>
+          <li>Access projects, agents, and settings</li>
+        </ul>
+        <strong>Getting started:</strong> Click "New Run" to create your first AI-powered task execution.
+      </HelpText>
+
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 8 }}>
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>

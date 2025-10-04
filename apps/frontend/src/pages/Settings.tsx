@@ -54,6 +54,20 @@ export default function Settings(){
   return (
     <Container sx={{ mt: 2 }}>
       <Typography variant="h5" gutterBottom>Settings</Typography>
+
+      <HelpText title="System Settings">
+        <strong>Configure NOFX:</strong> Manage system-wide settings that control how AI agents execute and what checks they must pass.
+        <br /><br />
+        <strong>Key settings:</strong>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li><strong>Approvals:</strong> Control when database writes require approval (none, dangerous operations only, or all writes)</li>
+          <li><strong>Gates:</strong> Enable or disable quality checks like typecheck, lint, and unit tests that run after each execution</li>
+          <li><strong>Coverage Threshold:</strong> Set the minimum code coverage percentage required to pass quality gates</li>
+          <li><strong>Backups:</strong> Configure automatic database backup frequency in minutes</li>
+        </ul>
+        <strong>Important:</strong> Click "Save" after making changes. Some settings may affect all future runs immediately.
+      </HelpText>
+
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1">Approvals</Typography>
         <Stack direction={{ xs:'column', sm:'row' }} spacing={2} sx={{ my: 1 }}>

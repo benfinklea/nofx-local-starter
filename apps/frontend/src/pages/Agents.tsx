@@ -250,6 +250,18 @@ export default function Agents() {
         </Typography>
       </Box>
 
+      <HelpText title="Agent Registry">
+        <strong>What are Agents?</strong> AI agents are configured workflows that execute tasks on your codebase.
+        <br /><br />
+        <strong>How to use:</strong>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li>Upload agent JSON files to register new agents</li>
+          <li>View capabilities and configuration for each agent</li>
+          <li>Delete agents you no longer need</li>
+        </ul>
+        <strong>Getting started:</strong> Upload an agent configuration file to begin. Each agent defines tools, models, and execution parameters.
+      </HelpText>
+
       {/* Upload Section */}
       <Paper
         sx={{
