@@ -474,20 +474,29 @@ function extractGatesFromSteps(steps: any[]): GateResult[] {
 
     const gateName = step.outputs?.gate || step.name || 'Unknown Gate';
     const summary = step.outputs?.summary || {};
-    const passed = summary.passed === true;
 
-    // Extract failure reason and details
+    // Determine pass/fail status
+    // If summary.passed is explicitly set, use it; otherwise check step status
+    let passed: boolean;
+    if (summary.passed !== undefined) {
+      passed = summary.passed === true;
+    } else {
+      // Fallback: check step status (succeeded/failed)
+      passed = step.status === 'succeeded' || step.status === 'completed';
+    }
+
+    // Extract reason and details (for both pass and fail)
     let reason: string | undefined;
     let details: string | undefined;
 
     if (!passed) {
-      // Try to get reason from various places
+      // Failure reasons
       reason = summary.reason ||
                summary.message ||
                step.outputs?.error ||
                'Gate check failed';
 
-      // Try to get detailed error info
+      // Detailed error info
       if (summary.errors && Array.isArray(summary.errors)) {
         details = summary.errors.map((err: any) => {
           if (typeof err === 'string') return err;
@@ -495,6 +504,13 @@ function extractGatesFromSteps(steps: any[]): GateResult[] {
           return JSON.stringify(err);
         }).join('\n');
       } else if (summary.output) {
+        details = summary.output;
+      } else if (step.outputs?.stdout) {
+        details = step.outputs.stdout;
+      }
+    } else {
+      // Success details (optional)
+      if (summary.output) {
         details = summary.output;
       } else if (step.outputs?.stdout) {
         details = step.outputs.stdout;
