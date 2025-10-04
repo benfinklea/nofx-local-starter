@@ -13,6 +13,8 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Alert from '@mui/material/Alert';
+import { apiFetch } from '../lib/api';
 
 type Model = { id?: string; provider: string; name: string; display_name?: string; kind: string; base_url?: string; active?: boolean };
 
@@ -20,27 +22,72 @@ export default function Models(){
   const [rows, setRows] = React.useState<Model[]>([]);
   const [adding, setAdding] = React.useState<Model>({ provider:'openai', name:'', kind:'openai' });
   const [status, setStatus] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
 
   async function load(){
-    const r = await fetch('/models');
-    if (!r.ok) return;
-    const j = await r.json();
-    setRows(j.models || []);
+    try {
+      setError(null);
+      const r = await apiFetch('/api/models');
+      if (!r.ok) {
+        throw new Error(`Failed to load models: ${r.statusText}`);
+      }
+      const j = await r.json();
+      setRows(j.models || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load models');
+    }
   }
   React.useEffect(()=>{ load().catch(()=>{}); },[]);
 
   async function add(){
-    setStatus('Saving...');
-    const rsp = await fetch('/models', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(adding) });
-    setStatus(rsp.ok ? 'Saved' : 'Error');
-    if (rsp.ok) { setAdding({ provider:'openai', name:'', kind:'openai' }); load(); }
+    try {
+      setStatus('Saving...');
+      setError(null);
+      const rsp = await apiFetch('/api/models', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(adding)
+      });
+      if (!rsp.ok) {
+        const errorData = await rsp.json().catch(() => ({ error: rsp.statusText }));
+        throw new Error(errorData.error || 'Failed to save model');
+      }
+      setStatus('Saved');
+      setAdding({ provider:'openai', name:'', kind:'openai' });
+      await load();
+    } catch (err) {
+      setStatus('');
+      setError(err instanceof Error ? err.message : 'Failed to save model');
+    }
   }
-  async function del(id?: string){ if (!id) return; await fetch('/models/'+id, { method:'DELETE' }); load(); }
+  async function del(id?: string){
+    if (!id) return;
+    try {
+      setError(null);
+      const rsp = await apiFetch('/api/models/'+id, { method:'DELETE' });
+      if (!rsp.ok) {
+        throw new Error(`Failed to delete model: ${rsp.statusText}`);
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete model');
+    }
+  }
   async function importVendor(v: 'openai'|'anthropic'|'gemini'){
-    setStatus('Importing...');
-    const rsp = await fetch('/models/import/'+v, { method:'POST' });
-    setStatus(rsp.ok ? 'Imported' : 'Import error');
-    if (rsp.ok) load();
+    try {
+      setStatus('Importing...');
+      setError(null);
+      const rsp = await apiFetch('/api/models/import/'+v, { method:'POST' });
+      if (!rsp.ok) {
+        const errorData = await rsp.json().catch(() => ({ error: rsp.statusText }));
+        throw new Error(errorData.error || `Failed to import ${v} models`);
+      }
+      setStatus('Imported');
+      await load();
+    } catch (err) {
+      setStatus('');
+      setError(err instanceof Error ? err.message : 'Import failed');
+    }
   }
 
   return (
@@ -53,6 +100,12 @@ export default function Models(){
           <Button onClick={()=>importVendor('gemini')}>Import Gemini</Button>
         </Stack>
       </Stack>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" gutterBottom>Add / Update</Typography>

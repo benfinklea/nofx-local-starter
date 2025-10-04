@@ -1,4 +1,5 @@
 import * as React from 'react';
+import HelpText from '../components/HelpText';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid2';
 import Paper from '@mui/material/Paper';

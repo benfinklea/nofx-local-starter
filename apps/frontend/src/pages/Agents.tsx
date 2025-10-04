@@ -1,4 +1,5 @@
 import * as React from 'react';
+import HelpText from '../components/HelpText';
 import {
   Box,
   Button,

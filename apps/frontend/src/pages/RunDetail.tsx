@@ -14,6 +14,7 @@ import { useParams } from 'react-router-dom';
 import { getRun, getTimeline, getArtifact, type Event } from '../lib/api';
 import StatusChip from '../components/StatusChip';
 import RunOutputSummary from '../components/RunOutputSummary';
+import HelpText from '../components/HelpText';
 import Button from '@mui/material/Button';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import Collapse from '@mui/material/Collapse';
@@ -190,6 +191,19 @@ export default function RunDetail(){
           </Typography>
         </Box>
       </Box>
+
+      <HelpText title="Understanding Run Results">
+        <strong>What you're viewing:</strong> Complete execution details for this run, including outputs, quality gates, and artifacts.
+        <br /><br />
+        <strong>Page sections:</strong>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li><strong>Output:</strong> The main result or code changes produced by this run</li>
+          <li><strong>Quality Gates:</strong> Automated checks (typecheck, security, tests) that validated the output</li>
+          <li><strong>Activity Timeline:</strong> Step-by-step execution history with timestamps</li>
+          <li><strong>Output Documents:</strong> Files and artifacts generated during execution (click "View" to expand)</li>
+        </ul>
+        <strong>Understanding status:</strong> Green (succeeded) means all steps passed. Red (failed) shows error details above. Cost and duration appear in the header.
+      </HelpText>
 
       <Grid container spacing={3}>
         {/* Main content - Output first */}

@@ -17,6 +17,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { listRuns, type Run } from '../lib/api';
 import StatusChip from '../components/StatusChip';
 import SystemHealth from '../components/SystemHealth';
+import HelpText from '../components/HelpText';
 
 export default function Runs(){
   const [rows, setRows] = React.useState<Run[]>([]);
@@ -80,6 +81,19 @@ export default function Runs(){
           New Run
         </Button>
       </Box>
+
+      <HelpText title="About Runs" defaultOpen={rows.length === 0}>
+        <strong>What are Runs?</strong> A run is a complete execution of an AI agent performing a task. Each run progresses through multiple steps, generates outputs, and passes through quality gates.
+        <br /><br />
+        <strong>How to use this page:</strong>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li>Click any run title to view detailed execution results, outputs, and artifacts</li>
+          <li>Use the "New Run" button to start a new AI agent execution</li>
+          <li>Monitor run status with color-coded chips (green=succeeded, red=failed, yellow=running)</li>
+          <li>Check the system health indicator to ensure all services are operational</li>
+        </ul>
+        <strong>Pro tip:</strong> Failed runs show error details when you click them, making debugging easier.
+      </HelpText>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

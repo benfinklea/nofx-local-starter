@@ -14,6 +14,7 @@ import Box from '@mui/material/Box';
 import { listProjects, createProject, type Project } from '../lib/api';
 import GitHubRepoSelector from '../components/GitHubRepoSelector';
 import type { GitHubRepo } from '../lib/github';
+import HelpText from '../components/HelpText';
 
 export default function Projects(){
   const [rows, setRows] = React.useState<Project[]>([]);
@@ -53,6 +54,18 @@ export default function Projects(){
   return (
     <Container sx={{ mt: 2 }}>
       <Typography variant="h5" gutterBottom>Projects</Typography>
+
+      <HelpText title="Managing Projects">
+        <strong>What are Projects?</strong> Projects define which codebase AI agents work on. Each project can be a local folder or a GitHub repository.
+        <br /><br />
+        <strong>How to use:</strong>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li>Click "Use" to select a project as your active workspace</li>
+          <li>Add GitHub repos via the "Add from GitHub" tab</li>
+          <li>All runs will execute in the context of your selected project</li>
+        </ul>
+        <strong>Pro tip:</strong> The selected project determines which code the AI can access and modify during runs.
+      </HelpText>
 
       {status && (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
