@@ -22,10 +22,8 @@ export async function saveArtifact(runId: string, stepId: string, artifactName: 
     return rel;
   };
 
-  if (store.driver === 'fs') {
-    return writeLocal({});
-  }
-
+  // Try Supabase storage first (regardless of database driver)
+  // This ensures artifacts persist across serverless function invocations
   const storage = supabase?.storage;
   try {
     if (!storage || typeof storage.from !== 'function') {
