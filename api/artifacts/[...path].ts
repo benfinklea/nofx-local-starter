@@ -1,16 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isAdmin } from '../../src/lib/auth';
 import { withCors } from '../_lib/cors';
 import { supabase, ARTIFACT_BUCKET } from '../../src/lib/supabase';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
 export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
-  // Check authentication
-  const isDev = process.env.NODE_ENV === 'development' || process.env.ENABLE_ADMIN === 'true';
-  if (!isDev && !isAdmin(req)) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
+  // Artifacts are read-only public resources - no auth required
+  // They contain generated output (haikus, READMEs, etc.) that should be viewable
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });

@@ -96,9 +96,32 @@ export default function RunDetail(){
   const [timeline, setTimeline] = React.useState<Event[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [pollError, setPollError] = React.useState<string | null>(null);
+  const [consecutiveErrors, setConsecutiveErrors] = React.useState(0);
 
   React.useEffect(() => {
     if (!id) return;
+
+    let pollInterval: NodeJS.Timeout | null = null;
+    let abortController: AbortController | null = null;
+    let isPolling = false;
+    let pollAttempts = 0;
+    const MAX_POLL_ATTEMPTS = 1000; // Stop after ~50 minutes of polling
+    const MAX_CONSECUTIVE_ERRORS = 5;
+    const BASE_POLL_INTERVAL = 3000;
+
+    // Cleanup function to abort any in-flight requests
+    function cleanup() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+      isPolling = false;
+    }
 
     async function loadData(silent = false) {
       try {
@@ -106,45 +129,136 @@ export default function RunDetail(){
           setLoading(true);
         }
         setError(null);
-        const [runData, timelineData] = await Promise.all([
-          getRun(id!),
-          getTimeline(id!)
-        ]);
-        setRun(runData);
-        setTimeline(timelineData);
+        setPollError(null);
+
+        // Create abort controller with timeout
+        abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController?.abort(), 10000); // 10 second timeout
+
+        try {
+          const [runData, timelineData] = await Promise.all([
+            getRun(id!),
+            getTimeline(id!)
+          ]);
+
+          clearTimeout(timeoutId);
+          setRun(runData);
+          setTimeline(timelineData);
+          setConsecutiveErrors(0); // Reset error count on success
+          setPollError(null);
+
+          return runData;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          throw err;
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load run details');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load run details';
+
+        if (silent) {
+          // During polling, track consecutive errors
+          setConsecutiveErrors(prev => prev + 1);
+          setPollError(errorMessage);
+          console.warn('Polling error:', errorMessage);
+        } else {
+          // Initial load error
+          setError(errorMessage);
+        }
+
+        return null;
       } finally {
         if (!silent) {
           setLoading(false);
         }
+        abortController = null;
       }
     }
 
-    loadData();
+    // Initial load
+    loadData().then(runData => {
+      // Only start polling if initial load succeeded and run is active
+      const status = runData?.run?.status;
+      const isActive = status && ['running', 'pending', 'queued'].includes(status);
 
-    // Poll for updates when run is active
-    const pollInterval = setInterval(async () => {
-      try {
-        const [runData, timelineData] = await Promise.all([
-          getRun(id!),
-          getTimeline(id!)
-        ]);
-
-        setRun(runData);
-        setTimeline(timelineData);
-
-        // Stop polling if run is complete
-        const status = runData?.run?.status;
-        if (status && !['running', 'pending', 'queued'].includes(status)) {
-          clearInterval(pollInterval);
-        }
-      } catch (err) {
-        console.debug('Polling error:', err);
+      if (isActive) {
+        startPolling();
       }
-    }, 3000);
+    });
 
-    return () => clearInterval(pollInterval);
+    function startPolling() {
+      // Adaptive polling: slow down if errors, speed up if healthy
+      function getNextPollInterval(): number {
+        if (consecutiveErrors === 0) {
+          return BASE_POLL_INTERVAL;
+        } else if (consecutiveErrors < 3) {
+          return BASE_POLL_INTERVAL * 2; // 6 seconds
+        } else {
+          return BASE_POLL_INTERVAL * 4; // 12 seconds
+        }
+      }
+
+      async function poll() {
+        // Prevent overlapping polls
+        if (isPolling) {
+          console.debug('Skipping poll - previous request still in flight');
+          return;
+        }
+
+        // Stop after max attempts
+        if (pollAttempts >= MAX_POLL_ATTEMPTS) {
+          console.warn('Max poll attempts reached, stopping auto-refresh');
+          cleanup();
+          setPollError('Auto-refresh stopped after maximum attempts');
+          return;
+        }
+
+        // Stop after too many consecutive errors
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.warn('Too many consecutive errors, stopping auto-refresh');
+          cleanup();
+          setPollError('Auto-refresh paused due to repeated errors. Refresh page to retry.');
+          return;
+        }
+
+        // Check if browser is online
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.debug('Browser offline, skipping poll');
+          setPollError('Offline - auto-refresh paused');
+          return;
+        }
+
+        isPolling = true;
+        pollAttempts++;
+
+        try {
+          const runData = await loadData(true);
+
+          // Stop polling if run is complete
+          const status = runData?.run?.status;
+          if (status && !['running', 'pending', 'queued'].includes(status)) {
+            cleanup();
+            console.debug('Run completed, stopping auto-refresh');
+            return;
+          }
+
+          // Adjust polling interval based on error rate
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = setInterval(poll, getNextPollInterval());
+          }
+        } catch (err) {
+          console.error('Unexpected polling error:', err);
+        } finally {
+          isPolling = false;
+        }
+      }
+
+      // Start polling
+      pollInterval = setInterval(poll, BASE_POLL_INTERVAL);
+    }
+
+    // Cleanup on unmount
+    return cleanup;
   }, [id]);
 
   if (loading) {
@@ -182,6 +296,15 @@ export default function RunDetail(){
 
   return (
     <Container sx={{ mt: 2, mb: 4 }}>
+      {/* Polling error notification */}
+      {pollError && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setPollError(null)}>
+          <Typography variant="body2">
+            <strong>Auto-refresh issue:</strong> {pollError}
+          </Typography>
+        </Alert>
+      )}
+
       {/* Header with status */}
       <Box mb={3}>
         <Typography variant="h5" gutterBottom>
