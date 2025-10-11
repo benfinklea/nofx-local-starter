@@ -93,8 +93,8 @@
       "destination": "/api/backups/:path*"
     },
     {
-      "source": "/artifacts/:path*",
-      "destination": "/api/artifacts/:path*"
+      "source": "/artifacts/(.*)",
+      "destination": "/api/artifacts/$1"
     },
     {
       "source": "/health",
