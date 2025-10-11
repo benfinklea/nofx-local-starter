@@ -16,7 +16,7 @@ export class RunManagementService {
   /**
    * Create a new run
    */
-  async createRun(plan: JsonValue | null | undefined, projectId = 'default'): Promise<RunRow> {
+  async createRun(plan: JsonValue | null | undefined, _projectId = 'default'): Promise<RunRow> {
     this.fileOps.ensureDirSync(this.root);
 
     const id = randomUUID();
@@ -46,7 +46,7 @@ export class RunManagementService {
   async getRun(id: string): Promise<RunRow | null> {
     const runPath = this.fileOps.getRunPath(id, this.root);
     const runData = await this.fileOps.readJsonFile(runPath);
-    return runData as RunRow | null;
+    return (runData as unknown) as RunRow | null;
   }
 
   /**

@@ -26,7 +26,8 @@ import {
   handleGetRunTimeline,
   handleRunStream,
   handleListRuns,
-  handleRetryStep
+  handleRetryStep,
+  handleGetArtifact
 } from './server/handlers';
 
 dotenv.config();
@@ -98,6 +99,9 @@ app.get("/runs/:id/timeline", handleGetRunTimeline);
 app.get('/runs/:id/stream', handleRunStream);
 app.get('/runs', handleListRuns);
 app.post('/runs/:runId/steps/:stepId/retry', requireAuth, handleRetryStep);
+
+// Artifact retrieval endpoint (catch-all route for paths)
+app.get('/artifacts/*', handleGetArtifact);
 
 // Mount route modules
 mountCoreRoutes(app);
