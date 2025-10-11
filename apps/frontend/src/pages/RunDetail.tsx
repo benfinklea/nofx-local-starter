@@ -100,9 +100,11 @@ export default function RunDetail(){
   React.useEffect(() => {
     if (!id) return;
 
-    async function loadData() {
+    async function loadData(silent = false) {
       try {
-        setLoading(true);
+        if (!silent) {
+          setLoading(true);
+        }
         setError(null);
         const [runData, timelineData] = await Promise.all([
           getRun(id!),
@@ -113,21 +115,34 @@ export default function RunDetail(){
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load run details');
       } finally {
-        setLoading(false);
+        if (!silent) {
+          setLoading(false);
+        }
       }
     }
 
     loadData();
 
-    // Poll for timeline updates
+    // Poll for updates when run is active
     const pollInterval = setInterval(async () => {
       try {
-        const timelineData = await getTimeline(id!);
+        const [runData, timelineData] = await Promise.all([
+          getRun(id!),
+          getTimeline(id!)
+        ]);
+
+        setRun(runData);
         setTimeline(timelineData);
+
+        // Stop polling if run is complete
+        const status = runData?.run?.status;
+        if (status && !['running', 'pending', 'queued'].includes(status)) {
+          clearInterval(pollInterval);
+        }
       } catch (err) {
-        console.debug('Timeline polling error:', err);
+        console.debug('Polling error:', err);
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(pollInterval);
   }, [id]);
