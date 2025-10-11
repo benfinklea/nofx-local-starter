@@ -95,7 +95,7 @@ export class RunManagementService {
           id: run.id,
           status: run.status,
           created_at: run.created_at,
-          title: `Run ${run.id.slice(0, 8)}` // Generate a default title
+          title: run.id ? `Run ${run.id.slice(0, 8)}` : 'Unknown Run' // Generate a default title
         };
         runs.push(summary);
       }

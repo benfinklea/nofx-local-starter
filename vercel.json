@@ -94,7 +94,7 @@
     },
     {
       "source": "/artifacts/(.*)",
-      "destination": "/api/artifacts/$1"
+      "destination": "/api/artifacts?path=$1"
     },
     {
       "source": "/health",
