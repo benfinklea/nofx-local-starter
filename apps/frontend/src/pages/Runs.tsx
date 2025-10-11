@@ -32,9 +32,11 @@ export default function Runs(){
     hasRows: rows.length > 0
   });
 
-  async function loadRuns() {
+  async function loadRuns(silent = false) {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
       console.log('[Runs] Loading runs...');
       const startTime = Date.now();
@@ -50,11 +52,31 @@ export default function Runs(){
       console.error('[Runs] Detailed error info:', { error: err, timestamp: new Date().toISOString() });
       setError(detailedError);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }
 
+  // Initial load
   React.useEffect(() => { loadRuns(); }, []);
+
+  // Auto-refresh every 3 seconds when there are active runs
+  React.useEffect(() => {
+    const hasActiveRuns = rows.some(r =>
+      r.status === 'running' || r.status === 'pending' || r.status === 'queued'
+    );
+
+    if (!hasActiveRuns) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadRuns(true); // Silent refresh (no loading spinner)
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [rows]);
 
   if (loading) {
     return (
