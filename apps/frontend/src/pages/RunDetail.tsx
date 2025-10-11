@@ -33,20 +33,16 @@ function ArtifactViewer({ artifact }: { artifact: any }) {
 
     setLoading(true);
     try {
-      console.log('[ArtifactViewer] Loading artifact:', artifact.path);
       const data = await getArtifact(artifact.path);
-      console.log('[ArtifactViewer] Artifact response:', data);
 
       if (data) {
         setContent(data.content);
         setExpanded(true);
       } else {
-        console.warn('[ArtifactViewer] No data returned for artifact:', artifact.path);
         setContent('Artifact not found or could not be loaded');
         setExpanded(true);
       }
     } catch (err) {
-      console.error('[ArtifactViewer] Error loading artifact:', err);
       setContent(`Failed to load artifact: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setExpanded(true);
     } finally {
@@ -301,46 +297,90 @@ export default function RunDetail(){
                 <Box mb={2}>
                   <Typography variant="h6" gutterBottom>🛡️ Quality Gates</Typography>
                   <Paper variant="outlined" sx={{ p: 2 }}>
-                    {gates.map((gate, idx) => (
-                      <Box key={idx} mb={idx < gates.length - 1 ? 2 : 0}>
-                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                          {gate.passed ? (
-                            <Box component="span" sx={{ color: 'success.main', fontSize: '1.2rem' }}>✓</Box>
-                          ) : (
-                            <Box component="span" sx={{ color: 'error.main', fontSize: '1.2rem' }}>✗</Box>
+                    {gates.map((gate, idx) => {
+                      // Determine display colors based on severity and pass/fail status
+                      const getSeverityColor = () => {
+                        if (gate.passed) return 'success';
+                        // Failed gate - color based on severity
+                        switch (gate.severity) {
+                          case 'critical': return 'error';
+                          case 'error': return 'error';
+                          case 'warning': return 'warning';
+                          case 'info': return 'info';
+                          default: return 'warning';
+                        }
+                      };
+
+                      const getSeverityBadge = () => {
+                        switch (gate.severity) {
+                          case 'critical': return '🔴';
+                          case 'error': return '🟠';
+                          case 'warning': return '🟡';
+                          case 'info': return '🔵';
+                          default: return '🟡';
+                        }
+                      };
+
+                      const color = getSeverityColor();
+
+                      return (
+                        <Box key={idx} mb={idx < gates.length - 1 ? 2 : 0}>
+                          <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                            {gate.passed ? (
+                              <Box component="span" sx={{ color: 'success.main', fontSize: '1.2rem' }}>✓</Box>
+                            ) : (
+                              <Box component="span" sx={{ fontSize: '1rem' }} title={`Severity: ${gate.severity}`}>
+                                {getSeverityBadge()}
+                              </Box>
+                            )}
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              {gate.name}
+                            </Typography>
+                            {!gate.passed && gate.isWarning && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  bgcolor: `${color}.light`,
+                                  color: `${color}.dark`,
+                                  px: 1,
+                                  py: 0.25,
+                                  borderRadius: 1,
+                                  fontSize: '0.7rem'
+                                }}
+                              >
+                                {gate.severity === 'critical' ? 'BLOCKED' : 'WARNING'}
+                              </Typography>
+                            )}
+                          </Box>
+                          {!gate.passed && gate.reason && (
+                            <Typography variant="body2" color={`${color}.main`} sx={{ ml: 3, mb: 1 }}>
+                              {gate.reason}
+                            </Typography>
                           )}
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {gate.name}
-                          </Typography>
+                          {gate.details && (
+                            <Typography
+                              variant="caption"
+                              component="pre"
+                              sx={{
+                                ml: 3,
+                                display: 'block',
+                                whiteSpace: 'pre-wrap',
+                                bgcolor: gate.passed ? 'success.light' : `${color}.light`,
+                                color: gate.passed ? 'success.contrastText' : `${color}.contrastText`,
+                                p: 1,
+                                borderRadius: 1,
+                                fontFamily: 'monospace',
+                                fontSize: '0.75rem',
+                                maxHeight: 200,
+                                overflow: 'auto'
+                              }}
+                            >
+                              {gate.details}
+                            </Typography>
+                          )}
                         </Box>
-                        {!gate.passed && gate.reason && (
-                          <Typography variant="body2" color="error.main" sx={{ ml: 3, mb: 1 }}>
-                            {gate.reason}
-                          </Typography>
-                        )}
-                        {gate.details && (
-                          <Typography
-                            variant="caption"
-                            component="pre"
-                            sx={{
-                              ml: 3,
-                              display: 'block',
-                              whiteSpace: 'pre-wrap',
-                              bgcolor: gate.passed ? 'success.light' : 'error.light',
-                              color: gate.passed ? 'success.contrastText' : 'error.contrastText',
-                              p: 1,
-                              borderRadius: 1,
-                              fontFamily: 'monospace',
-                              fontSize: '0.75rem',
-                              maxHeight: 200,
-                              overflow: 'auto'
-                            }}
-                          >
-                            {gate.details}
-                          </Typography>
-                        )}
-                      </Box>
-                    ))}
+                      );
+                    })}
                   </Paper>
                 </Box>
               );
@@ -472,11 +512,15 @@ function formatEventPayload(payload: any): string {
 /**
  * Extract gate results from steps
  */
+type GateSeverity = 'info' | 'warning' | 'error' | 'critical';
+
 interface GateResult {
   name: string;
   passed: boolean;
+  severity: GateSeverity;
   reason?: string;
   details?: string;
+  isWarning?: boolean;
 }
 
 function extractGatesFromSteps(steps: any[]): GateResult[] {
@@ -535,11 +579,17 @@ function extractGatesFromSteps(steps: any[]): GateResult[] {
       }
     }
 
+    // Extract severity and warning flag
+    const severity: GateSeverity = summary.severity || 'warning';
+    const isWarning = step.outputs?.warning === true;
+
     gates.push({
       name: formatGateName(gateName),
       passed,
+      severity,
       reason,
-      details
+      details,
+      isWarning
     });
   }
 

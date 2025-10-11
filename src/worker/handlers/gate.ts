@@ -2,7 +2,7 @@ import { StepHandler } from "./types";
 import { store } from "../../lib/store";
 import { recordEvent } from "../../lib/events";
 import { log } from "../../lib/logger";
-import { getSettings } from "../../lib/settings";
+import { getSettings, shouldGateBlock, type GateConfig, type GateSeverity } from "../../lib/settings";
 import { saveArtifact } from "../../lib/artifacts";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -57,9 +57,20 @@ const handler: StepHandler = {
 
     const { gates } = await getSettings();
 
+    // Get gate config (enabled + severity)
+    const gateConfig = gates[gateName as keyof typeof gates];
+    let gateEnabled = true;
+    let gateSeverity: GateSeverity = 'warning';
+
+    if (typeof gateConfig === 'boolean') {
+      gateEnabled = gateConfig;
+    } else if (gateConfig && typeof gateConfig === 'object') {
+      gateEnabled = (gateConfig as GateConfig).enabled;
+      gateSeverity = (gateConfig as GateConfig).severity;
+    }
+
     // Skip if gate disabled by settings
-    const isGateEnabled = gates[gateName as keyof typeof gates];
-    if (isGateEnabled === false) {
+    if (!gateEnabled) {
       log.info({ gateName, settings: gates }, `Gate ${gateName} disabled by settings`);
       await store.updateStep(stepId, {
         status: 'succeeded',
@@ -182,6 +193,9 @@ const handler: StepHandler = {
       }
     }
 
+    // Add severity to summary
+    summary.severity = gateSeverity;
+
     // Always upload a JSON summary as gate-summary.json
     const summaryName = "gate-summary.json";
     const summaryPath = await saveArtifact(runId, stepId, summaryName, JSON.stringify(summary, null, 2), 'application/json');
@@ -195,9 +209,21 @@ const handler: StepHandler = {
       await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs: { gate: gateName, summary, artifacts: uploadedPaths } });
       await recordEvent(runId, "step.finished", { gate: gateName, summary }, stepId);
     } else {
-      await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString(), outputs: { gate: gateName, summary, artifacts: uploadedPaths } });
-      await recordEvent(runId, "step.failed", { gate: gateName, summary, stderr: proc.stderr }, stepId);
-      throw new Error(`gate ${gateName} failed`);
+      // Gate failed - check if we should block the run based on severity
+      const shouldBlock = shouldGateBlock(gateSeverity);
+
+      if (shouldBlock) {
+        // Critical gates block the run
+        log.error({ gateName, gateSeverity, summary }, `Critical gate ${gateName} failed - blocking run`);
+        await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString(), outputs: { gate: gateName, summary, artifacts: uploadedPaths } });
+        await recordEvent(runId, "step.failed", { gate: gateName, summary, severity: gateSeverity, blocked: true, stderr: proc.stderr }, stepId);
+        throw new Error(`Critical gate ${gateName} failed`);
+      } else {
+        // Non-critical gates warn but don't block
+        log.warn({ gateName, gateSeverity, summary }, `Gate ${gateName} failed with severity ${gateSeverity} - not blocking run`);
+        await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs: { gate: gateName, summary, artifacts: uploadedPaths, warning: true } });
+        await recordEvent(runId, "step.finished", { gate: gateName, summary, severity: gateSeverity, warning: true, stderr: proc.stderr }, stepId);
+      }
     }
   }
 };

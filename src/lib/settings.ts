@@ -4,14 +4,22 @@ export type ApprovalsSettings = {
   dbWrites: 'none'|'dangerous'|'all';
   allowWaive: boolean;
 };
+
+export type GateSeverity = 'info' | 'warning' | 'error' | 'critical';
+
+export type GateConfig = {
+  enabled: boolean;
+  severity: GateSeverity;
+};
+
 export type GatesSettings = {
-  typecheck: boolean;
-  lint: boolean;
-  unit: boolean;
+  typecheck: boolean | GateConfig;
+  lint: boolean | GateConfig;
+  unit: boolean | GateConfig;
   coverageThreshold: number; // 0..1
-  sast?: boolean;
-  audit?: boolean;
-  secrets?: boolean;
+  sast?: boolean | GateConfig;
+  audit?: boolean | GateConfig;
+  secrets?: boolean | GateConfig;
 };
 export type Settings = {
   approvals: ApprovalsSettings;
@@ -37,7 +45,15 @@ export type OpsSettings = {
 
 const DEFAULTS: Settings = {
   approvals: { dbWrites: 'dangerous', allowWaive: true },
-  gates: { typecheck: true, lint: true, unit: true, coverageThreshold: 0.9, sast: true, audit: true, secrets: true },
+  gates: {
+    typecheck: { enabled: true, severity: 'warning' },
+    lint: { enabled: true, severity: 'warning' },
+    unit: { enabled: true, severity: 'error' },
+    coverageThreshold: 0.9,
+    sast: { enabled: true, severity: 'error' },
+    audit: { enabled: true, severity: 'warning' },
+    secrets: { enabled: true, severity: 'critical' }
+  },
   llm: {
     order: {
       codegen: ['openai','anthropic','gemini'],
@@ -50,6 +66,22 @@ const DEFAULTS: Settings = {
   },
   ops: { backupIntervalMin: 0 }
 };
+
+// Helper to normalize gate config from boolean or object format
+function normalizeGateConfig(value: boolean | GateConfig | undefined, defaultSeverity: GateSeverity): GateConfig {
+  if (typeof value === 'boolean') {
+    return { enabled: value, severity: defaultSeverity };
+  }
+  if (value && typeof value === 'object' && 'enabled' in value) {
+    return { enabled: value.enabled, severity: value.severity || defaultSeverity };
+  }
+  return { enabled: true, severity: defaultSeverity };
+}
+
+// Helper to check if gate should block the run based on severity
+export function shouldGateBlock(severity: GateSeverity): boolean {
+  return severity === 'critical';
+}
 
 async function ensureSettingsSchema() {
   try {
@@ -66,7 +98,19 @@ export async function getSettings(): Promise<Settings> {
     const r = await query<{ approvals: any; gates: any; llm: any; ops: any }>(`select approvals, gates, llm, ops from nofx.settings where id='default' limit 1`);
     if (!r.rows[0]) return DEFAULTS;
     const approvals = { ...DEFAULTS.approvals, ...(r.rows[0].approvals || {}) };
-    const gates = { ...DEFAULTS.gates, ...(r.rows[0].gates || {}) };
+
+    // Normalize gate configs to support both old boolean and new object format
+    const rawGates = r.rows[0].gates || {};
+    const gates: GatesSettings = {
+      typecheck: normalizeGateConfig(rawGates.typecheck, 'warning'),
+      lint: normalizeGateConfig(rawGates.lint, 'warning'),
+      unit: normalizeGateConfig(rawGates.unit, 'error'),
+      coverageThreshold: rawGates.coverageThreshold ?? DEFAULTS.gates.coverageThreshold,
+      sast: normalizeGateConfig(rawGates.sast, 'error'),
+      audit: normalizeGateConfig(rawGates.audit, 'warning'),
+      secrets: normalizeGateConfig(rawGates.secrets, 'critical')
+    };
+
     const llm: LlmSettings = {
       order: {
         codegen: (r.rows[0].llm?.order?.codegen || DEFAULTS.llm.order.codegen),
