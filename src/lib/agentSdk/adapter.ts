@@ -1,26 +1,7 @@
 import { recordEvent } from '../events';
 import { log } from '../logger';
 import type { Step } from '../../worker/handlers/types';
-
-// Agent SDK types (will be imported once we understand the actual SDK API)
-type QueryOptions = {
-  model?: string;
-  sessionId?: string;
-  maxTokens?: number;
-  temperature?: number;
-  tools?: any[];
-  hooks?: any;
-};
-
-type MessageChunk = {
-  type: string;
-  content?: string;
-  usage?: {
-    total_tokens: number;
-    input_tokens: number;
-    output_tokens: number;
-  };
-};
+import { query, type Options, type SDKMessage, type SDKAssistantMessage, type SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
 
 export interface AgentSdkContext {
   runId: string;
@@ -63,15 +44,15 @@ export class AgentSdkAdapter {
     context: AgentSdkContext
   ): Promise<ExecutionResult> {
     const sessionId = context.runId; // Map NOFX run to SDK session
+    const prompt = this.buildPrompt(step);
 
-    // TODO: Import actual SDK when we test with real API
-    // For now, this is the structure we'll use
-    const options: QueryOptions = {
+    // Build SDK options
+    const options: Options = {
       model: context.model || 'claude-sonnet-4-5',
-      sessionId, // SDK handles session persistence
-      maxTokens: context.maxTokens || 4096,
-      temperature: context.temperature || 0.7,
-      tools: this.buildTools(step),
+      resume: context.sessionMemory ? sessionId : undefined,
+      maxTurns: 1, // Single turn for code generation
+      cwd: process.cwd(),
+      allowedTools: this.extractAllowedTools(step),
       hooks: this.buildHooks(step, context),
     };
 
@@ -82,48 +63,98 @@ export class AgentSdkAdapter {
       sessionId,
     }, 'Executing step with Agent SDK');
 
-    const prompt = this.buildPrompt(step);
+    try {
+      // Execute with real Agent SDK
+      const generator = query({ prompt, options });
 
-    // TODO: Replace with actual SDK query() call
-    // const result = query(prompt, options);
+      let responseText = '';
+      let tokensUsed = 0;
+      let cost = 0;
 
-    // For now, return a mock structure
-    return this.executeMock(prompt, options, step, context);
+      // Process all messages from the SDK
+      for await (const message of generator) {
+        await this.processSDKMessage(message, step, context);
+
+        // Extract text from assistant messages
+        if (message.type === 'assistant') {
+          const assistantMsg = message as SDKAssistantMessage;
+          for (const block of assistantMsg.message.content) {
+            if (block.type === 'text') {
+              responseText += block.text;
+            }
+          }
+        }
+
+        // Extract usage from result message
+        if (message.type === 'result') {
+          const resultMsg = message as SDKResultMessage;
+          tokensUsed = resultMsg.usage.input_tokens + resultMsg.usage.output_tokens;
+          cost = resultMsg.total_cost_usd;
+        }
+      }
+
+      return {
+        response: responseText,
+        metadata: {
+          tokensUsed,
+          cost,
+          model: options.model || 'claude-sonnet-4-5',
+          sessionId,
+        },
+      };
+    } catch (error) {
+      log.error({ error, runId: context.runId, stepId: step.id }, 'SDK execution failed');
+      throw error;
+    }
   }
 
   /**
-   * Mock execution until we integrate real SDK
-   * This will be replaced with actual SDK calls
+   * Process SDK messages and emit events
    */
-  private async executeMock(
-    prompt: string,
-    options: QueryOptions,
+  private async processSDKMessage(
+    message: SDKMessage,
     step: Step,
     context: AgentSdkContext
-  ): Promise<ExecutionResult> {
-    log.warn({ runId: context.runId }, 'Using mock Agent SDK execution');
-
-    // Simulate streaming events
+  ): Promise<void> {
+    // Emit event for timeline tracking
     await recordEvent(
       context.runId,
       'sdk.message',
       {
-        type: 'text',
-        content: 'Mock response (Agent SDK not yet integrated)',
-        stepId: step.id,
+        type: message.type,
+        messageId: message.uuid,
+        sessionId: message.session_id,
       },
       step.id
     );
 
-    return {
-      response: `# ${step.inputs?.topic || 'Generated Content'}\n\nThis is a mock response. Agent SDK integration pending.\n\nModel: ${options.model}\nSession: ${options.sessionId}`,
-      metadata: {
-        tokensUsed: 150,
-        cost: 0.001,
-        model: options.model || 'claude-sonnet-4-5',
-        sessionId: options.sessionId || context.runId,
-      },
-    };
+    // Handle specific message types
+    if (message.type === 'stream_event') {
+      // Stream events for real-time updates
+      await recordEvent(
+        context.runId,
+        'sdk.stream',
+        {
+          event: message.event.type,
+        },
+        step.id
+      );
+    }
+  }
+
+  /**
+   * Extract allowed tools from step configuration
+   */
+  private extractAllowedTools(step: Step): string[] | undefined {
+    // Check if step explicitly requests tools
+    if (step.inputs?._tools) {
+      if (Array.isArray(step.inputs._tools)) {
+        return step.inputs._tools;
+      }
+    }
+
+    // Default tools for code generation
+    return ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'];
   }
 
   /**
@@ -147,65 +178,30 @@ export class AgentSdkAdapter {
   }
 
   /**
-   * Build SDK tools from step configuration
-   */
-  private buildTools(step: Step): any[] {
-    const tools = [];
-
-    // Add built-in SDK tools based on step requirements
-    if (step.inputs?._tools?.includes('bash')) {
-      tools.push({ type: 'bash' });
-    }
-
-    if (step.inputs?._tools?.includes('file_edit')) {
-      tools.push({ type: 'file_edit' });
-    }
-
-    if (step.inputs?._tools?.includes('web_search')) {
-      tools.push({ type: 'web_search' });
-    }
-
-    return tools;
-  }
-
-  /**
    * Build SDK hooks for lifecycle events
    */
-  private buildHooks(step: Step, context: AgentSdkContext): any {
+  private buildHooks(step: Step, context: AgentSdkContext): Options['hooks'] {
     return {
-      onToolCall: async (toolCall: any) => {
-        await recordEvent(
-          context.runId,
-          'sdk.tool_call',
-          { tool: toolCall.name, args: toolCall.args },
-          step.id
-        );
-      },
-      onToolResult: async (result: any) => {
-        await recordEvent(
-          context.runId,
-          'sdk.tool_result',
-          { success: result.success },
-          step.id
-        );
-      },
+      PostToolUse: [
+        {
+          hooks: [
+            async (input, _toolUseID, _options) => {
+              await recordEvent(
+                context.runId,
+                'sdk.tool_use',
+                {
+                  toolName: input.tool_name,
+                  toolInput: input.tool_input,
+                  toolResponse: input.tool_response,
+                },
+                step.id
+              );
+              return {};
+            },
+          ],
+        },
+      ],
     };
   }
 
-  /**
-   * Calculate cost based on tokens and model
-   * Rates as of September 29, 2025
-   */
-  private calculateCost(tokens: number, model: string): number {
-    const rates: Record<string, { input: number; output: number }> = {
-      'claude-sonnet-4-5': { input: 3, output: 15 }, // $3/$15 per million
-      'claude-sonnet-4': { input: 3, output: 15 },
-      'claude-opus-4': { input: 15, output: 75 },
-      'claude-haiku-3-5': { input: 0.80, output: 4 },
-    };
-
-    const rate = rates[model] || rates['claude-sonnet-4-5'];
-    // Assume 50/50 input/output split
-    return ((tokens / 2) * rate.input + (tokens / 2) * rate.output) / 1_000_000;
-  }
 }
