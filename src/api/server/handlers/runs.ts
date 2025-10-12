@@ -13,6 +13,8 @@ import { recordEvent } from '../../../lib/events';
 import { setContext } from '../../../lib/observability';
 import { retryStep, StepNotFoundError, StepNotRetryableError } from '../../../lib/runRecovery';
 import { toJsonObject } from '../../../lib/json';
+import { trace } from '../../../lib/traceLogger';
+import { buildPlanFromPrompt } from '../../planBuilder';
 
 const CreateRunSchema = z.object({
   plan: PlanSchema,
@@ -22,7 +24,22 @@ const CreateRunSchema = z.object({
 export async function handleRunPreview(req: Request, res: Response) {
   try {
     if (req.body && req.body.standard) {
-      return res.status(501).json({ error: 'Plan builder not implemented' });
+      const { prompt, quality, openPr, filePath, summarizeQuery, summarizeTarget, projectId } = req.body.standard;
+
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid prompt in standard mode' });
+      }
+
+      const plan = await buildPlanFromPrompt(prompt, {
+        quality: Boolean(quality),
+        openPr: Boolean(openPr),
+        filePath,
+        summarizeQuery,
+        summarizeTarget,
+        projectId
+      });
+
+      return res.status(200).json(plan);
     }
     return res.status(400).json({ error: 'missing standard' });
   } catch (e: unknown) {
@@ -32,6 +49,8 @@ export async function handleRunPreview(req: Request, res: Response) {
 }
 
 export async function handleCreateRun(req: Request, res: Response) {
+  let projectIdForLog = 'default';
+  let planForLog: unknown;
   try {
     // Standard mode: build a plan from plain-language prompt and settings
     if (req.body && req.body.standard) {
@@ -48,6 +67,8 @@ export async function handleCreateRun(req: Request, res: Response) {
     }
 
     const { plan, projectId = 'default' } = parsed.data;
+    projectIdForLog = projectId;
+    planForLog = plan;
 
     // Add user context to the run
     const runData = {
@@ -59,6 +80,8 @@ export async function handleCreateRun(req: Request, res: Response) {
       }
     };
 
+    trace('run.create.request', { projectId, plan, userId: req.userId || 'anonymous' });
+
     const run = await store.createRun(runData as any, projectId);
     const runId = String(run.id);
 
@@ -67,6 +90,7 @@ export async function handleCreateRun(req: Request, res: Response) {
     } catch { }
 
     await recordEvent(runId, "run.created", { plan });
+    trace('run.create.success', { runId, projectId, status: run.status, createdAt: run.created_at });
 
     // Respond immediately to avoid request timeouts on large plans
     res.status(201).json({ id: runId, status: "queued", projectId });
@@ -75,6 +99,7 @@ export async function handleCreateRun(req: Request, res: Response) {
     await processRunSteps(plan, runId);
 
   } catch (error) {
+    trace('run.create.error', { projectId: projectIdForLog, plan: planForLog, error: error instanceof Error ? error.message : String(error) });
     log.error({ error }, 'Failed to create run');
     res.status(500).json({ error: 'Failed to create run' });
   }
@@ -98,6 +123,7 @@ async function processRunSteps(plan: any, runId: string) {
       // Idempotency key: `${runId}:${stepName}:${hash(inputs)}`
       const hash = crypto.createHash('sha256').update(JSON.stringify(inputsWithPolicy)).digest('hex').slice(0, 12);
       const idemKey = `${runId}:${s.name}:${hash}`;
+      trace('step.create.begin', { runId, stepName: s.name, tool: s.tool, idemKey, inputs: inputsWithPolicy });
       const created = await store.createStep(runId, s.name, s.tool, inputsWithPolicy, idemKey);
 
       let stepId = created?.id;
@@ -111,22 +137,29 @@ async function processRunSteps(plan: any, runId: string) {
       }
       if (!stepId || !existing) continue; // safety: skip if we couldn't resolve step id
 
+      trace('step.create.persisted', { runId, stepId, stepName: s.name, tool: s.tool, idemKey, status: existing?.status });
+
       try {
         setContext({ stepId });
       } catch { }
 
       await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool, idempotency_key: idemKey }, stepId);
+      trace('step.enqueue.event-recorded', { runId, stepId, stepName: s.name, tool: s.tool, idemKey });
 
       // Enqueue unless step is already finished
       const status = String((existing as { status?: string }).status || '').toLowerCase();
       if (!['succeeded', 'cancelled'].includes(status)) {
         await enqueueStepWithBackpressure(runId, stepId, idemKey);
+        trace('step.enqueue.requested', { runId, stepId, stepName: s.name, tool: s.tool, idemKey, status });
+      } else {
+        trace('step.enqueue.skipped', { runId, stepId, stepName: s.name, tool: s.tool, idemKey, status });
       }
 
       // Simple Mode fallback: run inline to avoid any queue hiccups
       await handleInlineExecution(runId, stepId);
 
     } catch (error) {
+      trace('step.create.error', { runId, stepName: s.name, error: error instanceof Error ? error.message : String(error) });
       log.error({ error, runId, stepName: s.name }, 'Failed to process step');
     }
   }
@@ -148,6 +181,8 @@ async function enqueueStepWithBackpressure(runId: string, stepId: string, idemKe
     { runId, stepId, idempotencyKey: idemKey, __attempt: 1 },
     delayMs ? { delay: delayMs } : undefined
   );
+
+  trace('step.enqueue.finalized', { runId, stepId, idemKey, delayMs, ageMs, thresholdMs });
 }
 
 async function handleInlineExecution(runId: string, stepId: string) {
@@ -159,6 +194,7 @@ async function handleInlineExecution(runId: string, stepId: string) {
       const { runStep } = await import('../../../worker/runner');
       await runStep(runId, stepId);
     } catch (error) {
+      trace('step.inline-execution.error', { runId, stepId, error: error instanceof Error ? error.message : String(error) });
       log.error({ error, runId, stepId }, 'Inline step execution failed');
     }
   }
@@ -246,11 +282,14 @@ export async function handleListRuns(req: Request, res: Response) {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
 
+    trace('run.list.request', { page, limit });
     const result = await store.listRuns(limit);
 
     // Handle different return types from store.listRuns
     const runs = Array.isArray(result) ? result : (result as any)?.runs || [];
     const total = Array.isArray(result) ? result.length : (result as any)?.total || 0;
+
+    trace('run.list.response', { count: runs.length, total });
 
     res.json({
       runs,
@@ -262,6 +301,7 @@ export async function handleListRuns(req: Request, res: Response) {
       }
     });
   } catch (error) {
+    trace('run.list.error', { error: error instanceof Error ? error.message : String(error) });
     log.error({ error }, 'Failed to list runs');
     res.status(500).json({ error: 'Failed to list runs' });
   }

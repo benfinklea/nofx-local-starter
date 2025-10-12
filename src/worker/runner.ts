@@ -7,6 +7,7 @@ import { enqueue, STEP_READY_TOPIC } from "../lib/queue";
 import type { Step } from "./handlers/types";
 import { metrics } from "../lib/metrics";
 import { runAtomically } from "../lib/tx";
+import { trace, traceDebug } from "../lib/traceLogger";
 
 // Use static loader in production/Vercel, dynamic loader in development
 const loadHandlers = process.env.VERCEL || process.env.NODE_ENV === 'production'
@@ -77,6 +78,8 @@ export async function runStep(runId: string, stepId: string) {
   if (!s) throw new Error(`Step with ID '${stepId}' not found. Ensure the step was created with store.createStep() before retrying.`);
   const step: Step = { id: s.id, run_id: s.run_id, name: s.name, tool: s.tool, inputs: s.inputs } as Step;
 
+  trace('step.execute.begin', { runId, stepId, tool: step.tool, name: step.name, inputs: step.inputs });
+
   // Exactly-once guard: inbox key based on step id
   const executionKey = `step-exec:${stepId}`;
   let executionMarked = false;
@@ -94,6 +97,7 @@ export async function runStep(runId: string, stepId: string) {
     const ok = await store.inboxMarkIfNew(executionKey);
     if (!ok) {
       log.warn({ runId, stepId }, 'inbox.duplicate');
+      trace('step.execute.duplicate', { runId, stepId, tool: step.tool });
       return;
     }
     executionMarked = true;
@@ -160,11 +164,13 @@ export async function runStep(runId: string, stepId: string) {
   const started = Date.now();
   try {
     await h.run({ runId, step });
+    trace('step.execute.handler-finished', { runId, stepId, tool: step.tool, durationMs: Date.now() - started });
     // close run if done
     await runAtomically(async () => {
       const latest = await store.getStep(stepId);
       const currentStatus = String((latest as any)?.status || '').toLowerCase();
       if (['timed_out', 'failed', 'cancelled'].includes(currentStatus)) {
+        trace('step.execute.status-skip-close', { runId, stepId, status: currentStatus });
         return;
       }
       await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString() });
@@ -177,15 +183,15 @@ export async function runStep(runId: string, stepId: string) {
           const st = String((s as any)?.status || '').toLowerCase();
           return !['succeeded', 'cancelled'].includes(st);
         }).length;
-        log.debug({
+        traceDebug('run.step.remaining.statuses', {
           runId,
           stepId,
-          stepStatuses: stepsForRun.map((s) => ({
-            id: (s as any)?.id,
-            name: (s as any)?.name,
-            status: (s as any)?.status
+          stepStatuses: stepsForRun.map((stepRow) => ({
+            id: (stepRow as any)?.id,
+            name: (stepRow as any)?.name,
+            status: (stepRow as any)?.status
           }))
-        }, 'run.step.remaining.statuses');
+        });
 
         const runRow = await store.getRun(runId) as RunRow | undefined;
         const plannedSteps = (runRow?.plan && typeof runRow.plan === 'object'
@@ -199,12 +205,14 @@ export async function runStep(runId: string, stepId: string) {
         }
       } catch (error) {
         log.warn({ error, runId, stepId }, 'failed to evaluate remaining steps');
+        trace('run.step.remaining.error', { runId, stepId, error: error instanceof Error ? error.message : String(error) });
       }
 
-      log.debug({ runId, stepId, remaining, outstandingPlanned }, 'run.step.remaining.summary');
+      traceDebug('run.step.remaining.summary', { runId, stepId, remaining, outstandingPlanned });
       if (Number(remaining) === 0 && outstandingPlanned === 0) {
         await store.updateRun(runId, { status: 'succeeded', ended_at: new Date().toISOString() });
         await recordEvent(runId, "run.succeeded", {});
+        trace('run.execute.completed', { runId, stepId, tool: step.tool });
       }
     });
     const latencyMs = Date.now() - started;
@@ -213,6 +221,7 @@ export async function runStep(runId: string, stepId: string) {
       metrics.stepsTotal.inc({ status: 'succeeded' });
     } catch {}
     log.info({ runId, stepId, status: 'succeeded', latencyMs }, 'step.completed');
+    trace('step.execute.success', { runId, stepId, tool: step.tool, latencyMs });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
@@ -232,6 +241,7 @@ export async function runStep(runId: string, stepId: string) {
       const currentStatus = String((latest as any)?.status || '').toLowerCase();
       if (currentStatus === 'timed_out') {
         // Timeout handler already persisted state/events; avoid clobbering.
+        trace('step.execute.timeout', { runId, stepId, tool: step.tool });
         return;
       }
       await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString() });
@@ -245,6 +255,7 @@ export async function runStep(runId: string, stepId: string) {
       metrics.stepsTotal.inc({ status: 'failed' });
     } catch {}
     log.error({ runId, stepId, status: 'failed', latencyMs }, 'step.completed');
+    trace('step.execute.error', { runId, stepId, tool: step.tool, error: msg, latencyMs, stack });
     throw err;
   }
 }

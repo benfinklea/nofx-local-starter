@@ -10,6 +10,7 @@ import { withCors } from '../_lib/cors';
 import { listProjects, createProject } from '../../src/lib/projects';
 import crypto from 'node:crypto';
 import { log } from '../../src/lib/logger';
+import { trace } from '../../src/lib/traceLogger';
 
 const CreateRunSchema = z.object({
   plan: z.any().refine(val => val !== undefined && val !== null, {
@@ -31,10 +32,13 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
     const projectId = String(req.query.projectId || '');
 
     try {
+      trace('run.list.api-request', { limit: lim, projectId: projectId || null });
       const rows = await store.listRuns(lim, projectId || undefined);
+      trace('run.list.api-response', { total: rows.length });
       return res.json({ runs: rows });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'failed to list runs';
+      trace('run.list.api-error', { error: msg });
       return res.status(500).json({ error: msg });
     }
   } else if (req.method === 'POST') {
@@ -97,6 +101,7 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
         }
       }
 
+      trace('run.create.api-request', { projectId, plan });
       const run = await store.createRun(plan, projectId);
       const runId = String(run.id);
 
@@ -105,15 +110,18 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
       } catch {}
 
       await recordEvent(runId, "run.created", { plan });
+      trace('run.create.api-success', { runId, projectId, status: run.status });
 
       // Process steps asynchronously (similar to local API)
       processRunSteps(plan, runId).catch(err => {
+        trace('run.create.api-step-error', { runId, error: err instanceof Error ? err.message : String(err) });
         console.error('Failed to process run steps:', err);
       });
 
       return res.status(201).json({ ...run, id: runId });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'failed to create run';
+      trace('run.create.api-error', { projectId, error: msg });
       return res.status(500).json({ error: msg });
     }
   } else {
@@ -129,6 +137,7 @@ async function processRunSteps(plan: { steps: { name: string; tool?: string; inp
       const hash = crypto.createHash('sha256').update(JSON.stringify(baseInputs)).digest('hex').slice(0, 12);
       const idemKey = `${runId}:${s.name}:${hash}`;
 
+      trace('step.create.api-begin', { runId, stepName: s.name, tool: s.tool, idemKey, inputs: baseInputs });
       const created = await store.createStep(runId, s.name, s.tool || 'unknown', baseInputs, idemKey);
       let stepId = created?.id;
 
@@ -139,11 +148,13 @@ async function processRunSteps(plan: { steps: { name: string; tool?: string; inp
 
       if (!stepId) continue;
 
+      trace('step.create.api-persisted', { runId, stepId, stepName: s.name, tool: s.tool, idemKey });
       try {
         setContext({ stepId });
       } catch { }
 
       await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool, idempotency_key: idemKey }, stepId);
+      trace('step.enqueue.api-event-recorded', { runId, stepId, stepName: s.name, tool: s.tool, idemKey });
 
       // Enqueue step for worker to pick up
       await enqueue(STEP_READY_TOPIC, {
@@ -152,6 +163,7 @@ async function processRunSteps(plan: { steps: { name: string; tool?: string; inp
         idempotencyKey: idemKey,
         __attempt: 1
       });
+      trace('step.enqueue.api-request', { runId, stepId, idemKey });
 
       // Inline execution fallback for memory queue
       const usingMemoryQueue = (process.env.QUEUE_DRIVER || 'memory').toLowerCase() === 'memory';
@@ -160,11 +172,13 @@ async function processRunSteps(plan: { steps: { name: string; tool?: string; inp
           const { runStep } = await import('../../src/worker/runner');
           await runStep(runId, stepId);
         } catch (error) {
+          trace('step.inline-execution.api-error', { runId, stepId, error: error instanceof Error ? error.message : String(error) });
           log.error({ error, runId, stepId }, 'Inline step execution failed');
         }
       }
 
     } catch (error) {
+      trace('step.create.api-error', { runId, stepName: s.name, error: error instanceof Error ? error.message : String(error) });
       log.error({ error, runId, stepName: s.name }, 'Failed to process step');
     }
   }
