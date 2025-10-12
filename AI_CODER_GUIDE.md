@@ -42,6 +42,77 @@ This guide helps AI coding assistants (Claude, Codex, Copilot, etc.) quickly und
 
 **Never work directly in the main repository directory when using AI assistance!**
 
+## Build with Claude Agent Workflow
+
+When tackling complex problems in this codebase, follow this specialized agent workflow to leverage domain-specific expertise:
+
+### 1. Understand the Problem
+Before selecting an agent, clearly define:
+- What specific task needs to be accomplished
+- Which domain or technology area it falls into
+- What the expected outcome should be
+
+### 2. Select the Right Subagent
+Browse available specialized agents at https://www.buildwithclaude.com/browse
+
+Common agents for this project:
+- **API Documentation Specialist** - For SDK integration, OpenAPI specs, migration guides
+- **Backend System Architect** - For API design, database schemas, system architecture
+- **Developer Experience (DX) Optimization Specialist** - For workflow automation, environment setup
+- **Deployment Engineer** - For CI/CD pipelines, containerization, deployment strategies
+- **GraphQL Architect** - For GraphQL schemas, resolvers, real-time subscriptions
+- **Data Engineer** - For data pipelines, ETL processes, analytics infrastructure
+
+### 3. Install the Selected Agent
+```bash
+# Check if bwc CLI is installed
+bwc --version
+
+# If not installed:
+npm install -g bwc-cli
+
+# Initialize project configuration (if needed)
+bwc init --project
+
+# Add the selected agent (example with API Documentation Specialist)
+bwc add --agent api-documentation-specialist
+
+# Or use interactive mode to browse and select
+bwc add
+```
+
+### 4. Use the Agent to Solve the Problem
+Once the agent is installed, it will have access to:
+- The full project context
+- Specialized domain knowledge
+- Best practices for its specific area
+- Tools and patterns specific to its expertise
+
+### 5. Verify Agent Status
+```bash
+# Check what's installed
+bwc status
+
+# List all available agents
+bwc list --agents
+
+# Show only installed items
+bwc list --installed
+```
+
+### Example: Claude Agent SDK Migration
+For our current Phase 2 SDK migration, the workflow would be:
+1. **Problem**: Replace mock SDK implementation with real Claude Agent SDK calls
+2. **Agent**: API Documentation Specialist (generates SDK client libraries, migration guides)
+3. **Install**: `bwc add --agent api-documentation-specialist`
+4. **Execute**: Let the agent analyze the mock, research the real SDK, and implement the integration
+
+### Best Practices
+- Always use project-level configuration (`bwc init --project`) for consistency
+- Document which agents were used for significant changes
+- Keep agent configurations in version control
+- Use specialized agents for their domains rather than general-purpose coding
+
 ## AI Guardrails — Tooling & Automation
 
 - **Package manager**: This repo is pinned to `npm` (see `package-lock.json`). Do not swap scripts to `pnpm`/`yarn`, do not add new lockfiles, and prefer `npx` over global installs when you need CLIs.
