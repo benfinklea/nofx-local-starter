@@ -186,16 +186,19 @@ export class AgentSdkAdapter {
         {
           hooks: [
             async (input, _toolUseID, _options) => {
-              await recordEvent(
-                context.runId,
-                'sdk.tool_use',
-                {
-                  toolName: input.tool_name,
-                  toolInput: input.tool_input,
-                  toolResponse: input.tool_response,
-                },
-                step.id
-              );
+              // Type guard: PostToolUse hooks receive PostToolUseHookInput
+              if (input.hook_event_name === 'PostToolUse') {
+                await recordEvent(
+                  context.runId,
+                  'sdk.tool_use',
+                  {
+                    toolName: input.tool_name,
+                    toolInput: input.tool_input,
+                    toolResponse: input.tool_response,
+                  },
+                  step.id
+                );
+              }
               return {};
             },
           ],
