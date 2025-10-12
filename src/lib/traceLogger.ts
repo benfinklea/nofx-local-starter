@@ -1,10 +1,23 @@
 import { log } from './logger';
-
-function traceEnabled(): boolean {
-  return (process.env.RUN_TRACE_LOG || process.env.NOFX_TRACE_LOG || '').toLowerCase() === 'true';
-}
+import { getTraceStatusSync, refreshTraceStatus } from './traceConfig';
 
 type TracePayload = Record<string, unknown> | undefined;
+
+let primed = false;
+
+function ensurePrimed() {
+  if (primed) return;
+  primed = true;
+  refreshTraceStatus().catch(() => {
+    // ignore failures; tracing will simply remain disabled until next refresh
+  });
+}
+
+function traceEnabled(): boolean {
+  ensurePrimed();
+  const status = getTraceStatusSync();
+  return status.value;
+}
 
 export function trace(event: string, payload?: TracePayload) {
   if (!traceEnabled()) return;

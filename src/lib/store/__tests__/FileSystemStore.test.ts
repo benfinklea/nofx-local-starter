@@ -32,6 +32,12 @@ describe('FileSystemStore - Core Functionality Tests', () => {
 
     // Setup default mocks
     mockPath.join.mockImplementation((...segments) => segments.join('/'));
+    mockPath.normalize.mockImplementation((p: string) => p);
+    mockPath.resolve.mockImplementation((...segments) => {
+      if (segments.length === 0) return '/test/cwd';
+      return segments.join('/');
+    });
+    Object.defineProperty(mockPath, 'sep', { value: '/', writable: false });
     mockFs.existsSync.mockReturnValue(true);
     mockFs.mkdirSync.mockReturnValue(undefined);
     mockFsp.writeFile.mockResolvedValue(undefined);
@@ -91,12 +97,12 @@ describe('FileSystemStore - Core Functionality Tests', () => {
         expect(mockFsp.readFile).toHaveBeenCalled();
       });
 
-      it('returns null for non-existent run', async () => {
+      it('returns undefined for non-existent run', async () => {
         mockFsp.readFile.mockRejectedValue(new Error('ENOENT'));
 
         const result = await store.getRun('non-existent-id');
 
-        expect(result).toBeNull();
+        expect(result).toBeUndefined();
       });
     });
 
@@ -190,7 +196,8 @@ describe('FileSystemStore - Core Functionality Tests', () => {
           created_at: expect.any(String),
           started_at: null,
           ended_at: null,
-          outputs: null
+          outputs: null,
+          idempotency_key: null
         });
 
         expect(mockFsp.writeFile).toHaveBeenCalled();
@@ -211,6 +218,9 @@ describe('FileSystemStore - Core Functionality Tests', () => {
           ended_at: null,
           outputs: null
         };
+        // Mock readdir to return run directories
+        mockFsp.readdir.mockResolvedValue(['run-id'] as any);
+        // Mock readFile to return the step when found
         mockFsp.readFile.mockResolvedValue(JSON.stringify(existingStep));
 
         await store.updateStep('step-id', { status: 'completed', outputs: { result: 'success' } });
@@ -219,7 +229,8 @@ describe('FileSystemStore - Core Functionality Tests', () => {
       });
 
       it('throws error for non-existent step', async () => {
-        mockFsp.readFile.mockRejectedValue(new Error('ENOENT'));
+        // Mock readdir to return empty run directories
+        mockFsp.readdir.mockResolvedValue([] as any);
 
         await expect(store.updateStep('non-existent-id', { status: 'completed' }))
           .rejects.toThrow('Step non-existent-id not found');
@@ -240,6 +251,9 @@ describe('FileSystemStore - Core Functionality Tests', () => {
           ended_at: '2023-01-01T00:02:00.000Z',
           outputs: { result: 'success' }
         };
+        // Mock readdir to return run directories
+        mockFsp.readdir.mockResolvedValue(['run-id'] as any);
+        // Mock readFile to return the step when found
         mockFsp.readFile.mockResolvedValue(JSON.stringify(stepData));
 
         const result = await store.getStep('step-id');
@@ -247,12 +261,13 @@ describe('FileSystemStore - Core Functionality Tests', () => {
         expect(result).toEqual(stepData);
       });
 
-      it('returns null for non-existent step', async () => {
-        mockFsp.readFile.mockRejectedValue(new Error('ENOENT'));
+      it('returns undefined for non-existent step', async () => {
+        // Mock readdir to return empty run directories
+        mockFsp.readdir.mockResolvedValue([] as any);
 
         const result = await store.getStep('non-existent-id');
 
-        expect(result).toBeNull();
+        expect(result).toBeUndefined();
       });
     });
 
@@ -313,7 +328,7 @@ describe('FileSystemStore - Core Functionality Tests', () => {
 
       const result = await store.getRun('test-id');
 
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
     });
   });
 

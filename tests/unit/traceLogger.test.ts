@@ -9,6 +9,11 @@ jest.mock('../../src/lib/logger', () => {
   } satisfies { log: Pick<Logger, 'info' | 'debug'> };
 });
 
+jest.mock('../../src/lib/traceConfig', () => ({
+  getTraceStatusSync: jest.fn(() => ({ value: false, source: 'default' })),
+  refreshTraceStatus: jest.fn(() => Promise.resolve({ value: false, source: 'default' }))
+}));
+
 describe('traceLogger', () => {
   const originalEnv = process.env.RUN_TRACE_LOG;
 
@@ -21,8 +26,10 @@ describe('traceLogger', () => {
   });
 
   it('does nothing when tracing disabled', async () => {
-    process.env.RUN_TRACE_LOG = 'false';
     jest.resetModules();
+    process.env.RUN_TRACE_LOG = undefined;
+    const traceConfig = require('../../src/lib/traceConfig');
+    traceConfig.getTraceStatusSync.mockReturnValue({ value: false, source: 'default' });
     const { trace } = await import('../../src/lib/traceLogger');
     const mocked = require('../../src/lib/logger').log;
 
@@ -31,8 +38,10 @@ describe('traceLogger', () => {
   });
 
   it('logs when tracing enabled', async () => {
-    process.env.RUN_TRACE_LOG = 'true';
     jest.resetModules();
+    process.env.RUN_TRACE_LOG = undefined;
+    const traceConfig = require('../../src/lib/traceConfig');
+    traceConfig.getTraceStatusSync.mockReturnValue({ value: true, source: 'settings' });
     const { trace } = await import('../../src/lib/traceLogger');
     const mocked = require('../../src/lib/logger').log;
 
@@ -41,8 +50,10 @@ describe('traceLogger', () => {
   });
 
   it('supports debug helper', async () => {
-    process.env.RUN_TRACE_LOG = 'true';
     jest.resetModules();
+    process.env.RUN_TRACE_LOG = undefined;
+    const traceConfig = require('../../src/lib/traceConfig');
+    traceConfig.getTraceStatusSync.mockReturnValue({ value: true, source: 'settings' });
     const { traceDebug } = await import('../../src/lib/traceLogger');
     const mocked = require('../../src/lib/logger').log;
 
