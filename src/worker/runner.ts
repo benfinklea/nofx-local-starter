@@ -177,6 +177,15 @@ export async function runStep(runId: string, stepId: string) {
           const st = String((s as any)?.status || '').toLowerCase();
           return !['succeeded', 'cancelled'].includes(st);
         }).length;
+        log.debug({
+          runId,
+          stepId,
+          stepStatuses: stepsForRun.map((s) => ({
+            id: (s as any)?.id,
+            name: (s as any)?.name,
+            status: (s as any)?.status
+          }))
+        }, 'run.step.remaining.statuses');
 
         const runRow = await store.getRun(runId) as RunRow | undefined;
         const plannedSteps = (runRow?.plan && typeof runRow.plan === 'object'
@@ -192,6 +201,7 @@ export async function runStep(runId: string, stepId: string) {
         log.warn({ error, runId, stepId }, 'failed to evaluate remaining steps');
       }
 
+      log.debug({ runId, stepId, remaining, outstandingPlanned }, 'run.step.remaining.summary');
       if (Number(remaining) === 0 && outstandingPlanned === 0) {
         await store.updateRun(runId, { status: 'succeeded', ended_at: new Date().toISOString() });
         await recordEvent(runId, "run.succeeded", {});
