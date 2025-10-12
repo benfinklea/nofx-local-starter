@@ -258,6 +258,13 @@ let server: ReturnType<typeof createServer>;
 
 export function startHealthServer(): Promise<void> {
   return new Promise((resolve) => {
+    // Skip health server startup during tests to avoid port conflicts
+    if (process.env.DISABLE_SERVER_AUTOSTART === '1') {
+      log.info('Health check server disabled (test mode)');
+      resolve();
+      return;
+    }
+
     server = createServer(app);
     server.listen(PORT, () => {
       log.info({ port: PORT }, 'Health check server started');

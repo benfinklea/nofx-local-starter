@@ -84,7 +84,7 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         },
         steps: [
           {
-            id: 'step-1',
+            id: '10000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
             sequence_number: 0,
             tool: 'gate:typecheck',
@@ -96,9 +96,9 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         ],
         artifacts: [
           {
-            id: 'artifact-1',
+            id: '20000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
-            step_id: 'step-1',
+            step_id: '10000000-0000-0000-0000-000000000001',
             name: 'output.txt',
             type: 'text/plain',
             path: '/artifacts/output.txt',
@@ -277,7 +277,7 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         },
         steps: [
           {
-            id: 'step-1',
+            id: '10000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
             sequence_number: 0,
             tool: 'gate:typecheck',
@@ -304,7 +304,7 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         },
         steps: [
           {
-            id: 'step-1',
+            id: '10000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
             sequence_number: -1, // Invalid: negative
             tool: 'gate:typecheck',
@@ -329,8 +329,8 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         },
         steps: [
           {
-            id: 'step-1',
-            run_id: 'different-run-id', // Should match parent run
+            id: '10000000-0000-0000-0000-000000000001',
+            run_id: '99999999-9999-9999-9999-999999999999', // Should match parent run
             sequence_number: 0,
             tool: 'gate:typecheck',
             name: 'typecheck',
@@ -382,9 +382,9 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         steps: [],
         artifacts: [
           {
-            id: 'artifact-1',
+            id: '20000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
-            step_id: 'step-1',
+            step_id: '10000000-0000-0000-0000-000000000001',
             name: 'output.log',
             type: 'text/plain',
             path: '/artifacts/output.log',
@@ -410,7 +410,7 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         steps: [],
         artifacts: [
           {
-            id: 'artifact-1',
+            id: '20000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
             step_id: null,
             name: 'output.log',
@@ -438,7 +438,7 @@ describe('Run Detail API Contract - BULLETPROOF SCHEMA TESTS', () => {
         steps: [],
         artifacts: [
           {
-            id: 'artifact-1',
+            id: '20000000-0000-0000-0000-000000000001',
             run_id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7',
             name: 'output.log',
             type: 'text/plain',

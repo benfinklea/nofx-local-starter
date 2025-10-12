@@ -26,8 +26,9 @@ export function issueAdminCookie(): string {
 }
 
 export function isAdmin(req: { headers: { cookie?: string | undefined; authorization?: string | undefined } }): boolean {
-  // Bypass auth check if ENABLE_ADMIN is set (for testing/development)
-  if (process.env.ENABLE_ADMIN === 'true') {
+  // Bypass auth check ONLY in development with ENABLE_ADMIN=true
+  // SECURITY: Never bypass in production
+  if (process.env.ENABLE_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
     return true;
   }
 

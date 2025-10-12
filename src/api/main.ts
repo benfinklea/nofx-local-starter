@@ -147,6 +147,15 @@ let server: http.Server;
 
 export function startServer() {
   return new Promise<http.Server>((resolve, reject) => {
+    // Skip server startup during tests to avoid port conflicts
+    if (process.env.DISABLE_SERVER_AUTOSTART === '1') {
+      console.log('⚠️ Server autostart disabled (test mode)');
+      // Return a mock server object for tests
+      const mockServer = app as any;
+      resolve(mockServer);
+      return;
+    }
+
     try {
       server = app.listen(port, () => {
         console.log(`🚀 NOFX API server running on port ${port}`);

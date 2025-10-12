@@ -11,6 +11,8 @@ process.env.DISABLE_INLINE_RUNNER = '1';
 // Use filesystem-backed store during tests to avoid external DB dependency
 process.env.DATA_DRIVER = process.env.DATA_DRIVER || 'fs';
 process.env.DISABLE_REDIS_STRESS = '1';
+// Prevent API server from auto-starting during tests (causes port conflicts)
+process.env.DISABLE_SERVER_AUTOSTART = '1';
 
 jest.mock('supertest', () => {
   const mock = require('./helpers/mockSupertest');
