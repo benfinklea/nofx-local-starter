@@ -28,7 +28,7 @@ const handler: StepHandler = {
       .catch(async ()=>{ await query(`update nofx.step set status='running' where id=$1`, [stepId]); });
     await recordEvent(runId, 'step.started', { name: step.name, tool: step.tool }, stepId);
 
-    const inputs: Inputs = step.inputs as Inputs || { table: '', op: 'select' };
+    const inputs = (step.inputs as Inputs) || { table: '', op: 'insert' as DbOp };
     if (!inputs.table || !inputs.op) throw new Error('db_write requires table and op');
     if (!isSafeIdent(inputs.table)) throw new Error('unsafe table name');
 

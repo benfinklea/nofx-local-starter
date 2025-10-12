@@ -20,7 +20,24 @@ import { getUserFromRequest, verifyApiKey, hasActiveSubscription, checkUsageLimi
 
 // Mock dependencies
 jest.mock('../supabase');
-jest.mock('../../lib/logger');
+jest.mock('../../lib/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 
 describe('Auth Middleware - Security Tests', () => {
   let mockReq: Partial<Request>;

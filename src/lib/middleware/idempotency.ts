@@ -217,47 +217,49 @@ export function idempotency(config: IdempotencyConfig = {}): (req: Request, res:
       // Extract idempotency key from headers
       let idempotencyKey = req.headers[keyHeader.toLowerCase()] as string;
 
-      // Generate key if not provided and generateKey is enabled
-      if (!idempotencyKey && generateKey) {
-        idempotencyKey = `auto_${randomUUID()}`;
-        log.debug({
-          event: 'idempotency.key.generated',
-          key: idempotencyKey,
-          correlationId
-        }, 'Generated idempotency key');
-      }
+      // Check if header was provided (even if empty string)
+      const headerProvided = keyHeader.toLowerCase() in req.headers;
 
-      // Skip if no key provided and generation disabled
-      if (!idempotencyKey) {
-        log.debug({
-          event: 'idempotency.key.missing',
-          method: req.method,
-          path: req.path,
-          correlationId
-        }, 'No idempotency key provided');
-        return next();
-      }
-
-      // Validate key format
-      if (!skipValidation) {
-        try {
-          validateIdempotencyKey(idempotencyKey, config);
-        } catch (error) {
-          log.warn({
-            event: 'idempotency.key.invalid',
+      // If header not provided, generate or skip
+      if (!headerProvided) {
+        if (generateKey) {
+          idempotencyKey = `auto_${randomUUID()}`;
+          log.debug({
+            event: 'idempotency.key.generated',
             key: idempotencyKey,
-            error: error instanceof Error ? error.message : 'Unknown error',
             correlationId
-          }, 'Invalid idempotency key provided');
+          }, 'Generated idempotency key');
+        } else {
+          log.debug({
+            event: 'idempotency.key.missing',
+            method: req.method,
+            path: req.path,
+            correlationId
+          }, 'No idempotency key provided');
+          return next();
+        }
+      } else {
+        // Header was provided, validate it (even if empty string)
+        if (!skipValidation) {
+          try {
+            validateIdempotencyKey(idempotencyKey, config);
+          } catch (error) {
+            log.warn({
+              event: 'idempotency.key.invalid',
+              key: idempotencyKey,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              correlationId
+            }, 'Invalid idempotency key provided');
 
-          res.status(400).json({
-            type: 'urn:nofx:error:invalid-idempotency-key',
-            title: 'Invalid Idempotency Key',
-            status: 400,
-            detail: error instanceof Error ? error.message : 'Invalid idempotency key format',
-            correlationId
-          });
-          return;
+            res.status(400).json({
+              type: 'urn:nofx:error:invalid-idempotency-key',
+              title: 'Invalid Idempotency Key',
+              status: 400,
+              detail: error instanceof Error ? error.message : 'Invalid idempotency key format',
+              correlationId
+            });
+            return;
+          }
         }
       }
 

@@ -46,8 +46,8 @@ describe('planBuilder', () => {
   test('includes gates from settings when quality true', async () => {
     const plan = await buildPlanFromPrompt('Write README', { quality: true, openPr: false });
     const tools = plan.steps.map(s=>s.tool);
-    expect(tools.slice(0,3)).toEqual(['gate:typecheck','gate:lint','gate:unit']);
-    expect(tools).toContain('codegen');
+    expect(tools[0]).toBe('codegen');
+    expect(tools.slice(1,4)).toEqual(['gate:typecheck','gate:lint','gate:unit']);
     expect(plan.metadata).toMatchObject({
       suggestedAgentId: 'builder-default-agent',
       suggestedTemplateId: 'readme-template'

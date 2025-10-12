@@ -16,7 +16,24 @@ jest.mock('../../../lib/events');
 jest.mock('../../../lib/projects');
 jest.mock('../../../lib/workspaces');
 jest.mock('simple-git');
-jest.mock('../../../lib/logger');
+jest.mock('../../../lib/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 
 describe('Git Operations Handler - Security & Functionality Tests', () => {
   let mockGit: jest.Mocked<SimpleGit>;

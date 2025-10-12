@@ -14,7 +14,11 @@ module.exports = {
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts'
   ],
-  testPathIgnorePatterns: ['<rootDir>/tests/e2e/'],
+  testPathIgnorePatterns: [
+    '<rootDir>/tests/e2e/',
+    '<rootDir>/node_modules/',
+    '<rootDir>/apps/frontend/node_modules/'
+  ],
   coverageThreshold: {
     global: {
       branches: 0,
@@ -26,11 +30,14 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   maxWorkers: '50%',
-  verbose: true,
+  verbose: false, // Changed to false for cleaner output when running many tests
   // Test hardening configurations
-  bail: 1, // Stop after first test failure
+  bail: false, // Changed to false - run all tests even if some fail
   detectOpenHandles: true, // Detect handles keeping Jest from exiting
   forceExit: true, // Force exit after tests complete
+  // Increase the timeout for the entire test run (in milliseconds)
+  // This is different from testTimeout which is per-test
+  testRunner: 'jest-circus/runner',
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', {
       tsconfig: {

@@ -8,7 +8,24 @@ import { Resend } from 'resend';
 
 // Mock Resend
 jest.mock('resend');
-jest.mock('../../../lib/logger');
+jest.mock('../../../lib/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 
 const MockedResend = Resend as jest.MockedClass<typeof Resend>;
 

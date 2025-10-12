@@ -12,7 +12,24 @@ import * as responsesRuntime from '../../../services/responses/runtime';
 // Mock dependencies
 jest.mock('../../../lib/auth');
 jest.mock('../../../services/responses/runtime');
-jest.mock('../../../lib/logger');
+jest.mock('../../../lib/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 
 const mockAuth = jest.mocked(auth);
 const mockRuntime = jest.mocked(responsesRuntime);

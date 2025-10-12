@@ -10,7 +10,24 @@ import { Queue, Worker } from 'bullmq';
 // Mock dependencies
 jest.mock('bullmq');
 jest.mock('ioredis');
-jest.mock('../../logger');
+jest.mock('../../logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 jest.mock('../../metrics');
 
 const MockedQueue = Queue as jest.MockedClass<typeof Queue>;

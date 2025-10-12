@@ -169,8 +169,30 @@ export async function runStep(runId: string, stepId: string) {
       }
       await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString() });
       await recordEvent(runId, 'step.succeeded', { tool: step.tool, name: step.name }, stepId);
-      const remaining = await store.countRemainingSteps(runId);
-      if (Number(remaining) === 0) {
+      let remaining = 0;
+      let outstandingPlanned = 0;
+      try {
+        const stepsForRun = await store.listStepsByRun(runId);
+        remaining = stepsForRun.filter((s) => {
+          const st = String((s as any)?.status || '').toLowerCase();
+          return !['succeeded', 'cancelled'].includes(st);
+        }).length;
+
+        const runRow = await store.getRun(runId) as RunRow | undefined;
+        const plannedSteps = (runRow?.plan && typeof runRow.plan === 'object'
+          && !Array.isArray(runRow.plan)
+          && Array.isArray((runRow.plan as any).steps))
+          ? (runRow.plan as any).steps as unknown[]
+          : undefined;
+
+        if (Array.isArray(plannedSteps) && plannedSteps.length > stepsForRun.length) {
+          outstandingPlanned = plannedSteps.length - stepsForRun.length;
+        }
+      } catch (error) {
+        log.warn({ error, runId, stepId }, 'failed to evaluate remaining steps');
+      }
+
+      if (Number(remaining) === 0 && outstandingPlanned === 0) {
         await store.updateRun(runId, { status: 'succeeded', ended_at: new Date().toISOString() });
         await recordEvent(runId, "run.succeeded", {});
       }

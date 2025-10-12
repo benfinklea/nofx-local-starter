@@ -183,6 +183,10 @@ class RequestBuilder {
     return new RequestChain(this.app, 'PUT', path);
   }
 
+  patch(path: string) {
+    return new RequestChain(this.app, 'PATCH', path);
+  }
+
   delete(path: string) {
     return new RequestChain(this.app, 'DELETE', path);
   }

@@ -26,10 +26,12 @@ jest.mock('../../src/lib/observability', () => ({
 }));
 
 // Mock database
-const mockQuery = jest.fn();
 jest.mock('../../src/lib/db', () => ({
-  query: mockQuery
+  query: jest.fn()
 }));
+
+// Import the mocked query function
+import { query as mockQuery } from '../../src/lib/db';
 
 describe('Idempotency Middleware', () => {
   let app: Express;
@@ -37,7 +39,7 @@ describe('Idempotency Middleware', () => {
 
   beforeAll(async () => {
     // Mock successful table creation
-    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    jest.mocked(mockQuery).mockResolvedValue({ rows: [], rowCount: 0 } as any);
     await initializeIdempotencyCache();
   });
 
@@ -48,7 +50,7 @@ describe('Idempotency Middleware', () => {
     testIdempotencyKey = `test_${randomUUID()}`;
 
     // Reset mock implementations
-    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    jest.mocked(mockQuery).mockResolvedValue({ rows: [], rowCount: 0 } as any);
   });
 
   describe('Middleware Setup', () => {
@@ -56,10 +58,11 @@ describe('Idempotency Middleware', () => {
       app.use(idempotency());
       app.get('/test', (req, res) => res.json({ method: 'GET' }));
 
-      await request(app)
+      const response = await request(app)
         .get('/test')
-        .expect(200)
-        .expect({ method: 'GET' });
+        .expect(200);
+
+      expect(response.body).toEqual({ method: 'GET' });
 
       // Should not query cache for GET requests
       expect(mockQuery).not.toHaveBeenCalledWith(
@@ -250,8 +253,8 @@ describe('Idempotency Middleware', () => {
         .send({ data: 'test' })
         .expect(500);
 
-      const cacheCalls = mockQuery.mock.calls.filter(call =>
-        call[0] && call[0].includes('INSERT INTO nofx.idempotency_cache')
+      const cacheCalls = (mockQuery as jest.Mock).mock.calls.filter((call: any[]) =>
+        call[0] && typeof call[0] === 'string' && call[0].includes('INSERT INTO nofx.idempotency_cache')
       );
 
       // Should have cached the 400 but not the 500
@@ -270,11 +273,11 @@ describe('Idempotency Middleware', () => {
         created_at: '2025-01-01T00:00:00Z'
       };
 
-      mockQuery.mockImplementation((query: string) => {
+      jest.mocked(mockQuery).mockImplementation((query: string) => {
         if (query.includes('SELECT')) {
-          return Promise.resolve({ rows: [cachedResponse] });
+          return Promise.resolve({ rows: [cachedResponse] }) as any;
         }
-        return Promise.resolve({ rows: [], rowCount: 0 });
+        return Promise.resolve({ rows: [], rowCount: 0 }) as any;
       });
 
       app.use(idempotency());
@@ -302,11 +305,11 @@ describe('Idempotency Middleware', () => {
         created_at: '2025-01-01T00:00:00Z'
       };
 
-      mockQuery.mockImplementation((query: string) => {
+      jest.mocked(mockQuery).mockImplementation((query: string) => {
         if (query.includes('SELECT')) {
-          return Promise.resolve({ rows: [cachedResponse] });
+          return Promise.resolve({ rows: [cachedResponse] }) as any;
         }
-        return Promise.resolve({ rows: [], rowCount: 0 });
+        return Promise.resolve({ rows: [], rowCount: 0 }) as any;
       });
 
       app.use(idempotency());
@@ -321,8 +324,8 @@ describe('Idempotency Middleware', () => {
         .expect(200);
 
       // Should not attempt to cache when replaying
-      const insertCalls = mockQuery.mock.calls.filter(call =>
-        call[0] && call[0].includes('INSERT INTO nofx.idempotency_cache')
+      const insertCalls = (mockQuery as jest.Mock).mock.calls.filter((call: any[]) =>
+        call[0] && typeof call[0] === 'string' && call[0].includes('INSERT INTO nofx.idempotency_cache')
       );
       expect(insertCalls).toHaveLength(0);
     });
@@ -400,25 +403,26 @@ describe('Idempotency Middleware', () => {
   describe('Error Handling', () => {
     it('should continue processing when cache fails', async () => {
       // Mock cache failure
-      mockQuery.mockRejectedValue(new Error('Database error'));
+      jest.mocked(mockQuery).mockRejectedValue(new Error('Database error'));
 
       app.use(idempotency());
       app.post('/test', (req, res) => {
         res.json({ processed: true });
       });
 
-      await request(app)
+      const response = await request(app)
         .post('/test')
         .set('X-Idempotency-Key', testIdempotencyKey)
         .send({ data: 'test' })
-        .expect(200)
-        .expect({ processed: true });
+        .expect(200);
+
+      expect(response.body).toEqual({ processed: true });
     });
   });
 
   describe('Cache Management', () => {
     it('should clean up expired entries', async () => {
-      mockQuery.mockResolvedValue({ rowCount: 5 });
+      jest.mocked(mockQuery).mockResolvedValue({ rowCount: 5 } as any);
 
       const deletedCount = await cleanupExpiredCache();
 
@@ -429,7 +433,7 @@ describe('Idempotency Middleware', () => {
     });
 
     it('should handle cleanup failures gracefully', async () => {
-      mockQuery.mockRejectedValue(new Error('Database error'));
+      jest.mocked(mockQuery).mockRejectedValue(new Error('Database error'));
 
       const deletedCount = await cleanupExpiredCache();
 

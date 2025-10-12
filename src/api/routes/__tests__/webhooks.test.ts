@@ -14,7 +14,24 @@ jest.mock('stripe');
 jest.mock('../../../billing/stripe');
 jest.mock('../../../services/email/emailService');
 jest.mock('../../../auth/supabase');
-jest.mock('../../../lib/logger');
+jest.mock('../../../lib/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 
 describe('Webhook Handling - Security & Reliability Tests', () => {
   let mockStripe: jest.Mocked<Stripe>;

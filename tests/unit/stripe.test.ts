@@ -14,7 +14,24 @@ jest.mock('../../src/auth/supabase', () => ({
   createServiceClient: jest.fn()
 }));
 
-jest.mock('../../src/lib/logger');
+jest.mock('../../src/lib/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(() => ({
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+      fatal: jest.fn()
+    }))
+  }
+}));
 
 describe('Stripe Integration', () => {
   let stripeMock: any;
