@@ -18,6 +18,7 @@ import HelpText from '../components/HelpText';
 import Button from '@mui/material/Button';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import Collapse from '@mui/material/Collapse';
+import Chip from '@mui/material/Chip';
 import { formatCost, formatDuration } from '../lib/outputParser';
 
 function ArtifactViewer({ artifact }: { artifact: any }) {
@@ -65,9 +66,21 @@ function ArtifactViewer({ artifact }: { artifact: any }) {
           {loading ? 'Loading...' : expanded ? 'Hide' : 'View'}
         </Button>
       </Box>
-      <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-        {artifact.path} • {artifact.size_bytes || 0} bytes
-      </Typography>
+      <Tooltip title={artifact.path} placement="top">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          mb={1}
+          sx={{
+            wordBreak: 'break-all',
+            fontSize: '0.75rem',
+            fontFamily: 'monospace'
+          }}
+        >
+          {artifact.path} • {artifact.size_bytes || 0} bytes
+        </Typography>
+      </Tooltip>
       <Collapse in={expanded}>
         {content && (
           <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'background.default', maxHeight: 400, overflow: 'auto' }}>
@@ -427,6 +440,98 @@ export default function RunDetail(){
 
         {/* Sidebar */}
         <Grid size={{ xs: 12, md: 4 }}>
+          {/* Planned Steps */}
+          {run?.run?.plan?.steps && run.run.plan.steps.length > 0 && (
+            <Box mb={2}>
+              <Typography variant="h6" gutterBottom>📋 Planned Steps</Typography>
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <List dense>
+                  {run.run.plan.steps.map((plannedStep: any, idx: number) => {
+                    // Find the actual step execution
+                    const executedStep = run.steps?.find((s: any) => s.name === plannedStep.name || s.tool === plannedStep.tool);
+                    const status = executedStep?.status || 'pending';
+
+                    // Get status icon and color
+                    const getStatusIcon = () => {
+                      switch (status) {
+                        case 'succeeded': return '✅';
+                        case 'failed': return '❌';
+                        case 'running': return '🔄';
+                        case 'skipped': return '⏭️';
+                        default: return '⏸️';
+                      }
+                    };
+
+                    const getStatusColor = () => {
+                      switch (status) {
+                        case 'succeeded': return 'success.main';
+                        case 'failed': return 'error.main';
+                        case 'running': return 'info.main';
+                        case 'skipped': return 'warning.main';
+                        default: return 'text.secondary';
+                      }
+                    };
+
+                    return (
+                      <ListItem
+                        key={idx}
+                        sx={{
+                          py: 1,
+                          px: 0,
+                          borderBottom: idx < run.run.plan.steps.length - 1 ? 1 : 0,
+                          borderColor: 'divider'
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  minWidth: '20px',
+                                  bgcolor: 'action.hover',
+                                  px: 0.75,
+                                  py: 0.25,
+                                  borderRadius: 1,
+                                  fontWeight: 600
+                                }}
+                              >
+                                {idx + 1}
+                              </Typography>
+                              <Box component="span" fontSize="1rem">
+                                {getStatusIcon()}
+                              </Box>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {plannedStep.name}
+                              </Typography>
+                            </Box>
+                          }
+                          secondary={
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 5 }}>
+                              {plannedStep.tool}
+                              {plannedStep.inputs?.filename && ` → ${plannedStep.inputs.filename}`}
+                            </Typography>
+                          }
+                        />
+                        <Chip
+                          label={status}
+                          size="small"
+                          sx={{
+                            height: '20px',
+                            fontSize: '0.7rem',
+                            color: getStatusColor(),
+                            borderColor: getStatusColor()
+                          }}
+                          variant="outlined"
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Paper>
+            </Box>
+          )}
+
           {/* Quality Gates */}
           {run?.steps && run.steps.length > 0 && (() => {
             const gates = extractGatesFromSteps(run.steps);

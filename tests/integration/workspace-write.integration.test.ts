@@ -3,11 +3,8 @@
  * Verifies artifacts are correctly copied from runs/ to project workspace
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { store } from '../../src/lib/store';
+import { describe, it, expect } from '@jest/globals';
 import { buildPlanFromPrompt } from '../../src/api/planBuilder';
-import path from 'node:path';
-import fs from 'node:fs/promises';
 
 describe('workspace:write integration', () => {
   it('should add workspace:write step when projectId is provided', async () => {
@@ -18,21 +15,21 @@ describe('workspace:write integration', () => {
     });
 
     // Should have codegen step
-    const codegenStep = plan.steps.find((s: any) => s.tool === 'codegen');
+    const codegenStep = plan.steps.find((s) => s.tool === 'codegen');
     expect(codegenStep).toBeDefined();
     expect(codegenStep?.name).toBe('write readme');
 
     // Should have workspace:write step
-    const workspaceWriteStep = plan.steps.find((s: any) => s.tool === 'workspace:write');
+    const workspaceWriteStep = plan.steps.find((s) => s.tool === 'workspace:write');
     expect(workspaceWriteStep).toBeDefined();
     expect(workspaceWriteStep?.name).toBe('save to workspace');
 
-    // Verify inputs
+    // Verify inputs - haiku prompts should now resolve to haiku.md
     expect(workspaceWriteStep?.inputs).toMatchObject({
       projectId: 'test-project',
       fromStep: 'write readme',
-      artifactName: 'README.md',
-      targetPath: 'README.md',
+      artifactName: 'haiku.md',
+      targetPath: 'haiku.md',
       commit: true
     });
     expect(workspaceWriteStep?.inputs?.commitMessage).toContain('testing');
@@ -46,7 +43,7 @@ describe('workspace:write integration', () => {
     });
 
     // Should not have workspace:write step
-    const workspaceWriteStep = plan.steps.find((s: any) => s.tool === 'workspace:write');
+    const workspaceWriteStep = plan.steps.find((s) => s.tool === 'workspace:write');
     expect(workspaceWriteStep).toBeUndefined();
   });
 
@@ -57,7 +54,7 @@ describe('workspace:write integration', () => {
     });
 
     // Should not have workspace:write step
-    const workspaceWriteStep = plan.steps.find((s: any) => s.tool === 'workspace:write');
+    const workspaceWriteStep = plan.steps.find((s) => s.tool === 'workspace:write');
     expect(workspaceWriteStep).toBeUndefined();
   });
 
@@ -69,7 +66,7 @@ describe('workspace:write integration', () => {
       filePath: 'docs/custom.md'
     });
 
-    const workspaceWriteStep = plan.steps.find((s: any) => s.tool === 'workspace:write');
+    const workspaceWriteStep = plan.steps.find((s) => s.tool === 'workspace:write');
     expect(workspaceWriteStep?.inputs?.targetPath).toBe('docs/custom.md');
     expect(workspaceWriteStep?.inputs?.artifactName).toBe('custom.md');
   });

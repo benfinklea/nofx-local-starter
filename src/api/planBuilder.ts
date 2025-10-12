@@ -12,9 +12,43 @@ export function guessTopicFromPrompt(p: string) {
 
 export function guessMarkdownPath(p: string): string | undefined {
   if (!p) return undefined;
+
+  // First, check for explicit .md file path in the prompt
   const m = p.match(/(?:^|\s)([\w\-/.]+\.md)\b/i);
   if (m) return m[1];
+
+  // Check for "in docs" hint
   if (/\bin docs\b/i.test(p)) return 'docs/README.md';
+
+  // Infer filename from content-type keywords
+  const contentTypeMap: Record<string, string> = {
+    'haiku': 'haiku.md',
+    'poem': 'poem.md',
+    'poetry': 'poem.md',
+    'story': 'story.md',
+    'letter': 'letter.md',
+    'recipe': 'recipe.md',
+    'tutorial': 'tutorial.md',
+    'guide': 'guide.md',
+    'instructions': 'instructions.md',
+    'notes': 'notes.md',
+    'summary': 'summary.md',
+    'report': 'report.md',
+    'analysis': 'analysis.md',
+    'proposal': 'proposal.md',
+    'spec': 'spec.md',
+    'specification': 'specification.md'
+  };
+
+  const lowerPrompt = p.toLowerCase();
+  for (const [keyword, filename] of Object.entries(contentTypeMap)) {
+    // Match keyword as whole word (not part of another word)
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    if (regex.test(lowerPrompt)) {
+      return filename;
+    }
+  }
+
   return undefined;
 }
 

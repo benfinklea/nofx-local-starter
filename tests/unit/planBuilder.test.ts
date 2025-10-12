@@ -83,4 +83,27 @@ describe('planBuilder', () => {
     expect(guessMarkdownPath('Put it in docs')).toBe('docs/README.md');
     expect(guessMarkdownPath('No path here')).toBeUndefined();
   });
+
+  test('guessMarkdownPath infers filename from content-type keywords', () => {
+    // Haiku and poetry
+    expect(guessMarkdownPath('write a haiku')).toBe('haiku.md');
+    expect(guessMarkdownPath('Write a haiku about cats')).toBe('haiku.md');
+    expect(guessMarkdownPath('create a poem')).toBe('poem.md');
+    expect(guessMarkdownPath('Write poetry about the ocean')).toBe('poem.md');
+
+    // Other content types
+    expect(guessMarkdownPath('write a story about adventure')).toBe('story.md');
+    expect(guessMarkdownPath('create a recipe for cookies')).toBe('recipe.md');
+    expect(guessMarkdownPath('write a tutorial on testing')).toBe('tutorial.md');
+    expect(guessMarkdownPath('generate a report')).toBe('report.md');
+    expect(guessMarkdownPath('create notes for meeting')).toBe('notes.md');
+
+    // Should not match partial words
+    expect(guessMarkdownPath('repair the authentication')).toBeUndefined();
+    expect(guessMarkdownPath('reporting service')).toBeUndefined(); // 'reporting' != 'report'
+    expect(guessMarkdownPath('generate a report')).toBe('report.md'); // 'report' is whole word
+
+    // Explicit .md path takes priority over keyword
+    expect(guessMarkdownPath('write a haiku in custom.md')).toBe('custom.md');
+  });
 });

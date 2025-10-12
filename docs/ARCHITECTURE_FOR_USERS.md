@@ -91,7 +91,7 @@ nofx-local-starter/
 │       ├── run.json               ← Run metadata
 │       └── steps/
 │           └── {step-id}/
-│               ├── README.md      ← Your haiku lives here!
+│               ├── haiku.md       ← Your haiku lives here!
 │               ├── auth.ts        ← Generated code
 │               └── outputs.json   ← Step results
 └── .env                           ← Your secrets

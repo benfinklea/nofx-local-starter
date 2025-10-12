@@ -10,9 +10,22 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import { apiFetch } from '../lib/api';
 
+type GateConfig = {
+  enabled: boolean;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+};
+
 type SettingsDoc = {
   approvals: { dbWrites: 'none'|'dangerous'|'all'; allowWaive?: boolean };
-  gates: { typecheck: boolean; lint: boolean; unit: boolean; coverageThreshold: number };
+  gates: {
+    typecheck: boolean | GateConfig;
+    lint: boolean | GateConfig;
+    unit: boolean | GateConfig;
+    coverageThreshold: number;
+    sast?: boolean | GateConfig;
+    audit?: boolean | GateConfig;
+    secrets?: boolean | GateConfig;
+  };
   ops?: { backupIntervalMin?: number };
   llm?: { modelOrder?: Record<string, string[]> };
 };
@@ -76,9 +89,27 @@ export default function Settings(){
         </Stack>
         <Typography variant="subtitle1" sx={{ mt: 2 }}>Gates</Typography>
         <Stack direction={{ xs:'column', sm:'row' }} spacing={2} sx={{ my: 1 }}>
-          <FormControlLabel control={<Switch checked={settings.gates.typecheck} onChange={e=>setSettings(s=>s?{...s, gates:{...s.gates, typecheck: e.target.checked}}:s)} />} label="Typecheck" />
-          <FormControlLabel control={<Switch checked={settings.gates.lint} onChange={e=>setSettings(s=>s?{...s, gates:{...s.gates, lint: e.target.checked}}:s)} />} label="Lint" />
-          <FormControlLabel control={<Switch checked={settings.gates.unit} onChange={e=>setSettings(s=>s?{...s, gates:{...s.gates, unit: e.target.checked}}:s)} />} label="Unit" />
+          <FormControlLabel
+            control={<Switch
+              checked={typeof settings.gates.typecheck === 'boolean' ? settings.gates.typecheck : settings.gates.typecheck.enabled}
+              onChange={e => setSettings(s => s ? {...s, gates: {...s.gates, typecheck: typeof s.gates.typecheck === 'boolean' ? e.target.checked : {...s.gates.typecheck, enabled: e.target.checked}}} : s)}
+            />}
+            label="Typecheck"
+          />
+          <FormControlLabel
+            control={<Switch
+              checked={typeof settings.gates.lint === 'boolean' ? settings.gates.lint : settings.gates.lint.enabled}
+              onChange={e => setSettings(s => s ? {...s, gates: {...s.gates, lint: typeof s.gates.lint === 'boolean' ? e.target.checked : {...s.gates.lint, enabled: e.target.checked}}} : s)}
+            />}
+            label="Lint"
+          />
+          <FormControlLabel
+            control={<Switch
+              checked={typeof settings.gates.unit === 'boolean' ? settings.gates.unit : settings.gates.unit.enabled}
+              onChange={e => setSettings(s => s ? {...s, gates: {...s.gates, unit: typeof s.gates.unit === 'boolean' ? e.target.checked : {...s.gates.unit, enabled: e.target.checked}}} : s)}
+            />}
+            label="Unit"
+          />
           <TextField label="Coverage %" type="number" size="small" value={Math.round((settings.gates.coverageThreshold||0)*100)} onChange={e=>setSettings(s=>s?{...s, gates:{...s.gates, coverageThreshold: (Number(e.target.value)||0)/100}}:s)} />
         </Stack>
         <Typography variant="subtitle1" sx={{ mt: 2 }}>Backups</Typography>
