@@ -6,6 +6,15 @@ export type Plan = { goal: string; steps: Array<{ name: string; tool: string; in
 export type Run = { id: string; status: string; created_at?: string; plan?: Plan };
 export type Project = { id: string; name: string; repo_url?: string|null; local_path?: string|null; workspace_mode?: string; default_branch?: string|null };
 
+export type TraceLogStatus = {
+  enabled: boolean;
+  source: 'env' | 'settings' | 'default';
+  logFilePath: string;
+  downloadUrl: string;
+  available: boolean;
+  instructions: string[];
+};
+
 function currentProjectId(): string | undefined {
   return safeLocalStorage.getItem('projectId') || undefined;
 }
@@ -28,7 +37,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   }
 
   const url = typeof fetchUrl === 'string' ? fetchUrl : fetchUrl.url;
-  // Debug: console.log(`[API] Making request to: ${url}`, { method: init?.method || 'GET', projectId });
+  // Debug helper: `[API] Request ${url}` with method + projectId
 
   try {
     const response = await fetch(fetchUrl, {
@@ -37,7 +46,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
       credentials: 'include' // Include cookies for auth
     });
 
-    // Debug: console.log(`[API] Response from ${url}:`, { status: response.status });
+    // Debug helper: log response status if needed
 
     // Handle authentication errors
     if (response.status === 401) {
@@ -74,11 +83,11 @@ export type Event = { id?: string; type: string; created_at?: string; payload?: 
 export async function listRuns(limit = 50): Promise<Run[]> {
   const pid = currentProjectId();
   const url = `/runs?limit=${encodeURIComponent(String(limit))}${pid?`&projectId=${encodeURIComponent(pid)}`:''}`;
-  // Debug: console.log('[API] listRuns: Fetching runs from:', url);
+  // Debug helper: record the fetch URL if needed
 
   try {
     const rsp = await apiFetch(url);
-    // Debug: console.log('[API] listRuns: Response status:', rsp.status);
+    // Debug helper: inspect rsp.status if needed
 
     if (!rsp.ok) {
       const errorText = await rsp.text();
@@ -95,7 +104,7 @@ export async function listRuns(limit = 50): Promise<Run[]> {
     }
 
     const runs = Array.isArray(data?.runs) ? data.runs : [];
-    // Debug: console.log('[API] listRuns: Returning', runs.length, 'runs');
+    // Debug helper: log number of runs if needed
     return runs;
   } catch (error) {
     console.error('[API] listRuns: Error:', error);
@@ -118,6 +127,27 @@ export async function listProjects(): Promise<Project[]> {
   if (!rsp.ok) return [];
   const j = await rsp.json();
   return j.projects || [];
+}
+
+export async function getTraceLogStatus(): Promise<TraceLogStatus> {
+  const rsp = await apiFetch('/trace-log');
+  if (!rsp.ok) {
+    const message = await rsp.text();
+    throw new Error(message || 'Failed to load trace log status');
+  }
+  return rsp.json();
+}
+
+export async function setTraceLogEnabled(enabled: boolean): Promise<void> {
+  const rsp = await apiFetch('/trace-log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled })
+  });
+  if (!rsp.ok) {
+    const text = await rsp.text();
+    throw new Error(text || 'Failed to update trace log status');
+  }
 }
 export async function createProject(p: Partial<Project>): Promise<Project | null> {
   const rsp = await apiFetch('/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });

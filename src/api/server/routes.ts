@@ -13,12 +13,16 @@ import teamsRoutes from '../routes/teams';
 import performanceRoutes from '../routes/performance';
 import superAdminRoutes from '../routes/super-admin';
 import uiRoutes from '../routes/ui';
+import traceLogRoutes from '../routes/traceLog';
+import projectsRoutes from '../routes/projects';
 
 export function mountCoreRoutes(app: Express) {
   // Core NOFX routes
   builderRoutes(app);
   responsesRoutes(app);
   uiRoutes(app);
+  traceLogRoutes(app);
+  projectsRoutes(app);
 
   // Performance monitoring routes
   app.use('/api', performanceRoutes);
