@@ -146,8 +146,6 @@ export class AgentSdkAdapter {
    * Extract allowed tools from step configuration
    */
   private extractAllowedTools(step: Step): string[] | undefined {
-    const tools: string[] = [];
-
     // Check if step explicitly requests tools
     if (step.inputs?._tools) {
       if (Array.isArray(step.inputs._tools)) {
@@ -187,7 +185,7 @@ export class AgentSdkAdapter {
       PostToolUse: [
         {
           hooks: [
-            async (input, toolUseID, options) => {
+            async (input, _toolUseID, _options) => {
               await recordEvent(
                 context.runId,
                 'sdk.tool_use',
