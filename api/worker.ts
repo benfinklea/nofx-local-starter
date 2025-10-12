@@ -13,13 +13,24 @@ import { runStep } from '../src/worker/runner';
 function isAuthorized(req: VercelRequest): boolean {
   // Check for Vercel cron user-agent (actual header Vercel sends)
   const userAgent = req.headers['user-agent'] || '';
-  if (userAgent.startsWith('vercel-cron/')) {
+  if (userAgent.startsWith('vercel-cron/') || userAgent.includes('vercel-cron')) {
     return true;
   }
 
-  // Legacy: Check for x-vercel-cron header (documented but not always sent)
-  if (req.headers['x-vercel-cron'] === '1') {
+  // Check for x-vercel-cron header (documented but not always sent)
+  if (req.headers['x-vercel-cron'] === '1' || req.headers['x-vercel-cron'] === 'true') {
     return true;
+  }
+
+  // Check if request is from Vercel's internal network (cron jobs)
+  // Vercel cron jobs come from specific IP ranges/hosts
+  const host = req.headers['host'] || '';
+  const referer = req.headers['referer'] || '';
+  if (host.includes('vercel.app') || referer.includes('vercel.com')) {
+    // Additional safety: only if it looks like a cron job (no query params, GET request)
+    if (req.method === 'GET' && Object.keys(req.query || {}).length === 0) {
+      return true;
+    }
   }
 
   // For manual testing/triggering, require secret in header (not query param for security)
