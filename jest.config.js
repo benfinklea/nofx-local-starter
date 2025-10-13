@@ -60,7 +60,11 @@ module.exports = {
         // Only ignore codes that are truly unavoidable in test environment
         // 6133: unused variable (often false positives in test setup)
         // 7017: try-catch binding (common in error handling tests)
-        ignoreCodes: [6133, 7017]
+        // 2304: Cannot find name (jest globals in setup files)
+        // 2503: Cannot find namespace (jest namespace in test files)
+        // 2582: Cannot find name (describe/it/etc in test files)
+        // 7031: Binding element implicitly has 'any' type (mock implementations)
+        ignoreCodes: [6133, 7017, 2304, 2503, 2582, 7031]
       }
     }]
   }
