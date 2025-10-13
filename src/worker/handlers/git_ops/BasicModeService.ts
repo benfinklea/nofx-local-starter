@@ -12,6 +12,27 @@ export class BasicModeService {
   constructor(private readonly advancedModeService: AdvancedModeService) {}
 
   /**
+   * Validate branch name for security and git compliance
+   */
+  private validateBranchName(branchName: string): void {
+    // Check for path traversal attempts
+    if (branchName.includes('..')) {
+      throw new Error('Invalid branch name: path traversal not allowed');
+    }
+
+    // Check for invalid characters (git allows alphanumeric, dash, underscore, and forward slash)
+    const validBranchPattern = /^[a-zA-Z0-9/_-]+$/;
+    if (!validBranchPattern.test(branchName)) {
+      throw new Error('Invalid branch name: only alphanumeric, dash, underscore, and forward slash allowed');
+    }
+
+    // Check for branches that are only dots or start/end with dots
+    if (/^\.+$/.test(branchName)) {
+      throw new Error('Invalid branch name: cannot consist only of dots');
+    }
+  }
+
+  /**
    * Execute operations in basic mode
    */
   async executeOperation(git: SimpleGit, inputs: GitOpsInputs, project: any): Promise<any> {
@@ -78,6 +99,9 @@ export class BasicModeService {
         message: `On branch: ${branches.current}`
       };
     }
+
+    // Validate branch name before using it
+    this.validateBranchName(inputs.branch_name);
 
     // Create or switch branch
     if (inputs.create_new) {

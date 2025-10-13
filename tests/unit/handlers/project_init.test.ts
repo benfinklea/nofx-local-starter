@@ -37,6 +37,14 @@ jest.mock('../../../src/lib/logger', () => ({
   }
 }));
 
+// Mock fs promises for template creation
+jest.mock('fs', () => ({
+  promises: {
+    mkdir: jest.fn(() => Promise.resolve()),
+    writeFile: jest.fn(() => Promise.resolve())
+  }
+}));
+
 import projectInitHandler from '../../../src/worker/handlers/project_init';
 import { store } from '../../../src/lib/store';
 import { recordEvent } from '../../../src/lib/events';
@@ -83,22 +91,40 @@ describe('project_init handler', () => {
         inputs: {}
       };
 
-      await expect(projectInitHandler.run({
+      await projectInitHandler.run({
         runId: 'run-123',
         step: stepMissingProject as any
-      })).rejects.toThrow('project_id is required');
+      });
 
       // Should update step to running first
-      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(1, 'step-123', {
         status: 'running',
         started_at: expect.any(String)
       });
 
       // Should record start event
-      expect(mockRecordEvent).toHaveBeenCalledWith(
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(1,
         'run-123',
         'step.started',
         { name: 'init-project', tool: 'project_init' },
+        'step-123'
+      );
+
+      // Should update step to failed
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(2, 'step-123', {
+        status: 'failed',
+        ended_at: expect.any(String),
+        outputs: {
+          error: 'project_id is required',
+          project_id: undefined
+        }
+      });
+
+      // Should record failure event
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(2,
+        'run-123',
+        'step.failed',
+        { outputs: { error: 'project_id is required', project_id: undefined }, error: 'project_id is required' },
         'step-123'
       );
     });
@@ -106,12 +132,36 @@ describe('project_init handler', () => {
     it('should fail when project is not found', async () => {
       mockGetProject.mockResolvedValue(null);
 
-      await expect(projectInitHandler.run({
+      await projectInitHandler.run({
         runId: 'run-123',
         step: baseStep as any
-      })).rejects.toThrow('Project project-456 not found');
+      });
 
       expect(mockGetProject).toHaveBeenCalledWith('project-456');
+
+      // Should update step to running first
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(1, 'step-123', {
+        status: 'running',
+        started_at: expect.any(String)
+      });
+
+      // Should update step to failed
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(2, 'step-123', {
+        status: 'failed',
+        ended_at: expect.any(String),
+        outputs: {
+          error: 'Project project-456 not found',
+          project_id: 'project-456'
+        }
+      });
+
+      // Should record failure event
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(2,
+        'run-123',
+        'step.failed',
+        { outputs: { error: 'Project project-456 not found', project_id: 'project-456' }, error: 'Project project-456 not found' },
+        'step-123'
+      );
     });
 
     it('should skip initialization when project already initialized', async () => {
@@ -129,8 +179,22 @@ describe('project_init handler', () => {
         step: baseStep as any
       });
 
+      // Should update step to running first
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(1, 'step-123', {
+        status: 'running',
+        started_at: expect.any(String)
+      });
+
+      // Should record start event
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(1,
+        'run-123',
+        'step.started',
+        { name: 'init-project', tool: 'project_init' },
+        'step-123'
+      );
+
       // Should update step to succeeded
-      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(2, 'step-123', {
         status: 'succeeded',
         ended_at: expect.any(String),
         outputs: {
@@ -141,10 +205,10 @@ describe('project_init handler', () => {
       });
 
       // Should record finished event
-      expect(mockRecordEvent).toHaveBeenCalledWith(
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(2,
         'run-123',
         'step.finished',
-        { workspace: '/workspace/path' },
+        { outputs: { message: 'Project already initialized', workspace: '/workspace/path', initialized: true } },
         'step-123'
       );
 
@@ -279,13 +343,31 @@ describe('project_init handler', () => {
       mockGetProject.mockResolvedValue(project as any);
       mockWorkspaceManager.ensureWorkspace.mockRejectedValue(new Error('Workspace creation failed'));
 
-      await expect(projectInitHandler.run({
+      await projectInitHandler.run({
         runId: 'run-123',
         step: baseStep as any
-      })).rejects.toThrow('Workspace creation failed');
+      });
 
       // Should have tried to ensure workspace
       expect(mockWorkspaceManager.ensureWorkspace).toHaveBeenCalledWith(project);
+
+      // Should update step to failed
+      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
+        status: 'failed',
+        ended_at: expect.any(String),
+        outputs: {
+          error: 'Workspace creation failed',
+          project_id: 'project-456'
+        }
+      });
+
+      // Should record failure event
+      expect(mockRecordEvent).toHaveBeenCalledWith(
+        'run-123',
+        'step.failed',
+        { outputs: { error: 'Workspace creation failed', project_id: 'project-456' }, error: 'Workspace creation failed' },
+        'step-123'
+      );
     });
 
     it('should validate all supported template types', async () => {

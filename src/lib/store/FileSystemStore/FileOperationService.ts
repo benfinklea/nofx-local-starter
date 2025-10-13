@@ -31,8 +31,14 @@ export class FileOperationService {
   async readJsonFile(filePath: string): Promise<JsonValue | null> {
     try {
       const content = await fsp.readFile(filePath, 'utf8');
-      return JSON.parse(content);
+      try {
+        return JSON.parse(content);
+      } catch {
+        // Malformed JSON - return null to indicate invalid data
+        return null;
+      }
     } catch {
+      // File not found or read error - return null
       return null;
     }
   }

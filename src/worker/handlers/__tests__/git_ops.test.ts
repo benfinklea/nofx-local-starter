@@ -523,11 +523,12 @@ describe('Git Operations Handler - Security & Functionality Tests', () => {
 
           await handler.run({ runId, step: mockStep });
 
+          // Handler calls updateStep twice: once for 'running', once for 'failed'
           expect(store.updateStep).toHaveBeenCalledWith(stepId, {
             status: 'failed',
             ended_at: expect.any(String),
             outputs: expect.objectContaining({
-              error: 'Invalid branch name'
+              error: expect.stringContaining('Invalid branch name')
             })
           });
         }

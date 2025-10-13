@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { getCache, setCache, deleteExpiredCache } from '../../src/lib/cache';
+import { getCacheJSON, setCacheJSON, invalidateNamespace } from '../../src/lib/cache';
 import { log } from '../../src/lib/observability';
 
 // Mock the observability module
@@ -15,35 +15,28 @@ jest.mock('../../src/lib/observability', () => ({
 }));
 
 // Mock fs/promises
-jest.mock('fs/promises', () => ({
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
-  unlink: jest.fn(),
-  readdir: jest.fn(),
-  stat: jest.fn(),
-  mkdir: jest.fn()
-}));
+jest.mock('fs/promises');
 
 describe('Error Handling - Cache Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('getCache', () => {
+  describe('getCacheJSON', () => {
     it('should log error context when file read fails', async () => {
       const error = new Error('ENOENT: File not found');
-      (fs.readFile as jest.Mock).mockRejectedValue(error);
+      (fs.readFile as jest.MockedFunction<typeof fs.readFile>).mockRejectedValue(error);
 
-      const result = await getCache('test', 'key');
+      const result = await getCacheJSON('test', 'key');
 
       expect(result).toBeNull();
-      expect(log.error).toHaveBeenCalledWith(
+      expect(log.debug).toHaveBeenCalledWith(
         expect.objectContaining({
           error,
           context: expect.objectContaining({
-            type: 'test',
+            ns: 'test',
             key: 'key',
-            operation: 'getCache'
+            operation: 'getCacheJSON'
           })
         }),
         expect.stringContaining('Cache read failed')
@@ -51,20 +44,20 @@ describe('Error Handling - Cache Module', () => {
     });
 
     it('should log when file deletion fails during expiry check', async () => {
-      const content = JSON.stringify({ value: 'data', expiry: Date.now() - 1000 });
-      (fs.readFile as jest.Mock).mockResolvedValue(content);
+      const content = JSON.stringify({ value: 'data', expiresAt: Date.now() - 1000 });
+      (fs.readFile as jest.MockedFunction<typeof fs.readFile>).mockResolvedValue(content);
 
       const unlinkError = new Error('Permission denied');
-      (fs.unlink as jest.Mock).mockRejectedValue(unlinkError);
+      (fs.unlink as jest.MockedFunction<typeof fs.unlink>).mockRejectedValue(unlinkError);
 
-      const result = await getCache('test', 'key');
+      const result = await getCacheJSON('test', 'key');
 
       expect(result).toBeNull();
       expect(log.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           error: unlinkError,
           context: expect.objectContaining({
-            type: 'test',
+            ns: 'test',
             key: 'key',
             operation: 'deleteExpiredCache'
           })
@@ -74,43 +67,43 @@ describe('Error Handling - Cache Module', () => {
     });
   });
 
-  describe('deleteExpiredCache', () => {
+  describe('invalidateNamespace', () => {
     it('should log context when directory read fails', async () => {
       const error = new Error('Directory not accessible');
-      (fs.readdir as jest.Mock).mockRejectedValue(error);
+      (fs.readdir as jest.MockedFunction<typeof fs.readdir>).mockRejectedValue(error);
 
-      const result = await deleteExpiredCache('test');
+      const result = await invalidateNamespace('test');
 
       expect(result).toBe(0);
-      expect(log.error).toHaveBeenCalledWith(
+      expect(log.debug).toHaveBeenCalledWith(
         expect.objectContaining({
           error,
           context: expect.objectContaining({
-            type: 'test',
-            operation: 'deleteExpiredCache'
+            ns: 'test',
+            operation: 'invalidateNamespace'
           })
         }),
-        expect.stringContaining('Failed to clean expired cache')
+        expect.stringContaining('Failed to invalidate cache namespace')
       );
     });
 
     it('should log warning for individual file deletion failures', async () => {
-      (fs.readdir as jest.Mock).mockResolvedValue(['file1.json', 'file2.json']);
-      (fs.stat as jest.Mock).mockResolvedValue({ mtimeMs: Date.now() - 100000000 });
+      (fs.readdir as jest.MockedFunction<typeof fs.readdir>).mockResolvedValue(['file1.json', 'file2.json'] as any);
 
       const unlinkError = new Error('File locked');
-      (fs.unlink as jest.Mock)
+      (fs.unlink as jest.MockedFunction<typeof fs.unlink>)
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(unlinkError);
 
-      const result = await deleteExpiredCache('test');
+      const result = await invalidateNamespace('test');
 
       expect(log.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           error: unlinkError,
           context: expect.objectContaining({
+            ns: 'test',
             file: 'file2.json',
-            operation: 'deleteExpiredFile'
+            operation: 'invalidateNamespaceFile'
           })
         }),
         expect.stringContaining('Failed to delete cache file')

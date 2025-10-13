@@ -10,7 +10,7 @@ import {
   NavigationItemStatus,
   NavigationItemType,
   validateManifest
-} from '../../packages/shared/src/navigation';
+} from '../../packages/shared/src';
 
 describe('Navigation System Tests', () => {
   let manifest: NavigationManifest;

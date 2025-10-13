@@ -8,14 +8,15 @@
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../../api/runs/[id]';
+import { createMockRequest, createMockResponse } from '../api/utils/testHelpers';
 
 describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
   describe('🛡️ Vercel Routing Integration', () => {
     test('handles direct API call to /api/runs/[id]', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: '7fe292d5-3c01-4f48-b64a-f513ca5cd7c7' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -31,12 +32,11 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
     test('handles rewritten request from /runs/:id', async () => {
       // Simulates Vercel rewrite from /runs/:id → /api/runs/[id]
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-run-id' },
-        url: '/runs/test-run-id',
         headers: {}
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -51,10 +51,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
       const methods = ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
 
       for (const method of methods) {
-        const mockReq = {
+        const mockReq = createMockRequest({
           method,
           query: { id: 'test-id' }
-        } as VercelRequest;
+        });
 
         const mockRes = createMockResponse();
 
@@ -72,10 +72,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
   describe('🛡️ Database Integration', () => {
     test('retrieves run from database', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'existing-run-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -87,10 +87,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('retrieves associated steps', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'run-with-steps' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -102,10 +102,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('retrieves associated artifacts', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'run-with-artifacts' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -117,10 +117,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('returns 404 for non-existent run', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'non-existent-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -136,10 +136,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
     test('handles database connection failures', async () => {
       // Simulate database unavailable
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'trigger-db-error' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -154,11 +154,11 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('handles database query timeout', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'slow-query-id' },
         headers: { 'x-timeout': '1000' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -171,13 +171,13 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
   describe('🛡️ Authentication & Authorization', () => {
     test('validates JWT token', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' },
         headers: {
           authorization: 'Bearer valid-jwt-token'
         }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -188,13 +188,13 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('rejects invalid JWT token', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' },
         headers: {
           authorization: 'Bearer invalid-token'
         }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -204,13 +204,13 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('rejects expired JWT token', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' },
         headers: {
           authorization: 'Bearer expired-token-12345'
         }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -230,11 +230,11 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
       ];
 
       for (const auth of malformedHeaders) {
-        const mockReq = {
+        const mockReq = createMockRequest({
           method: 'GET',
           query: { id: 'test-id' },
           headers: { authorization: auth }
-        } as VercelRequest;
+        });
 
         const mockRes = createMockResponse();
 
@@ -245,13 +245,13 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('enforces tenant isolation', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'other-tenant-run-id' },
         headers: {
           authorization: 'Bearer tenant-a-token'
         }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -264,10 +264,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
   describe('🛡️ CORS & Security Headers', () => {
     test('includes CORS headers', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -281,10 +281,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('handles OPTIONS preflight request', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'OPTIONS',
         query: { id: 'test-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -298,10 +298,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('prevents XSS in response data', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'run-with-xss-content' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -316,10 +316,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('sets security headers', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -334,10 +334,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
   describe('🛡️ Error Handling & Edge Cases', () => {
     test('handles missing query parameter', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: {}
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -347,10 +347,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('handles array of IDs in query parameter', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: ['id1', 'id2'] }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -363,10 +363,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     test('handles extremely long request processing', async () => {
       jest.setTimeout(30000);
 
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'very-complex-run' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -380,10 +380,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
     test('handles concurrent requests to same run', async () => {
       const promises = Array(50).fill(null).map(() => {
-        const mockReq = {
+        const mockReq = createMockRequest({
           method: 'GET',
           query: { id: 'popular-run-id' }
-        } as VercelRequest;
+        });
 
         const mockRes = createMockResponse();
 
@@ -397,14 +397,14 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('handles request with special characters in headers', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' },
         headers: {
           'user-agent': 'Test/1.0 (特殊文字)',
           'accept-language': 'en-US,en;q=0.9,ja;q=0.8'
         }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -416,10 +416,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
   describe('🛡️ Performance & Resource Limits', () => {
     test('completes within acceptable time', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'test-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -432,10 +432,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('handles run with thousands of steps', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'run-with-many-steps' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -447,10 +447,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('handles run with large artifacts', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'run-with-large-artifacts' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -460,10 +460,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('does not exceed Vercel function memory limit', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'memory-intensive-run' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -481,10 +481,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
 
   describe('🛡️ Data Integrity & Validation', () => {
     test('returns complete run object with all fields', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'complete-run-id' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -510,10 +510,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
       ];
 
       for (const invalidId of invalidIds) {
-        const mockReq = {
+        const mockReq = createMockRequest({
           method: 'GET',
           query: { id: invalidId }
-        } as VercelRequest;
+        });
 
         const mockRes = createMockResponse();
 
@@ -526,10 +526,10 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
 
     test('ensures steps are ordered correctly', async () => {
-      const mockReq = {
+      const mockReq = createMockRequest({
         method: 'GET',
         query: { id: 'run-with-ordered-steps' }
-      } as VercelRequest;
+      });
 
       const mockRes = createMockResponse();
 
@@ -549,14 +549,3 @@ describe('Run Detail API Endpoint - BULLETPROOF INTEGRATION TESTS', () => {
     });
   });
 });
-
-// Helper function to create mock response object
-function createMockResponse(): any {
-  const mockRes = {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn().mockReturnThis(),
-    setHeader: jest.fn().mockReturnThis(),
-    end: jest.fn().mockReturnThis()
-  };
-  return mockRes;
-}

@@ -25,53 +25,70 @@ export function createMockRequest(options: {
 
 /**
  * Create a mock Vercel response object
+ * Now with jest.fn() support for better test assertions
  */
 export function createMockResponse(): VercelResponse & {
   _status?: number;
   _json?: any;
   _data?: any;
   _headers: Record<string, string>;
+  status: jest.Mock<VercelResponse, [number]>;
+  json: jest.Mock<VercelResponse, [any]>;
+  send: jest.Mock<VercelResponse, [any]>;
+  setHeader: jest.Mock<VercelResponse, [string, string]>;
+  end: jest.Mock<VercelResponse, []>;
+  write: jest.Mock<VercelResponse, [any]>;
 } {
-  const res: any = {
+  const state = {
     _status: 200,
     _json: null,
     _data: null,
-    _headers: {},
-    _writes: [],
+    _headers: {} as Record<string, string>,
+    _writes: [] as string[],
     _ended: false,
-    status(code: number) {
-      this._status = code;
-      return this;
-    },
-    json(data: any) {
-      this._json = data;
-      return this;
-    },
-    send(data: any) {
-      this._data = data;
-      return this;
-    },
-    setHeader(key: string, value: string) {
-      this._headers[key] = value;
-      return this;
-    },
-    end() {
-      this._ended = true;
-      return this;
-    },
-    write(data: any) {
-      this._writes.push(String(data));
-      this._data = (this._data || '') + data;
-      return this;
-    },
+  };
+
+  const res: any = {
+    get _status() { return state._status; },
+    get _json() { return state._json; },
+    get _data() { return state._data; },
+    get _headers() { return state._headers; },
+    get _writes() { return state._writes; },
+    get _ended() { return state._ended; },
+
+    status: jest.fn((code: number) => {
+      state._status = code;
+      return res;
+    }),
+    json: jest.fn((data: any) => {
+      state._json = data;
+      return res;
+    }),
+    send: jest.fn((data: any) => {
+      state._data = data;
+      return res;
+    }),
+    setHeader: jest.fn((key: string, value: string) => {
+      state._headers[key] = value;
+      return res;
+    }),
+    end: jest.fn(() => {
+      state._ended = true;
+      return res;
+    }),
+    write: jest.fn((data: any) => {
+      state._writes.push(String(data));
+      state._data = (state._data || '') + data;
+      return res;
+    }),
     get writes() {
-      return this._writes;
+      return state._writes;
     },
     get ended() {
-      return this._ended;
+      return state._ended;
     },
     get headers() {
-      return this._headers;
+      return state._headers;
     },
   };
 

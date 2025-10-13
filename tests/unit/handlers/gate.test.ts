@@ -26,7 +26,8 @@ jest.mock('../../../src/lib/logger', () => ({
 }));
 
 jest.mock('../../../src/lib/settings', () => ({
-  getSettings: jest.fn()
+  getSettings: jest.fn(),
+  shouldGateBlock: jest.fn()
 }));
 
 jest.mock('../../../src/lib/artifacts', () => ({
@@ -60,22 +61,37 @@ jest.mock('node:fs', () => ({
   }
 }));
 
+jest.mock('../../../src/lib/projects', () => ({
+  getProject: jest.fn()
+}));
+
+jest.mock('../../../src/lib/workspaces', () => ({
+  workspaceManager: {
+    ensureWorkspace: jest.fn()
+  }
+}));
+
 import gateHandler from '../../../src/worker/handlers/gate';
 import { store } from '../../../src/lib/store';
 import { recordEvent } from '../../../src/lib/events';
-import { getSettings } from '../../../src/lib/settings';
+import { getSettings, shouldGateBlock } from '../../../src/lib/settings';
 import { saveArtifact } from '../../../src/lib/artifacts';
 import { buildMinimalEnv } from '../../../src/lib/secrets';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { getProject } from '../../../src/lib/projects';
+import { workspaceManager } from '../../../src/lib/workspaces';
 
 const mockStore = jest.mocked(store);
 const mockRecordEvent = jest.mocked(recordEvent);
 const mockGetSettings = jest.mocked(getSettings);
+const mockShouldGateBlock = jest.mocked(shouldGateBlock);
 const mockSaveArtifact = jest.mocked(saveArtifact);
 const mockBuildMinimalEnv = jest.mocked(buildMinimalEnv);
 const mockSpawnSync = jest.mocked(spawnSync);
 const mockFs = jest.mocked(fs);
+const mockGetProject = jest.mocked(getProject);
+const mockWorkspaceManager = jest.mocked(workspaceManager);
 
 describe('gate handler', () => {
   beforeEach(() => {
@@ -88,9 +104,16 @@ describe('gate handler', () => {
     } as any);
     mockSaveArtifact.mockResolvedValue('https://example.com/artifact.json');
     mockBuildMinimalEnv.mockReturnValue({ NODE_ENV: 'test' });
+    mockGetProject.mockResolvedValue(null);
+    mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/mock/workspace');
+    mockShouldGateBlock.mockReturnValue(true); // Default to blocking for critical gates
 
     // Mock successful fs operations by default
-    mockFs.existsSync.mockReturnValue(true);
+    // Return false for lock files to avoid waiting, true for everything else
+    mockFs.existsSync.mockImplementation((path) => {
+      if (String(path).includes('.lock')) return false;
+      return true;
+    });
     mockFs.readdirSync.mockReturnValue([]);
     mockFs.statSync.mockReturnValue({ isFile: () => true } as any);
   });
@@ -161,7 +184,7 @@ describe('gate handler', () => {
         ended_at: expect.any(String),
         outputs: {
           gate: 'test',
-          summary: { gate: 'test', passed: true, details: 'All tests passed' },
+          summary: { gate: 'test', passed: true, details: 'All tests passed', severity: 'warning' },
           artifacts: ['https://example.com/artifact.json']
         }
       });
@@ -170,7 +193,7 @@ describe('gate handler', () => {
       expect(mockRecordEvent).toHaveBeenCalledWith(
         'run-123',
         'step.finished',
-        { gate: 'test', summary: { gate: 'test', passed: true, details: 'All tests passed' } },
+        { gate: 'test', summary: { gate: 'test', passed: true, details: 'All tests passed', severity: 'warning' } },
         'step-123'
       );
     });
@@ -195,7 +218,7 @@ describe('gate handler', () => {
         ended_at: expect.any(String),
         outputs: {
           gate: 'test',
-          summary: { gate: 'test', passed: false, error: 'Tests failed' },
+          summary: { gate: 'test', passed: false, error: 'Tests failed', severity: 'warning' },
           artifacts: ['https://example.com/artifact.json']
         }
       });
@@ -204,7 +227,7 @@ describe('gate handler', () => {
       expect(mockRecordEvent).toHaveBeenCalledWith(
         'run-123',
         'step.failed',
-        { gate: 'test', summary: { gate: 'test', passed: false, error: 'Tests failed' }, stderr: 'Test execution failed' },
+        { gate: 'test', summary: { gate: 'test', passed: false, error: 'Tests failed', severity: 'warning' }, severity: 'warning', blocked: true, stderr: 'Test execution failed' },
         'step-123'
       );
     });
@@ -310,7 +333,7 @@ describe('gate handler', () => {
         ended_at: expect.any(String),
         outputs: {
           gate: 'test',
-          summary: { gate: 'test', passed: true },
+          summary: { gate: 'test', passed: true, severity: 'warning' },
           artifacts: ['https://example.com/artifact.json']
         }
       });
@@ -319,9 +342,11 @@ describe('gate handler', () => {
     it('should process gate artifacts', async () => {
       // Mock artifacts directory with files
       mockFs.existsSync.mockImplementation((path) => {
-        if (String(path).includes('gate-artifacts')) return true;
-        if (String(path).includes('.lock')) return false;
-        return true;
+        const pathStr = String(path);
+        if (pathStr.includes('.lock')) return false; // No lock file
+        if (pathStr.includes('gate-artifacts') && !pathStr.endsWith('.json') && !pathStr.endsWith('.txt')) return true; // Directory exists
+        if (pathStr.includes('test-results.json') || pathStr.includes('coverage.txt')) return true; // Files exist
+        return true; // Other paths
       });
 
       mockFs.readdirSync.mockReturnValue(['test-results.json', 'coverage.txt'] as any);
@@ -471,7 +496,7 @@ describe('gate handler', () => {
         ended_at: expect.any(String),
         outputs: {
           gate: 'test',
-          summary: { gate: 'test', passed: true },
+          summary: { gate: 'test', passed: true, severity: 'warning' },
           artifacts: [] // Empty due to upload failure
         }
       });

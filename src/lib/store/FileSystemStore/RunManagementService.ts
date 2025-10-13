@@ -57,8 +57,7 @@ export class RunManagementService {
     const existingRun = await this.fileOps.readJsonFile(runPath);
 
     if (!existingRun) {
-      // Gracefully handle non-existent run - no-op instead of throwing
-      return;
+      throw new Error(`Run ${id} not found`);
     }
 
     const updatedRun = { ...(existingRun as object), ...patch };

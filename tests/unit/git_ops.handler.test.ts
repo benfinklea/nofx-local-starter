@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import gitOpsHandler from '../../src/worker/handlers/git_ops';
 import { store } from '../../src/lib/store';
+import type { StepRow } from '../../src/lib/store/types';
 import { getProject, createProject } from '../../src/lib/projects';
 import { workspaceManager } from '../../src/lib/workspaces';
 import * as path from 'node:path';
@@ -9,6 +10,9 @@ import * as fsp from 'node:fs/promises';
 // Mock dependencies
 jest.mock('../../src/lib/store');
 jest.mock('../../src/lib/events');
+
+// Type the mocked store
+const mockStore = store as jest.Mocked<typeof store>;
 
 describe('git_ops handler', () => {
   const testWorkspaceRoot = path.join(process.cwd(), 'test_git_ops_workspaces');
@@ -30,7 +34,7 @@ describe('git_ops handler', () => {
     };
 
     // Mock store methods
-    (store.updateStep as jest.Mock).mockResolvedValue(undefined);
+    mockStore.updateStep.mockResolvedValue(undefined);
 
     // Ensure test directory exists
     await fsp.mkdir(testWorkspaceRoot, { recursive: true });
@@ -89,7 +93,7 @@ describe('git_ops handler', () => {
       await gitOpsHandler.run(context as any);
 
       // Verify store was updated with success
-      expect(store.updateStep).toHaveBeenCalledWith(
+      expect(mockStore.updateStep).toHaveBeenCalledWith(
         'test_step',
         expect.objectContaining({ status: 'succeeded' })
       );
@@ -116,13 +120,14 @@ describe('git_ops handler', () => {
       await gitOpsHandler.run(context as any);
 
       // Verify store was updated with simplified status
-      const updateCall = (store.updateStep as jest.Mock).mock.calls.find(
-        call => call[1].status === 'succeeded'
+      const updateCall = mockStore.updateStep.mock.calls.find(
+        call => (call[1] as Partial<StepRow>)?.status === 'succeeded'
       );
 
       expect(updateCall).toBeDefined();
-      expect(updateCall[1].outputs).toHaveProperty('hasChanges');
-      expect(updateCall[1].outputs).toHaveProperty('filesChanged');
+      const outputs = (updateCall?.[1] as Partial<StepRow>)?.outputs as Record<string, any>;
+      expect(outputs).toHaveProperty('hasChanges');
+      expect(outputs).toHaveProperty('filesChanged');
     });
   });
 
@@ -156,13 +161,14 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      const updateCall = (store.updateStep as jest.Mock).mock.calls.find(
-        call => call[1].status === 'succeeded'
+      const updateCall = mockStore.updateStep.mock.calls.find(
+        call => (call[1] as Partial<StepRow>)?.status === 'succeeded'
       );
 
       expect(updateCall).toBeDefined();
-      expect(updateCall[1].outputs.message).toContain('Added new feature');
-      expect(updateCall[1].outputs.committed).toBe(true);
+      const outputs = (updateCall?.[1] as Partial<StepRow>)?.outputs as Record<string, any>;
+      expect(outputs?.message).toContain('Added new feature');
+      expect(outputs?.committed).toBe(true);
     });
 
     it('should handle branch creation in basic mode', async () => {
@@ -187,12 +193,13 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      const updateCall = (store.updateStep as jest.Mock).mock.calls.find(
-        call => call[1].status === 'succeeded'
+      const updateCall = mockStore.updateStep.mock.calls.find(
+        call => (call[1] as Partial<StepRow>)?.status === 'succeeded'
       );
 
       expect(updateCall).toBeDefined();
-      expect(updateCall[1].outputs.message).toContain('Created and switched to branch: feature/test');
+      const outputs = (updateCall?.[1] as Partial<StepRow>)?.outputs as Record<string, any>;
+      expect(outputs?.message).toContain('Created and switched to branch: feature/test');
     });
   });
 
@@ -227,12 +234,13 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      const updateCall = (store.updateStep as jest.Mock).mock.calls.find(
-        call => call[1].status === 'succeeded'
+      const updateCall = mockStore.updateStep.mock.calls.find(
+        call => (call[1] as Partial<StepRow>)?.status === 'succeeded'
       );
 
       expect(updateCall).toBeDefined();
-      expect(updateCall[1].outputs.commit).toBeDefined();
+      const outputs = (updateCall?.[1] as Partial<StepRow>)?.outputs as Record<string, any>;
+      expect(outputs?.commit).toBeDefined();
     });
 
     it('should return full git status in advanced mode', async () => {
@@ -255,16 +263,17 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      const updateCall = (store.updateStep as jest.Mock).mock.calls.find(
-        call => call[1].status === 'succeeded'
+      const updateCall = mockStore.updateStep.mock.calls.find(
+        call => (call[1] as Partial<StepRow>)?.status === 'succeeded'
       );
 
       expect(updateCall).toBeDefined();
+      const outputs = (updateCall?.[1] as Partial<StepRow>)?.outputs as Record<string, any>;
       // Advanced mode returns full git status
-      expect(updateCall[1].outputs).toHaveProperty('current');
-      expect(updateCall[1].outputs).toHaveProperty('files');
-      expect(updateCall[1].outputs).toHaveProperty('ahead');
-      expect(updateCall[1].outputs).toHaveProperty('behind');
+      expect(outputs).toHaveProperty('current');
+      expect(outputs).toHaveProperty('files');
+      expect(outputs).toHaveProperty('ahead');
+      expect(outputs).toHaveProperty('behind');
     });
   });
 
@@ -284,7 +293,7 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      expect(store.updateStep).toHaveBeenCalledWith(
+      expect(mockStore.updateStep).toHaveBeenCalledWith(
         'test_step',
         expect.objectContaining({ status: 'failed' })
       );
@@ -307,7 +316,7 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      expect(store.updateStep).toHaveBeenCalledWith(
+      expect(mockStore.updateStep).toHaveBeenCalledWith(
         'test_step',
         expect.objectContaining({ status: 'failed' })
       );
@@ -331,12 +340,13 @@ describe('git_ops handler', () => {
 
       await gitOpsHandler.run(context as any);
 
-      const updateCall = (store.updateStep as jest.Mock).mock.calls.find(
-        call => call[1].status === 'failed'
+      const updateCall = mockStore.updateStep.mock.calls.find(
+        call => (call[1] as Partial<StepRow>)?.status === 'failed'
       );
 
       expect(updateCall).toBeDefined();
-      expect(updateCall[1].outputs.error).toContain('Project nonexistent not found');
+      const outputs = (updateCall?.[1] as Partial<StepRow>)?.outputs as Record<string, any>;
+      expect(outputs?.error).toContain('Project nonexistent not found');
     });
   });
 });

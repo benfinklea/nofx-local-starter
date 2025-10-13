@@ -158,7 +158,7 @@ describe('BasicModeService', () => {
       const inputs: GitOpsInputs = {
         project_id: 'proj-123',
         operation: 'branch',
-        branch_name: 'feature/$invalid'
+        branch_name: 'feature/$invalid' // $ is not allowed in pattern
       };
 
       await expect(service.executeOperation(mockGit, inputs, {}))

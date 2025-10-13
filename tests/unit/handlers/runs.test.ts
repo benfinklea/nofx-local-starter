@@ -40,14 +40,14 @@ jest.mock('../../../src/lib/observability', () => ({
 jest.mock('../../../src/lib/runRecovery', () => ({
   retryStep: jest.fn(),
   StepNotFoundError: class StepNotFoundError extends Error {
-    constructor(message?: string) {
-      super(message);
+    constructor() {
+      super('Step not found');
       this.name = 'StepNotFoundError';
     }
   },
   StepNotRetryableError: class StepNotRetryableError extends Error {
-    constructor(message?: string) {
-      super(message);
+    constructor() {
+      super('Step not retryable');
       this.name = 'StepNotRetryableError';
     }
   },
@@ -829,7 +829,7 @@ describe('Runs Handlers', () => {
 
     it('should return 404 for StepNotFoundError', async () => {
       (mockRunRecovery.retryStep as jest.Mock).mockRejectedValue(
-        new mockRunRecovery.StepNotFoundError('Step not found')
+        new mockRunRecovery.StepNotFoundError()
       );
 
       mockReq.params = { runId: 'run-123', stepId: 'nonexistent' };
@@ -842,7 +842,7 @@ describe('Runs Handlers', () => {
 
     it('should return 400 for StepNotRetryableError', async () => {
       (mockRunRecovery.retryStep as jest.Mock).mockRejectedValue(
-        new mockRunRecovery.StepNotRetryableError('Cannot retry')
+        new mockRunRecovery.StepNotRetryableError()
       );
 
       mockReq.params = { runId: 'run-123', stepId: 'step-456' };

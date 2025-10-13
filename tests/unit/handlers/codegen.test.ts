@@ -119,6 +119,7 @@ describe('codegen handler', () => {
       // Should save artifact with default filename
       expect(mockSaveArtifact).toHaveBeenCalledWith(
         'run-123',
+        'step-123',
         'README.md',
         codegenResult.content,
         'text/markdown'
@@ -129,26 +130,24 @@ describe('codegen handler', () => {
         status: 'succeeded',
         ended_at: expect.any(String),
         outputs: {
-          filename: 'README.md',
-          content: codegenResult.content,
+          artifact: 'https://example.com/file.md',
           provider: 'openai',
           model: 'gpt-4',
           usage: codegenResult.usage,
-          cost_usd: 0.006, // (100 * 0.03 + 50 * 0.06) / 1000
-          artifact_url: 'https://example.com/file.md'
+          costUSD: 0
         }
       });
 
-      // Should record codegen event
+      // Should record step.finished event
       expect(mockRecordEvent).toHaveBeenCalledWith(
         'run-123',
-        'codegen.completed',
+        'step.finished',
         {
-          filename: 'README.md',
+          artifact: 'https://example.com/file.md',
           provider: 'openai',
           model: 'gpt-4',
-          tokens: 150,
-          cost_usd: 0.006
+          usage: codegenResult.usage,
+          costUSD: 0
         },
         'step-123'
       );
@@ -188,21 +187,23 @@ describe('codegen handler', () => {
       // Should save artifact with custom filename
       expect(mockSaveArtifact).toHaveBeenCalledWith(
         'run-123',
+        'step-123',
         'main.js',
         codegenResult.content,
-        'application/javascript'
+        'text/markdown'
       );
 
-      // Should update step with correct filename
+      // Should update step with correct outputs
       expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
         status: 'succeeded',
         ended_at: expect.any(String),
-        outputs: expect.objectContaining({
-          filename: 'main.js',
-          content: codegenResult.content,
+        outputs: {
+          artifact: 'https://example.com/file.md',
           provider: 'anthropic',
-          model: 'claude-3-sonnet'
-        })
+          model: 'claude-3-sonnet',
+          usage: codegenResult.usage,
+          costUSD: 0
+        }
       });
     });
 
@@ -221,25 +222,23 @@ describe('codegen handler', () => {
         step: baseStep as any
       });
 
-      // Should not include cost calculation
+      // Should not include usage or cost when not provided
       expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
         status: 'succeeded',
         ended_at: expect.any(String),
         outputs: {
-          filename: 'README.md',
-          content: codegenResult.content,
+          artifact: 'https://example.com/file.md',
           provider: 'openai',
-          model: 'gpt-3.5-turbo',
-          artifact_url: 'https://example.com/file.md'
+          model: 'gpt-3.5-turbo'
         }
       });
 
-      // Should record event without cost
+      // Should record event without usage
       expect(mockRecordEvent).toHaveBeenCalledWith(
         'run-123',
-        'codegen.completed',
+        'step.finished',
         {
-          filename: 'README.md',
+          artifact: 'https://example.com/file.md',
           provider: 'openai',
           model: 'gpt-3.5-turbo'
         },
@@ -247,14 +246,14 @@ describe('codegen handler', () => {
       );
     });
 
-    it('should detect content type based on filename extension', async () => {
+    it('should always use text/markdown content type', async () => {
       const testCases = [
-        { filename: 'script.py', expectedType: 'text/x-python' },
-        { filename: 'config.json', expectedType: 'application/json' },
-        { filename: 'styles.css', expectedType: 'text/css' },
-        { filename: 'index.html', expectedType: 'text/html' },
-        { filename: 'code.txt', expectedType: 'text/plain' },
-        { filename: 'unknown.xyz', expectedType: 'application/octet-stream' }
+        'script.py',
+        'config.json',
+        'styles.css',
+        'index.html',
+        'code.txt',
+        'README.md'
       ];
 
       for (const testCase of testCases) {
@@ -274,15 +273,16 @@ describe('codegen handler', () => {
           runId: 'run-123',
           step: {
             ...baseStep,
-            inputs: { filename: testCase.filename }
+            inputs: { filename: testCase }
           } as any
         });
 
         expect(mockSaveArtifact).toHaveBeenCalledWith(
           'run-123',
-          testCase.filename,
+          'step-123',
+          testCase,
           'test content',
-          testCase.expectedType
+          'text/markdown'
         );
       }
     });
@@ -355,6 +355,7 @@ describe('codegen handler', () => {
       // Should default to README.md when filename is empty/whitespace
       expect(mockSaveArtifact).toHaveBeenCalledWith(
         'run-123',
+        'step-123',
         'README.md',
         'test content',
         'text/markdown'

@@ -23,15 +23,15 @@ jest.mock('../../src/lib/logger', () => ({
   }
 }));
 
-const mockSupabase = {
+const mockSupabase: any = {
   from: jest.fn(() => mockSupabase),
   select: jest.fn(() => mockSupabase),
   insert: jest.fn(() => mockSupabase),
   update: jest.fn(() => mockSupabase),
   delete: jest.fn(() => mockSupabase),
-  eq: jest.fn(),
+  eq: jest.fn(() => mockSupabase),
   order: jest.fn(() => mockSupabase),
-  single: jest.fn(),
+  single: jest.fn(() => mockSupabase),
   data: null,
   error: null,
 };
@@ -390,7 +390,7 @@ describe('Teams Routes', () => {
       // Mock activity log
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
-      mockSendTeamInviteEmail.mockResolvedValue();
+      mockSendTeamInviteEmail.mockResolvedValue(undefined);
 
       const response = await request(app)
         .post('/teams/team-123/invites')

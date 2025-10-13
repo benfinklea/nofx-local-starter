@@ -151,12 +151,21 @@ describe('Stream API Endpoint', () => {
         end: jest.fn(() => {
           resEndCalled = true;
         }),
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
       };
 
+      // Set development mode to skip auth
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
       await streamHandler(
-        { method: 'GET', query: { id: 'run-123' } } as any,
+        { method: 'GET', query: { id: 'run-123' }, headers: {} } as any,
         mockRes
       );
+
+      // Restore env
+      process.env.NODE_ENV = originalEnv;
 
       // Advance time to timeout
       jest.advanceTimersByTime(55000);
@@ -171,14 +180,20 @@ describe('Stream API Endpoint', () => {
     it('should handle client disconnect', async () => {
       mockStore.listEvents.mockResolvedValue([]);
 
+      // Set development mode to skip auth
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
       let closeCallback: any;
       const mockReq = {
         method: 'GET',
         query: { id: 'run-123' },
+        headers: {},
         on: jest.fn((event, callback) => {
           if (event === 'close') {
             closeCallback = callback;
           }
+          return mockReq; // Return for chaining
         }),
       } as any;
 
@@ -187,6 +202,9 @@ describe('Stream API Endpoint', () => {
         query: { id: 'run-123' },
         req: mockReq,
       });
+
+      // Restore env
+      process.env.NODE_ENV = originalEnv;
 
       // Simulate close
       if (closeCallback) {

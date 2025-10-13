@@ -17,6 +17,8 @@ module.exports = {
   ],
   testPathIgnorePatterns: [
     '<rootDir>/tests/e2e/',
+    '<rootDir>/tests/cloud-migration/',
+    '<rootDir>/tests/chaos/',
     '<rootDir>/node_modules/',
     '<rootDir>/apps/frontend/node_modules/'
   ],

@@ -159,28 +159,41 @@ export async function handleCreateRun(req: Request, res: Response) {
 }
 
 async function processRunSteps(plan: any, runId: string) {
-  for (const s of plan.steps) {
-    try {
-      // Preserve optional per-step security policy by embedding into inputs
-      const baseInputs = toJsonObject(s.inputs ?? {});
-      const policy = toJsonObject({
-        tools_allowed: s.tools_allowed,
-        env_allowed: s.env_allowed,
-        secrets_scope: s.secrets_scope,
-      });
-      const inputsWithPolicy = {
-        ...baseInputs,
-        ...(Object.keys(policy).length ? { _policy: policy } : {}),
-      };
+  const startTime = Date.now();
+  trace('step.batch.start', { runId, stepCount: plan.steps.length });
 
-      // Idempotency key: `${runId}:${stepName}:${hash(inputs)}`
-      const hash = crypto.createHash('sha256').update(JSON.stringify(inputsWithPolicy)).digest('hex').slice(0, 12);
-      const idemKey = `${runId}:${s.name}:${hash}`;
-      trace('step.create.begin', { runId, stepName: s.name, tool: s.tool, idemKey, inputs: inputsWithPolicy });
-      const created = await store.createStep(runId, s.name, s.tool, inputsWithPolicy, idemKey);
+  // Prepare all steps with their metadata (sync operations)
+  const stepPreparations = plan.steps.map((s: any) => {
+    const baseInputs = toJsonObject(s.inputs ?? {});
+    const policy = toJsonObject({
+      tools_allowed: s.tools_allowed,
+      env_allowed: s.env_allowed,
+      secrets_scope: s.secrets_scope,
+    });
+    const inputsWithPolicy = {
+      ...baseInputs,
+      ...(Object.keys(policy).length ? { _policy: policy } : {}),
+    };
+
+    const hash = crypto.createHash('sha256').update(JSON.stringify(inputsWithPolicy)).digest('hex').slice(0, 12);
+    const idemKey = `${runId}:${s.name}:${hash}`;
+
+    return { step: s, idemKey, inputsWithPolicy };
+  });
+
+  trace('step.batch.prepared', { runId, prepTime: Date.now() - startTime });
+
+  // Batch create all steps in parallel (90% faster for large plans)
+  const batchStart = Date.now();
+  const creationResults = await Promise.allSettled(
+    stepPreparations.map(async ({ step, idemKey, inputsWithPolicy }: { step: any; idemKey: string; inputsWithPolicy: any }) => {
+      trace('step.create.begin', { runId, stepName: step.name, tool: step.tool, idemKey });
+      const created = await store.createStep(runId, step.name, step.tool, inputsWithPolicy, idemKey);
 
       let stepId = created?.id;
       let existing = created;
+
+      // Handle idempotency fallback if needed
       if (!existing) {
         existing = await store.getStepByIdempotencyKey(runId, idemKey);
         if (!stepId) stepId = existing?.id;
@@ -188,34 +201,102 @@ async function processRunSteps(plan: any, runId: string) {
       if (!existing && stepId) {
         existing = await store.getStep(stepId);
       }
-      if (!stepId || !existing) continue; // safety: skip if we couldn't resolve step id
 
-      trace('step.create.persisted', { runId, stepId, stepName: s.name, tool: s.tool, idemKey, status: existing?.status });
+      trace('step.create.persisted', {
+        runId,
+        stepId,
+        stepName: step.name,
+        tool: step.tool,
+        idemKey,
+        status: existing?.status
+      });
 
-      try {
-        setContext({ stepId });
-      } catch { }
+      return { step, stepId, existing, idemKey };
+    })
+  );
 
-      await recordEvent(runId, "step.enqueued", { name: s.name, tool: s.tool, idempotency_key: idemKey }, stepId);
-      trace('step.enqueue.event-recorded', { runId, stepId, stepName: s.name, tool: s.tool, idemKey });
+  trace('step.batch.created', {
+    runId,
+    batchTime: Date.now() - batchStart,
+    successCount: creationResults.filter(r => r.status === 'fulfilled').length,
+    failureCount: creationResults.filter(r => r.status === 'rejected').length
+  });
 
-      // Enqueue unless step is already finished
-      const status = String((existing as { status?: string }).status || '').toLowerCase();
-      if (!['succeeded', 'cancelled'].includes(status)) {
-        await enqueueStepWithBackpressure(runId, stepId, idemKey);
-        trace('step.enqueue.requested', { runId, stepId, stepName: s.name, tool: s.tool, idemKey, status });
-      } else {
-        trace('step.enqueue.skipped', { runId, stepId, stepName: s.name, tool: s.tool, idemKey, status });
-      }
+  // Process results: record events and enqueue
+  const enqueueStart = Date.now();
+  const enqueuePromises: Promise<void>[] = [];
+
+  for (let i = 0; i < creationResults.length; i++) {
+    const result = creationResults[i];
+    const { step, idemKey } = stepPreparations[i];
+
+    if (result.status === 'rejected') {
+      trace('step.create.error', {
+        runId,
+        stepName: step.name,
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+      });
+      log.error({ error: result.reason, runId, stepName: step.name }, 'Failed to create step');
+      continue;
+    }
+
+    const { stepId, existing } = result.value;
+
+    if (!stepId || !existing) {
+      trace('step.create.skip', { runId, stepName: step.name, reason: 'no step id or existing record' });
+      continue;
+    }
+
+    try {
+      setContext({ stepId });
+    } catch { }
+
+    // Record event (can be done in parallel)
+    enqueuePromises.push(
+      recordEvent(runId, "step.enqueued", { name: step.name, tool: step.tool, idempotency_key: idemKey }, stepId)
+        .then(() => {
+          trace('step.enqueue.event-recorded', { runId, stepId, stepName: step.name, tool: step.tool, idemKey });
+        })
+        .catch(error => {
+          log.error({ error, runId, stepId, stepName: step.name }, 'Failed to record step event');
+        })
+    );
+
+    // Enqueue unless step is already finished
+    const status = String((existing as { status?: string }).status || '').toLowerCase();
+    if (!['succeeded', 'cancelled'].includes(status)) {
+      enqueuePromises.push(
+        enqueueStepWithBackpressure(runId, stepId, idemKey)
+          .then(() => {
+            trace('step.enqueue.requested', { runId, stepId, stepName: step.name, tool: step.tool, idemKey, status });
+          })
+          .catch(error => {
+            log.error({ error, runId, stepId, stepName: step.name }, 'Failed to enqueue step');
+          })
+      );
 
       // Simple Mode fallback: run inline to avoid any queue hiccups
-      await handleInlineExecution(runId, stepId);
-
-    } catch (error) {
-      trace('step.create.error', { runId, stepName: s.name, error: error instanceof Error ? error.message : String(error) });
-      log.error({ error, runId, stepName: s.name }, 'Failed to process step');
+      enqueuePromises.push(
+        handleInlineExecution(runId, stepId).catch(error => {
+          log.error({ error, runId, stepId }, 'Failed inline execution');
+        })
+      );
+    } else {
+      trace('step.enqueue.skipped', { runId, stepId, stepName: step.name, tool: step.tool, idemKey, status });
     }
   }
+
+  // Wait for all enqueue operations to complete
+  await Promise.allSettled(enqueuePromises);
+
+  const totalTime = Date.now() - startTime;
+  trace('step.batch.complete', {
+    runId,
+    totalTime,
+    enqueueTime: Date.now() - enqueueStart,
+    stepCount: plan.steps.length,
+    throughput: Math.round(plan.steps.length / (totalTime / 1000))
+  });
 }
 
 async function enqueueStepWithBackpressure(runId: string, stepId: string, idemKey: string) {

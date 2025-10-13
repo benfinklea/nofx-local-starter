@@ -298,10 +298,16 @@ describe('FileSystemStore - Core Functionality Tests', () => {
 
     describe('listEvents', () => {
       it('lists events for a run', async () => {
-        mockFsp.readdir.mockResolvedValue(['event1.json', 'event2.json'] as any);
-        mockFsp.readFile
-          .mockResolvedValueOnce(JSON.stringify({ id: 'event1', created_at: '2023-01-01T00:00:00.000Z' }))
-          .mockResolvedValueOnce(JSON.stringify({ id: 'event2', created_at: '2023-01-02T00:00:00.000Z' }));
+        // EventManagementService reads from a single events.json file
+        const events = [
+          { id: 'event1', created_at: '2023-01-01T00:00:00.000Z' },
+          { id: 'event2', created_at: '2023-01-02T00:00:00.000Z' }
+        ];
+
+        // Mock readJsonFile in FileOperationService to return events array
+        const mockReadJsonFile = jest.fn().mockResolvedValue(events);
+        // Override the fileOps.readJsonFile method (note: property is eventManager, not eventManagement)
+        (store as any).eventManager.fileOps.readJsonFile = mockReadJsonFile;
 
         const result = await store.listEvents('run-id');
 
@@ -324,7 +330,10 @@ describe('FileSystemStore - Core Functionality Tests', () => {
     });
 
     it('handles malformed JSON gracefully', async () => {
-      mockFsp.readFile.mockResolvedValue('{ invalid json }');
+      // Mock readJsonFile to return null (which indicates parse failure in FileOperationService)
+      const mockReadJsonFile = jest.fn().mockResolvedValue(null);
+      // Note: property is runManager, not runManagement
+      (store as any).runManager.fileOps.readJsonFile = mockReadJsonFile;
 
       const result = await store.getRun('test-id');
 

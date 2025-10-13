@@ -33,6 +33,13 @@ describe('Resend Email Client - Reliability Tests', () => {
   let mockResend: jest.Mocked<Resend>;
   let mockSend: jest.Mock;
 
+  // Common email options used across tests
+  const basicEmailOptions = {
+    to: 'test@example.com',
+    subject: 'Test Email',
+    html: '<p>Test content</p>'
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -127,12 +134,6 @@ describe('Resend Email Client - Reliability Tests', () => {
   });
 
   describe('sendEmail()', () => {
-    const basicEmailOptions = {
-      to: 'test@example.com',
-      subject: 'Test Email',
-      html: '<p>Test content</p>'
-    };
-
     describe('Successful Email Sending', () => {
       it('sends email with valid options', async () => {
         const result = await sendEmail(basicEmailOptions);

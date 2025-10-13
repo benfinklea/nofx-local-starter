@@ -18,6 +18,8 @@ const mockQuery = query as jest.MockedFunction<typeof query>;
 describe('Integration: Database Transactions (Mocked)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mock implementation and queued responses
+    mockQuery.mockReset();
     // Default mock returns empty result
     mockQuery.mockResolvedValue({ rows: [] });
   });
@@ -145,6 +147,7 @@ describe('Integration: Database Transactions (Mocked)', () => {
     });
 
     test('should handle foreign key violation', async () => {
+      // Mock should reject with foreign key error
       mockQuery.mockRejectedValueOnce(
         new Error('violates foreign key constraint')
       );
@@ -195,15 +198,18 @@ describe('Integration: Database Transactions (Mocked)', () => {
         rows: [{ id: runId }],
       });
 
-      // Mock step creations (all succeed)
-      mockQuery.mockResolvedValue({
-        rows: [{ id: 'step-x' }],
-      });
-
+      // Create run first
       await query(
         'INSERT INTO run (goal, plan, status, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id',
         ['TEST_TRANSACTION: Concurrent steps', '{}', 'pending']
       );
+
+      // Now set up mocks for all 10 concurrent step creations
+      for (let i = 0; i < 10; i++) {
+        mockQuery.mockResolvedValueOnce({
+          rows: [{ id: `step-${i}` }],
+        });
+      }
 
       const stepCreations = await Promise.allSettled(
         Array(10).fill(null).map((_, i) =>
