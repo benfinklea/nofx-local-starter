@@ -14,7 +14,7 @@ import * as teamEmails from '../../src/services/email/teamEmails';
 // Mock dependencies
 jest.mock('../../src/auth/supabase');
 jest.mock('../../src/auth/middleware');
-jest.mock('../../services/email/teamEmails');
+jest.mock('../../src/services/email/teamEmails');
 jest.mock('../../src/lib/logger', () => ({
   log: {
     error: jest.fn(),

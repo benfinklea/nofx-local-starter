@@ -4,6 +4,55 @@
  */
 
 import Stripe from 'stripe';
+
+// Create mock Stripe instance BEFORE imports
+const mockedStripe = {
+  customers: {
+    create: jest.fn(),
+    retrieve: jest.fn(),
+  },
+  subscriptions: {
+    retrieve: jest.fn(),
+    update: jest.fn(),
+    cancel: jest.fn(),
+  },
+  checkout: {
+    sessions: {
+      create: jest.fn(),
+    },
+  },
+  billingPortal: {
+    sessions: {
+      create: jest.fn(),
+    },
+  },
+};
+
+// Mock Stripe constructor - jest.mock is hoisted so this mockedStripe is available
+jest.mock('stripe', () => {
+  return jest.fn().mockImplementation(() => ({
+    customers: {
+      create: jest.fn(),
+      retrieve: jest.fn(),
+    },
+    subscriptions: {
+      retrieve: jest.fn(),
+      update: jest.fn(),
+      cancel: jest.fn(),
+    },
+    checkout: {
+      sessions: {
+        create: jest.fn(),
+      },
+    },
+    billingPortal: {
+      sessions: {
+        create: jest.fn(),
+      },
+    },
+  }));
+});
+
 import {
   toDateTime,
   getTrialEnd,
@@ -20,27 +69,60 @@ import {
   stripe
 } from '../stripe';
 
-// Mock Stripe
-jest.mock('stripe');
-const MockedStripe = Stripe as jest.MockedClass<typeof Stripe>;
+// Create a properly structured mock that returns fresh instances for each call
+const createMockSupabase = () => {
+  const mockSingle = jest.fn();
+  const mockEq = jest.fn();
+  const mockSelect = jest.fn();
+  const mockUpdate = jest.fn();
+  const mockDelete = jest.fn();
+  const mockUpsert = jest.fn();
+  const mockFrom = jest.fn();
 
-// Mock Supabase
-const mockSupabase = {
-  from: jest.fn(() => ({
-    select: jest.fn(() => ({
-      eq: jest.fn(() => ({
-        single: jest.fn(() => Promise.resolve({ data: null })),
-      })),
-    })),
-    upsert: jest.fn(() => Promise.resolve({ error: null })),
-    update: jest.fn(() => ({
-      eq: jest.fn(() => Promise.resolve({ error: null })),
-    })),
-    delete: jest.fn(() => ({
-      eq: jest.fn(() => Promise.resolve({ error: null })),
-    })),
-  })),
+  // Reset the mock structure
+  const resetMocks = () => {
+    mockSingle.mockImplementation(() => Promise.resolve({ data: null, error: null }));
+    mockEq.mockImplementation(() => ({
+      single: mockSingle,
+      // Also handle update().eq() and delete().eq() promises
+      then: (resolve: any) => Promise.resolve({ data: null, error: null }).then(resolve)
+    }));
+    mockSelect.mockImplementation(() => ({
+      eq: mockEq
+    }));
+    mockUpdate.mockImplementation(() => ({
+      eq: mockEq
+    }));
+    mockDelete.mockImplementation(() => ({
+      eq: mockEq
+    }));
+    mockUpsert.mockImplementation(() => Promise.resolve({ data: null, error: null }));
+    mockFrom.mockImplementation(() => ({
+      select: mockSelect,
+      upsert: mockUpsert,
+      update: mockUpdate,
+      delete: mockDelete
+    }));
+  };
+
+  resetMocks();
+
+  return {
+    from: mockFrom,
+    _mocks: {
+      single: mockSingle,
+      eq: mockEq,
+      select: mockSelect,
+      update: mockUpdate,
+      delete: mockDelete,
+      upsert: mockUpsert,
+      from: mockFrom
+    },
+    _reset: resetMocks
+  };
 };
+
+const mockSupabase = createMockSupabase();
 
 // Mock logger
 jest.mock('../../lib/logger', () => ({
@@ -56,33 +138,14 @@ jest.mock('../../auth/supabase', () => ({
 }));
 
 describe('Stripe Utilities Tests', () => {
-  let mockStripeInstance: any;
+  // Get reference to the mocked stripe instance
+  const mockedStripe = stripe as unknown as typeof mockedStripe;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockStripeInstance = {
-      customers: {
-        create: jest.fn(),
-        retrieve: jest.fn(),
-      },
-      subscriptions: {
-        retrieve: jest.fn(),
-        update: jest.fn(),
-      },
-      checkout: {
-        sessions: {
-          create: jest.fn(),
-        },
-      },
-      billingPortal: {
-        sessions: {
-          create: jest.fn(),
-        },
-      },
-    };
-
-    MockedStripe.mockImplementation(() => mockStripeInstance);
+    // Reset Supabase mocks
+    mockSupabase._reset();
   });
 
   describe('Date Utilities', () => {
@@ -131,8 +194,9 @@ describe('Stripe Utilities Tests', () => {
     describe('createOrRetrieveCustomer', () => {
       it('should return existing customer ID', async () => {
         const existingCustomerId = 'cus_existing123';
-        mockSupabase.from().select().eq().single.mockResolvedValueOnce({
-          data: { stripe_customer_id: existingCustomerId }
+        mockSupabase._mocks.single.mockResolvedValueOnce({
+          data: { stripe_customer_id: existingCustomerId },
+          error: null
         });
 
         const result = await createOrRetrieveCustomer('user123');
@@ -145,30 +209,33 @@ describe('Stripe Utilities Tests', () => {
         const email = 'test@example.com';
 
         // Mock existing customer check - not found
-        mockSupabase.from().select().eq().single
-          .mockResolvedValueOnce({ data: null })
+        mockSupabase._mocks.single
+          .mockResolvedValueOnce({ data: null, error: null })
           // Mock user data fetch
           .mockResolvedValueOnce({
             data: {
               email: 'user@example.com',
               full_name: 'Test User',
               billing_address: { city: 'Test City' }
-            }
+            },
+            error: null
           });
 
-        mockStripeInstance.customers.create.mockResolvedValue({
+        mockedStripe.customers.create.mockResolvedValue({
           id: newCustomerId,
         });
 
+        mockSupabase._mocks.upsert.mockResolvedValueOnce({ data: null, error: null });
+
         const result = await createOrRetrieveCustomer(userId, email);
 
-        expect(mockStripeInstance.customers.create).toHaveBeenCalledWith({
+        expect(mockedStripe.customers.create).toHaveBeenCalledWith({
           email: email,
           metadata: { supabase_user_id: userId },
           name: 'Test User',
           address: { city: 'Test City' }
         });
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith({
           id: userId,
           stripe_customer_id: newCustomerId
         });
@@ -176,7 +243,7 @@ describe('Stripe Utilities Tests', () => {
       });
 
       it('should handle errors gracefully', async () => {
-        mockSupabase.from().select().eq().single.mockRejectedValue(new Error('Database error'));
+        mockSupabase._mocks.single.mockRejectedValue(new Error('Database error'));
 
         const result = await createOrRetrieveCustomer('user123');
         expect(result).toBeNull();
@@ -207,7 +274,7 @@ describe('Stripe Utilities Tests', () => {
 
         await upsertProduct(product);
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith({
           id: 'prod_123',
           active: true,
           name: 'Test Product',
@@ -229,7 +296,7 @@ describe('Stripe Utilities Tests', () => {
 
         await upsertProduct(product);
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith({
           id: 'prod_123',
           active: true,
           name: 'Test Product',
@@ -246,7 +313,7 @@ describe('Stripe Utilities Tests', () => {
           name: 'Test Product',
         } as unknown as Stripe.Product;
 
-        mockSupabase.from().upsert.mockResolvedValue({ error: new Error('DB error') });
+        mockSupabase._mocks.upsert.mockResolvedValue({ error: new Error('DB error') });
 
         await expect(upsertProduct(product)).resolves.not.toThrow();
       });
@@ -270,11 +337,11 @@ describe('Stripe Utilities Tests', () => {
       it('should delete product from database', async () => {
         await deleteProduct('prod_123');
 
-        expect(mockSupabase.from().delete().eq).toHaveBeenCalledWith('id', 'prod_123');
+        expect(mockSupabase._mocks.eq).toHaveBeenCalledWith('id', 'prod_123');
       });
 
       it('should handle database errors gracefully', async () => {
-        mockSupabase.from().delete().eq.mockResolvedValue({ error: new Error('DB error') });
+        mockSupabase._mocks.eq.mockResolvedValue({ error: new Error('DB error') });
 
         await expect(deleteProduct('prod_123')).resolves.not.toThrow();
       });
@@ -302,7 +369,7 @@ describe('Stripe Utilities Tests', () => {
 
         await upsertPrice(price);
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith({
           id: 'price_123',
           product_id: 'prod_123',
           active: true,
@@ -330,7 +397,7 @@ describe('Stripe Utilities Tests', () => {
 
         await upsertPrice(price);
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith({
           id: 'price_456',
           product_id: 'prod_123',
           active: true,
@@ -357,7 +424,7 @@ describe('Stripe Utilities Tests', () => {
 
         await upsertPrice(price);
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith(
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith(
           expect.objectContaining({
             unit_amount: 0,
           })
@@ -369,7 +436,7 @@ describe('Stripe Utilities Tests', () => {
       it('should delete price from database', async () => {
         await deletePrice('price_123');
 
-        expect(mockSupabase.from().delete().eq).toHaveBeenCalledWith('id', 'price_123');
+        expect(mockSupabase._mocks.eq).toHaveBeenCalledWith('id', 'price_123');
       });
     });
   });
@@ -410,20 +477,21 @@ describe('Stripe Utilities Tests', () => {
         const customerId = 'cus_123';
         const subscriptionId = 'sub_123';
 
-        mockSupabase.from().select().eq().single.mockResolvedValue({
-          data: { id: 'user123' }
+        mockSupabase._mocks.single.mockResolvedValue({
+          data: { id: 'user123' },
+          error: null
         });
 
-        mockStripeInstance.subscriptions.retrieve.mockResolvedValue(mockSubscription);
+        mockedStripe.subscriptions.retrieve.mockResolvedValue(mockSubscription);
 
         await manageSubscriptionStatusChange(subscriptionId, customerId);
 
-        expect(mockStripeInstance.subscriptions.retrieve).toHaveBeenCalledWith(
+        expect(mockedStripe.subscriptions.retrieve).toHaveBeenCalledWith(
           subscriptionId,
           { expand: ['default_payment_method', 'items.data.price.product'] }
         );
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith({
           id: 'sub_123',
           user_id: 'user123',
           status: 'active',
@@ -446,15 +514,15 @@ describe('Stripe Utilities Tests', () => {
         const customerId = 'cus_123';
         const subscriptionId = 'sub_123';
 
-        mockSupabase.from().select().eq().single.mockResolvedValue({
+        mockSupabase._mocks.single.mockResolvedValue({
           data: { id: 'user123' }
         });
 
-        mockStripeInstance.subscriptions.retrieve.mockResolvedValue(mockSubscription);
+        mockedStripe.subscriptions.retrieve.mockResolvedValue(mockSubscription);
 
         await manageSubscriptionStatusChange(subscriptionId, customerId);
 
-        expect(mockSupabase.from().update).toHaveBeenCalledWith({
+        expect(mockSupabase._mocks.update).toHaveBeenCalledWith({
           payment_method: {
             type: 'card',
             card: {
@@ -468,7 +536,7 @@ describe('Stripe Utilities Tests', () => {
       });
 
       it('should handle customer not found', async () => {
-        mockSupabase.from().select().eq().single.mockResolvedValue({ data: null });
+        mockSupabase._mocks.single.mockResolvedValue({ data: null });
 
         await expect(
           manageSubscriptionStatusChange('sub_123', 'cus_nonexistent')
@@ -479,7 +547,7 @@ describe('Stripe Utilities Tests', () => {
         const customerId = 'cus_123';
         const subscriptionId = 'sub_123';
 
-        mockSupabase.from().select().eq().single.mockResolvedValue({
+        mockSupabase._mocks.single.mockResolvedValue({
           data: { id: 'user123' }
         });
 
@@ -488,11 +556,11 @@ describe('Stripe Utilities Tests', () => {
           items: { data: [] }
         };
 
-        mockStripeInstance.subscriptions.retrieve.mockResolvedValue(subscriptionWithoutItems);
+        mockedStripe.subscriptions.retrieve.mockResolvedValue(subscriptionWithoutItems);
 
         await manageSubscriptionStatusChange(subscriptionId, customerId);
 
-        expect(mockSupabase.from().upsert).toHaveBeenCalledWith(
+        expect(mockSupabase._mocks.upsert).toHaveBeenCalledWith(
           expect.objectContaining({
             price_id: undefined,
             quantity: 1
@@ -505,29 +573,26 @@ describe('Stripe Utilities Tests', () => {
       it('should cancel subscription immediately', async () => {
         const subscriptionId = 'sub_123';
 
-        mockStripeInstance.subscriptions.update.mockResolvedValue({
+        mockedStripe.subscriptions.cancel.mockResolvedValue({
           status: 'canceled'
         });
 
         const result = await cancelSubscription(subscriptionId, true);
 
-        expect(mockStripeInstance.subscriptions.update).toHaveBeenCalledWith(
-          subscriptionId,
-          { cancel_at_period_end: false }
-        );
+        expect(mockedStripe.subscriptions.cancel).toHaveBeenCalledWith(subscriptionId);
         expect(result).toBe(true);
       });
 
       it('should cancel subscription at period end', async () => {
         const subscriptionId = 'sub_123';
 
-        mockStripeInstance.subscriptions.update.mockResolvedValue({
+        mockedStripe.subscriptions.update.mockResolvedValue({
           cancel_at_period_end: true
         });
 
         const result = await cancelSubscription(subscriptionId, false);
 
-        expect(mockStripeInstance.subscriptions.update).toHaveBeenCalledWith(
+        expect(mockedStripe.subscriptions.update).toHaveBeenCalledWith(
           subscriptionId,
           { cancel_at_period_end: true }
         );
@@ -537,7 +602,7 @@ describe('Stripe Utilities Tests', () => {
       it('should handle cancellation errors', async () => {
         const subscriptionId = 'sub_123';
 
-        mockStripeInstance.subscriptions.update.mockRejectedValue(new Error('Stripe error'));
+        mockedStripe.subscriptions.update.mockRejectedValue(new Error('Stripe error'));
 
         const result = await cancelSubscription(subscriptionId);
         expect(result).toBe(false);
@@ -548,13 +613,13 @@ describe('Stripe Utilities Tests', () => {
       it('should resume subscription', async () => {
         const subscriptionId = 'sub_123';
 
-        mockStripeInstance.subscriptions.update.mockResolvedValue({
+        mockedStripe.subscriptions.update.mockResolvedValue({
           cancel_at_period_end: false
         });
 
         const result = await resumeSubscription(subscriptionId);
 
-        expect(mockStripeInstance.subscriptions.update).toHaveBeenCalledWith(
+        expect(mockedStripe.subscriptions.update).toHaveBeenCalledWith(
           subscriptionId,
           { cancel_at_period_end: false }
         );
@@ -564,7 +629,7 @@ describe('Stripe Utilities Tests', () => {
       it('should handle resume errors', async () => {
         const subscriptionId = 'sub_123';
 
-        mockStripeInstance.subscriptions.update.mockRejectedValue(new Error('Stripe error'));
+        mockedStripe.subscriptions.update.mockRejectedValue(new Error('Stripe error'));
 
         const result = await resumeSubscription(subscriptionId);
         expect(result).toBe(false);
@@ -580,11 +645,11 @@ describe('Stripe Utilities Tests', () => {
         const priceId = 'price_123';
 
         // Mock customer creation
-        mockSupabase.from().select().eq().single.mockResolvedValueOnce({
+        mockSupabase._mocks.single.mockResolvedValueOnce({
           data: { stripe_customer_id: 'cus_123' }
         });
 
-        mockStripeInstance.checkout.sessions.create.mockResolvedValue({
+        mockedStripe.checkout.sessions.create.mockResolvedValue({
           id: 'cs_123',
           url: sessionUrl
         });
@@ -596,7 +661,7 @@ describe('Stripe Utilities Tests', () => {
           'https://example.com/cancel'
         );
 
-        expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalledWith({
+        expect(mockedStripe.checkout.sessions.create).toHaveBeenCalledWith({
           customer: 'cus_123',
           mode: 'subscription',
           payment_method_types: ['card'],
@@ -623,8 +688,8 @@ describe('Stripe Utilities Tests', () => {
         const priceId = 'price_123';
 
         // Mock customer creation failure
-        mockSupabase.from().select().eq().single.mockResolvedValue({ data: null });
-        mockSupabase.from().select().eq().single.mockResolvedValue({ data: null });
+        mockSupabase._mocks.single.mockResolvedValue({ data: null });
+        mockSupabase._mocks.single.mockResolvedValue({ data: null });
 
         const result = await createCheckoutSession(
           userId,
@@ -638,11 +703,11 @@ describe('Stripe Utilities Tests', () => {
 
       it('should handle checkout session creation errors', async () => {
         // Mock customer exists
-        mockSupabase.from().select().eq().single.mockResolvedValue({
+        mockSupabase._mocks.single.mockResolvedValue({
           data: { stripe_customer_id: 'cus_123' }
         });
 
-        mockStripeInstance.checkout.sessions.create.mockRejectedValue(new Error('Stripe error'));
+        mockedStripe.checkout.sessions.create.mockRejectedValue(new Error('Stripe error'));
 
         const result = await createCheckoutSession(
           'user123',
@@ -661,17 +726,17 @@ describe('Stripe Utilities Tests', () => {
         const returnUrl = 'https://example.com/return';
         const customerId = 'cus_123';
 
-        mockSupabase.from().select().eq().single.mockResolvedValue({
+        mockSupabase._mocks.single.mockResolvedValue({
           data: { stripe_customer_id: customerId }
         });
 
-        mockStripeInstance.billingPortal.sessions.create.mockResolvedValue({
+        mockedStripe.billingPortal.sessions.create.mockResolvedValue({
           url: 'https://billing.stripe.com/session'
         });
 
         const result = await createPortalSession(userId, returnUrl);
 
-        expect(mockStripeInstance.billingPortal.sessions.create).toHaveBeenCalledWith({
+        expect(mockedStripe.billingPortal.sessions.create).toHaveBeenCalledWith({
           customer: customerId,
           return_url: returnUrl
         });
@@ -680,18 +745,18 @@ describe('Stripe Utilities Tests', () => {
       });
 
       it('should handle customer not found', async () => {
-        mockSupabase.from().select().eq().single.mockResolvedValue({ data: null });
+        mockSupabase._mocks.single.mockResolvedValue({ data: null });
 
         const result = await createPortalSession('user123', 'https://example.com');
         expect(result).toBeNull();
       });
 
       it('should handle portal session creation errors', async () => {
-        mockSupabase.from().select().eq().single.mockResolvedValue({
+        mockSupabase._mocks.single.mockResolvedValue({
           data: { stripe_customer_id: 'cus_123' }
         });
 
-        mockStripeInstance.billingPortal.sessions.create.mockRejectedValue(new Error('Stripe error'));
+        mockedStripe.billingPortal.sessions.create.mockRejectedValue(new Error('Stripe error'));
 
         const result = await createPortalSession('user123', 'https://example.com');
         expect(result).toBeNull();

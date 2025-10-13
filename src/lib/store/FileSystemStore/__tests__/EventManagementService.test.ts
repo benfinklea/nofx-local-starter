@@ -40,7 +40,7 @@ describe('EventManagementService', () => {
     mockFileOps = {
       ensureDirSync: jest.fn(),
       writeJsonFile: jest.fn().mockResolvedValue(undefined),
-      readJsonFile: jest.fn(),
+      readJsonFile: jest.fn().mockResolvedValue(null), // Return null for non-existent events.json
       readDirectorySafe: jest.fn().mockResolvedValue([]),
       fileExists: jest.fn().mockReturnValue(true),
       getEventPath: jest.fn((runId, eventId) =>
@@ -77,15 +77,16 @@ describe('EventManagementService', () => {
 
       await service.recordEvent(runId, type, payload);
 
+      // Implementation writes to events.json with an array of events
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        '/workspace/runs/run-123/events/event-uuid-123.json',
-        expect.objectContaining({
+        '/workspace/runs/run-123/events.json',
+        [{
           id: 'event-uuid-123',
           run_id: runId,
           type,
           payload,
           created_at: '2024-01-15T12:00:00.000Z'
-        })
+        }]
       );
     });
 
@@ -95,10 +96,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-123', 'step.completed', { result: 'success' }, stepId);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          step_id: stepId
-        })
+        '/workspace/runs/run-123/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            step_id: stepId
+          })
+        ])
       );
     });
 
@@ -106,27 +109,33 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-123', 'run.started', {});
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.not.objectContaining({
-          step_id: expect.anything()
-        })
+        '/workspace/runs/run-123/events.json',
+        expect.arrayContaining([
+          expect.not.objectContaining({
+            
+            step_id: expect.anything()
+          })
+        ])
       );
     });
 
-    it('ensures events directory exists', async () => {
+    it('ensures run directory exists', async () => {
       await service.recordEvent('run-789', 'test.event', {});
 
-      expect(mockFileOps.ensureDirSync).toHaveBeenCalledWith('/workspace/runs/run-789/events');
+      // Implementation ensures the run directory exists, not events subdirectory
+      expect(mockFileOps.ensureDirSync).toHaveBeenCalledWith('/workspace/runs/run-789');
     });
 
     it('handles default empty payload', async () => {
       await service.recordEvent('run-123', 'simple.event');
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          payload: {}
-        })
+        '/workspace/runs/run-123/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: {}
+          })
+        ])
       );
     });
 
@@ -134,10 +143,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-123', 'null.event', null);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          payload: null
-        })
+        '/workspace/runs/run-123/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: null
+          })
+        ])
       );
     });
 
@@ -161,10 +172,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-123', 'complex.event', complexPayload);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          payload: complexPayload
-        })
+        '/workspace/runs/run-123/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: complexPayload
+          })
+        ])
       );
     });
 
@@ -174,10 +187,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-123', 'array.event', arrayPayload);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          payload: arrayPayload
-        })
+        '/workspace/runs/run-123/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: arrayPayload
+          })
+        ])
       );
     });
 
@@ -187,14 +202,26 @@ describe('EventManagementService', () => {
         .mockReturnValueOnce('uuid-2')
         .mockReturnValueOnce('uuid-3');
 
+      // First event - writes array with one event
       await service.recordEvent('run-1', 'event.1', {});
+      // Second event - reads existing array and appends
+      mockFileOps.readJsonFile.mockResolvedValueOnce([{ id: 'uuid-1' }] as any);
       await service.recordEvent('run-1', 'event.2', {});
+      // Third event - reads existing array and appends
+      mockFileOps.readJsonFile.mockResolvedValueOnce([{ id: 'uuid-1' }, { id: 'uuid-2' }] as any);
       await service.recordEvent('run-1', 'event.3', {});
 
       const calls = mockFileOps.writeJsonFile.mock.calls;
-      expect(calls[0][1]).toMatchObject({ id: 'uuid-1' });
-      expect(calls[1][1]).toMatchObject({ id: 'uuid-2' });
-      expect(calls[2][1]).toMatchObject({ id: 'uuid-3' });
+      expect(calls[0][1]).toEqual([expect.objectContaining({ id: 'uuid-1' })]);
+      expect(calls[1][1]).toEqual([
+        expect.objectContaining({ id: 'uuid-1' }),
+        expect.objectContaining({ id: 'uuid-2' })
+      ]);
+      expect(calls[2][1]).toEqual([
+        expect.objectContaining({ id: 'uuid-1' }),
+        expect.objectContaining({ id: 'uuid-2' }),
+        expect.objectContaining({ id: 'uuid-3' })
+      ]);
     });
 
     it('records events with different types', async () => {
@@ -230,10 +257,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'large.event', largePayload);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          payload: largePayload
-        })
+        '/workspace/runs/run-1/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: largePayload
+          })
+        ])
       );
     });
 
@@ -241,10 +270,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'event.type-with_special.chars', {});
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          type: 'event.type-with_special.chars'
-        })
+        '/workspace/runs/run-1/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'event.type-with_special.chars'
+          })
+        ])
       );
     });
 
@@ -257,19 +288,22 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'event.2', {});
 
       const calls = mockFileOps.writeJsonFile.mock.calls;
-      expect(calls[0][1]).toMatchObject({ created_at: '2024-01-15T12:00:00.000Z' });
-      expect(calls[1][1]).toMatchObject({ created_at: '2024-01-15T12:00:01.000Z' });
+      expect(calls[0][1]).toEqual(expect.arrayContaining([
+        expect.objectContaining({ created_at: '2024-01-15T12:00:00.000Z' })
+      ]));
+      expect(calls[1][1]).toEqual(expect.arrayContaining([
+        expect.objectContaining({ created_at: '2024-01-15T12:00:01.000Z' })
+      ]));
     });
   });
 
   describe('listEvents', () => {
     it('returns empty array when no events exist', async () => {
-      mockFileOps.readDirectorySafe.mockResolvedValue([]);
+      mockFileOps.readJsonFile.mockResolvedValue(null);
 
       const result = await service.listEvents('run-123');
 
       expect(result).toEqual([]);
-      expect(mockFileOps.ensureDirSync).toHaveBeenCalledWith('/workspace/runs/run-123/events');
     });
 
     it('lists all events in a run', async () => {
@@ -279,15 +313,8 @@ describe('EventManagementService', () => {
         { id: 'event-3', type: 'step.completed', created_at: '2024-01-15T12:02:00.000Z' }
       ];
 
-      mockFileOps.readDirectorySafe.mockResolvedValue([
-        'event-1.json',
-        'event-2.json',
-        'event-3.json'
-      ]);
-      mockFileOps.readJsonFile
-        .mockResolvedValueOnce(events[0] as any)
-        .mockResolvedValueOnce(events[1] as any)
-        .mockResolvedValueOnce(events[2] as any);
+      // Mock reading from events.json with array of events
+      mockFileOps.readJsonFile.mockResolvedValue(events as any);
 
       const result = await service.listEvents('run-123');
 
@@ -296,66 +323,35 @@ describe('EventManagementService', () => {
     });
 
     it('sorts events by created_at in ascending order (chronological)', async () => {
+      // Events in unsorted order
       const events = [
         { id: 'event-3', created_at: '2024-01-15T12:02:00.000Z' },
         { id: 'event-1', created_at: '2024-01-15T12:00:00.000Z' },
         { id: 'event-2', created_at: '2024-01-15T12:01:00.000Z' }
       ];
 
-      mockFileOps.readDirectorySafe.mockResolvedValue([
-        'event-3.json',
-        'event-1.json',
-        'event-2.json'
-      ]);
-      mockFileOps.readJsonFile
-        .mockResolvedValueOnce(events[0] as any)
-        .mockResolvedValueOnce(events[1] as any)
-        .mockResolvedValueOnce(events[2] as any);
+      mockFileOps.readJsonFile.mockResolvedValue(events as any);
 
       const result = await service.listEvents('run-123');
 
+      // Should be sorted chronologically
       expect(result.map(e => e.id)).toEqual(['event-1', 'event-2', 'event-3']);
     });
 
-    it('skips non-JSON files', async () => {
-      mockFileOps.readDirectorySafe.mockResolvedValue([
-        'event-1.json',
-        'readme.txt',
-        'event-2.json',
-        '.DS_Store',
-        'backup.bak'
-      ]);
-      mockFileOps.readJsonFile
-        .mockResolvedValueOnce({ id: 'event-1' } as any)
-        .mockResolvedValueOnce({ id: 'event-2' } as any);
+    it('handles empty events array', async () => {
+      mockFileOps.readJsonFile.mockResolvedValue([]);
 
       const result = await service.listEvents('run-123');
 
-      expect(result).toHaveLength(2);
-      expect(mockFileOps.readJsonFile).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([]);
     });
 
-    it('skips invalid JSON files', async () => {
-      mockFileOps.readDirectorySafe.mockResolvedValue([
-        'event-1.json',
-        'event-2.json',
-        'event-3.json'
-      ]);
-      mockFileOps.readJsonFile
-        .mockResolvedValueOnce({ id: 'event-1' } as any)
-        .mockResolvedValueOnce(null) // Corrupted file
-        .mockResolvedValueOnce({ id: 'event-3' } as any);
+    it('handles non-array data gracefully', async () => {
+      mockFileOps.readJsonFile.mockResolvedValue({ not: 'an array' } as any);
 
       const result = await service.listEvents('run-123');
 
-      expect(result).toHaveLength(2);
-      expect(result.map(e => e.id)).toEqual(['event-1', 'event-3']);
-    });
-
-    it('ensures events directory exists before reading', async () => {
-      await service.listEvents('run-456');
-
-      expect(mockFileOps.ensureDirSync).toHaveBeenCalledWith('/workspace/runs/run-456/events');
+      expect(result).toEqual([]);
     });
 
     it('handles events with same timestamp', async () => {
@@ -366,15 +362,7 @@ describe('EventManagementService', () => {
         { id: 'event-3', created_at: timestamp }
       ];
 
-      mockFileOps.readDirectorySafe.mockResolvedValue([
-        'event-1.json',
-        'event-2.json',
-        'event-3.json'
-      ]);
-      mockFileOps.readJsonFile
-        .mockResolvedValueOnce(events[0] as any)
-        .mockResolvedValueOnce(events[1] as any)
-        .mockResolvedValueOnce(events[2] as any);
+      mockFileOps.readJsonFile.mockResolvedValue(events as any);
 
       const result = await service.listEvents('run-123');
 
@@ -388,13 +376,7 @@ describe('EventManagementService', () => {
         created_at: new Date(2024, 0, 15, 12, 0, i).toISOString()
       }));
 
-      mockFileOps.readDirectorySafe.mockResolvedValue(
-        events.map((_, i) => `event-${i}.json`)
-      );
-
-      events.forEach(event => {
-        mockFileOps.readJsonFile.mockResolvedValueOnce(event as any);
-      });
+      mockFileOps.readJsonFile.mockResolvedValue(events as any);
 
       const result = await service.listEvents('run-123');
 
@@ -420,8 +402,7 @@ describe('EventManagementService', () => {
     });
 
     it('handles concurrent event listing', async () => {
-      mockFileOps.readDirectorySafe.mockResolvedValue(['event-1.json']);
-      mockFileOps.readJsonFile.mockResolvedValue({ id: 'event-1' } as any);
+      mockFileOps.readJsonFile.mockResolvedValue([{ id: 'event-1' }] as any);
 
       const promises = [
         service.listEvents('run-1'),
@@ -437,8 +418,7 @@ describe('EventManagementService', () => {
 
     it('handles concurrent recording and listing', async () => {
       mockRandomUUID.mockReturnValue('new-event-uuid');
-      mockFileOps.readDirectorySafe.mockResolvedValue(['existing.json']);
-      mockFileOps.readJsonFile.mockResolvedValue({ id: 'existing' } as any);
+      mockFileOps.readJsonFile.mockResolvedValue([{ id: 'existing' }] as any);
 
       const promises = [
         service.recordEvent('run-1', 'new.event', {}),
@@ -502,10 +482,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', '', {});
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          type: ''
-        })
+        '/workspace/runs/run-1/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: ''
+          })
+        ])
       );
     });
 
@@ -515,10 +497,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', longType, {});
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          type: longType
-        })
+        '/workspace/runs/run-1/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: longType
+          })
+        ])
       );
     });
 
@@ -539,10 +523,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'test.event', {}, undefined);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.not.objectContaining({
-          step_id: expect.anything()
-        })
+        '/workspace/runs/run-1/events.json',
+        expect.arrayContaining([
+          expect.not.objectContaining({
+            step_id: expect.anything()
+          })
+        ])
       );
     });
   });
@@ -561,14 +547,17 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'test.event', payload);
 
       expect(mockFileOps.writeJsonFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          payload
-        })
+        '/workspace/runs/run-1/events.json',
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload
+          })
+        ])
       );
     });
 
     it('maintains event ordering by timestamp', async () => {
+      // Events stored in unsorted order in events.json
       const events = [
         { id: 'e3', created_at: '2024-01-15T12:00:02.000Z' },
         { id: 'e1', created_at: '2024-01-15T12:00:00.000Z' },
@@ -576,14 +565,7 @@ describe('EventManagementService', () => {
         { id: 'e2', created_at: '2024-01-15T12:00:01.000Z' }
       ];
 
-      mockFileOps.readDirectorySafe.mockResolvedValue(
-        ['e3.json', 'e1.json', 'e4.json', 'e2.json'] // Unsorted file order
-      );
-
-      // Mock file reads in the order they'll be requested
-      events.forEach(event => {
-        mockFileOps.readJsonFile.mockResolvedValueOnce(event as any);
-      });
+      mockFileOps.readJsonFile.mockResolvedValue(events as any);
 
       const result = await service.listEvents('run-1');
 

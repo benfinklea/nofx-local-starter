@@ -46,8 +46,8 @@ jest.mock('../../../src/lib/runRecovery', () => ({
     }
   },
   StepNotRetryableError: class StepNotRetryableError extends Error {
-    constructor() {
-      super('Step not retryable');
+    constructor(status: string) {
+      super(`step_not_retryable:${status}`);
       this.name = 'StepNotRetryableError';
     }
   },
@@ -842,7 +842,7 @@ describe('Runs Handlers', () => {
 
     it('should return 400 for StepNotRetryableError', async () => {
       (mockRunRecovery.retryStep as jest.Mock).mockRejectedValue(
-        new mockRunRecovery.StepNotRetryableError()
+        new mockRunRecovery.StepNotRetryableError('pending')
       );
 
       mockReq.params = { runId: 'run-123', stepId: 'step-456' };
