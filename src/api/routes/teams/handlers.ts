@@ -1,9 +1,12 @@
 /**
  * Team route handlers - refactored using Extract Method pattern
+ * Uses standardized API response utilities for type-safe responses
  */
 
 import { Request, Response } from 'express';
 import { log } from '../../../lib/logger';
+import { ApiResponse } from '../../../lib/apiResponse';
+import { createApiError, isError } from '../../../lib/errors';
 import { TeamService } from './TeamService';
 import { InviteService } from './InviteService';
 import { MemberService } from './MemberService';
@@ -19,71 +22,146 @@ const teamService = new TeamService();
 const inviteService = new InviteService();
 const memberService = new MemberService();
 
-export async function handleListTeams(req: Request, res: Response) {
+/**
+ * List all teams for the authenticated user
+ *
+ * @param req - Express request with userId set by auth middleware
+ * @param res - Express response
+ */
+export async function handleListTeams(req: Request, res: Response): Promise<void> {
   try {
     const teams = await teamService.listUserTeams(req.userId!);
-    res.json({ teams });
+    ApiResponse.success(res, { teams });
   } catch (error) {
     log.error({ error }, 'List teams error');
-    res.status(500).json({ error: (error as Error).message || 'Failed to list teams' });
+    const apiError = createApiError.internal(
+      'Failed to list teams',
+      error,
+      { userId: req.userId }
+    );
+    ApiResponse.fromApiError(res, apiError);
   }
 }
 
-export async function handleCreateTeam(req: Request, res: Response) {
+/**
+ * Create a new team
+ *
+ * @param req - Express request with validated team data
+ * @param res - Express response
+ */
+export async function handleCreateTeam(req: Request, res: Response): Promise<void> {
   try {
     const parsed = CreateTeamSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      const errors = parsed.error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message,
+        code: err.code
+      }));
+      const apiError = createApiError.validationMultiple('Invalid request data', errors);
+      ApiResponse.fromApiError(res, apiError);
+      return;
     }
 
     const team = await teamService.createTeam(parsed.data, req.userId!, req.user?.email);
-    res.status(201).json({ team });
+    ApiResponse.success(res, { team }, 201);
   } catch (error) {
     log.error({ error }, 'Create team error');
-    res.status(500).json({ error: (error as Error).message || 'Failed to create team' });
+    const apiError = createApiError.internal(
+      'Failed to create team',
+      error,
+      { userId: req.userId }
+    );
+    ApiResponse.fromApiError(res, apiError);
   }
 }
 
-export async function handleGetTeam(req: Request, res: Response) {
+/**
+ * Get team details including members and invites
+ *
+ * @param req - Express request with teamId parameter
+ * @param res - Express response
+ */
+export async function handleGetTeam(req: Request, res: Response): Promise<void> {
   try {
     const team = await teamService.getTeamDetails(req.params.teamId);
-    res.json({ team });
+    if (!team) {
+      const apiError = createApiError.notFound('Team', req.params.teamId);
+      ApiResponse.fromApiError(res, apiError);
+      return;
+    }
+    ApiResponse.success(res, { team });
   } catch (error) {
     log.error({ error }, 'Get team error');
-    res.status(500).json({ error: (error as Error).message || 'Failed to get team' });
+    const apiError = createApiError.internal(
+      'Failed to get team',
+      error,
+      { teamId: req.params.teamId }
+    );
+    ApiResponse.fromApiError(res, apiError);
   }
 }
 
-export async function handleUpdateTeam(req: Request, res: Response) {
+/**
+ * Update team details
+ *
+ * @param req - Express request with teamId parameter and update data
+ * @param res - Express response
+ */
+export async function handleUpdateTeam(req: Request, res: Response): Promise<void> {
   try {
     const parsed = UpdateTeamSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      const errors = parsed.error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message,
+        code: err.code
+      }));
+      const apiError = createApiError.validationMultiple('Invalid request data', errors);
+      ApiResponse.fromApiError(res, apiError);
+      return;
     }
 
     const team = await teamService.updateTeam(req.params.teamId, parsed.data, req.userId!);
-    res.json({ team });
+    ApiResponse.success(res, { team });
   } catch (error) {
     log.error({ error }, 'Update team error');
-    res.status(500).json({ error: (error as Error).message || 'Failed to update team' });
+    const apiError = createApiError.internal(
+      'Failed to update team',
+      error,
+      { teamId: req.params.teamId, userId: req.userId }
+    );
+    ApiResponse.fromApiError(res, apiError);
   }
 }
 
-export async function handleDeleteTeam(req: Request, res: Response) {
+/**
+ * Delete a team (owner only)
+ *
+ * @param req - Express request with teamId parameter
+ * @param res - Express response
+ */
+export async function handleDeleteTeam(req: Request, res: Response): Promise<void> {
   try {
     await teamService.deleteTeam(req.params.teamId, req.userId!);
-    res.json({ message: 'Team deleted successfully' });
+    ApiResponse.success(res, { message: 'Team deleted successfully' });
   } catch (error) {
     log.error({ error }, 'Delete team error');
-    res.status(500).json({ error: (error as Error).message || 'Failed to delete team' });
+    const apiError = createApiError.internal(
+      'Failed to delete team',
+      error,
+      { teamId: req.params.teamId, userId: req.userId }
+    );
+    ApiResponse.fromApiError(res, apiError);
   }
 }
 
-export async function handleSendInvite(req: Request, res: Response) {
+export async function handleSendInvite(req: Request, res: Response): Promise<void> {
   try {
     const parsed = InviteMemberSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     const invite = await inviteService.sendTeamInvite(
@@ -109,11 +187,12 @@ export async function handleSendInvite(req: Request, res: Response) {
   }
 }
 
-export async function handleAcceptInvite(req: Request, res: Response) {
+export async function handleAcceptInvite(req: Request, res: Response): Promise<void> {
   try {
     const parsed = AcceptInviteSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     await inviteService.acceptInvite(parsed.data, req.user?.email || '', req.userId!);
@@ -125,7 +204,7 @@ export async function handleAcceptInvite(req: Request, res: Response) {
   }
 }
 
-export async function handleCancelInvite(req: Request, res: Response) {
+export async function handleCancelInvite(req: Request, res: Response): Promise<void> {
   try {
     await inviteService.cancelInvite(req.params.teamId, req.params.inviteId, req.userId!);
     res.json({ message: 'Invite cancelled successfully' });
@@ -135,11 +214,12 @@ export async function handleCancelInvite(req: Request, res: Response) {
   }
 }
 
-export async function handleUpdateMemberRole(req: Request, res: Response) {
+export async function handleUpdateMemberRole(req: Request, res: Response): Promise<void> {
   try {
     const parsed = UpdateMemberRoleSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     const member = await memberService.updateMemberRole(
@@ -157,7 +237,7 @@ export async function handleUpdateMemberRole(req: Request, res: Response) {
   }
 }
 
-export async function handleRemoveMember(req: Request, res: Response) {
+export async function handleRemoveMember(req: Request, res: Response): Promise<void> {
   try {
     await memberService.removeMember(req.params.teamId, req.params.memberId, req.userId!);
     res.json({ message: 'Member removed successfully' });
@@ -168,7 +248,7 @@ export async function handleRemoveMember(req: Request, res: Response) {
   }
 }
 
-export async function handleLeaveTeam(req: Request, res: Response) {
+export async function handleLeaveTeam(req: Request, res: Response): Promise<void> {
   try {
     await memberService.leaveTeam(req.params.teamId, req.userId!);
     res.json({ message: 'Left team successfully' });
@@ -179,12 +259,13 @@ export async function handleLeaveTeam(req: Request, res: Response) {
   }
 }
 
-export async function handleTransferOwnership(req: Request, res: Response) {
+export async function handleTransferOwnership(req: Request, res: Response): Promise<void> {
   try {
     const { newOwnerId } = req.body;
 
     if (!newOwnerId) {
-      return res.status(400).json({ error: 'New owner ID is required' });
+      res.status(400).json({ error: 'New owner ID is required' });
+      return;
     }
 
     await memberService.transferOwnership(req.params.teamId, newOwnerId, req.userId!);

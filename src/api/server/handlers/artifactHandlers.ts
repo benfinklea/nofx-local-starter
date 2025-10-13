@@ -3,7 +3,6 @@
  */
 
 import type { Request, Response } from 'express';
-import { store } from '../../../lib/store';
 import { supabase, ARTIFACT_BUCKET } from '../../../lib/supabase';
 import path from 'node:path';
 import fsp from 'node:fs/promises';
@@ -13,13 +12,14 @@ import fs from 'node:fs';
  * GET /artifacts/:path*
  * Retrieve artifact content by path
  */
-export async function handleGetArtifact(req: Request, res: Response) {
+export async function handleGetArtifact(req: Request, res: Response): Promise<void> {
   try {
     // Extract the full path from params (catch-all route)
     const artifactPath = req.params[0] || req.params.path || '';
 
     if (!artifactPath) {
-      return res.status(400).json({ error: 'Artifact path is required' });
+      res.status(400).json({ error: 'Artifact path is required' });
+      return;
     }
 
     // Try Supabase storage first (artifacts may be stored there even with fs driver)
@@ -47,8 +47,10 @@ export async function handleGetArtifact(req: Request, res: Response) {
           } else {
             // Last resort: use node-fetch Response stream
             const chunks: Uint8Array[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const reader = (data as any).stream?.().getReader();
             if (reader) {
+              // eslint-disable-next-line no-constant-condition
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -62,13 +64,14 @@ export async function handleGetArtifact(req: Request, res: Response) {
             }
           }
 
-          return res.json({
+          res.json({
             content,
             path: artifactPath,
             size
           });
+          return;
         }
-      } catch (supabaseError) {
+      } catch (_supabaseError) {
         // Fall through to filesystem check (Supabase not available or file not found)
       }
     }
@@ -80,26 +83,28 @@ export async function handleGetArtifact(req: Request, res: Response) {
 
     // Security: Prevent path traversal
     if (!fullPath.startsWith(basePath + path.sep) && fullPath !== basePath) {
-      return res.status(400).json({ error: 'Invalid artifact path' });
+      res.status(400).json({ error: 'Invalid artifact path' });
+      return;
     }
 
     // Check if file exists
     if (!fs.existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Artifact not found' });
+      res.status(404).json({ error: 'Artifact not found' });
+      return;
     }
 
     // Read file content
     const content = await fsp.readFile(fullPath, 'utf8');
     const stats = await fsp.stat(fullPath);
 
-    return res.json({
+    res.json({
       content,
       path: artifactPath,
       size: stats.size
     });
   } catch (error) {
     console.error('Error retrieving artifact:', error);
-    return res.status(500).json({
+    res.status(500).json({
       error: 'Failed to retrieve artifact',
       details: error instanceof Error ? error.message : 'Unknown error'
     });

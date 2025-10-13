@@ -41,8 +41,8 @@ export function createMockResponse(): VercelResponse & {
 } {
   const state = {
     _status: 200,
-    _json: null,
-    _data: null,
+    _json: null as any,
+    _data: null as string | null,
     _headers: {} as Record<string, string>,
     _writes: [] as string[],
     _ended: false,

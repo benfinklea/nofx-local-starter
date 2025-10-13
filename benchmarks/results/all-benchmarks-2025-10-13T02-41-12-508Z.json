@@ -1,0 +1,36 @@
+{
+  "api-endpoints": {
+    "name": "api-endpoints",
+    "description": "API endpoint performance benchmarks",
+    "thresholds": {
+      "maxDuration": 100,
+      "maxMemoryMB": 10,
+      "maxCpuPercent": 50
+    },
+    "results": [
+      {
+        "name": "health-check",
+        "duration": 10.479917000000114,
+        "memory": {
+          "used": -2094488,
+          "rss": 650346496,
+          "heapUsed": 455934152,
+          "heapTotal": 496287744,
+          "external": 21986216
+        },
+        "cpu": {
+          "user": 12.815,
+          "system": 3.031
+        },
+        "timestamp": 1760323272506,
+        "metadata": {
+          "endpoint": "/health",
+          "method": "GET",
+          "error": "fetch failed"
+        }
+      }
+    ],
+    "startTime": 1886.26975,
+    "endTime": 1899.013583
+  }
+}

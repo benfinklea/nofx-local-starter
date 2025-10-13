@@ -20,7 +20,7 @@ export default function traceLogRoutes(app: Express) {
     next();
   });
 
-  router.get('/', async (_req, res) => {
+  router.get('/', async (_req, res): Promise<void> => {
     const status = getTraceStatusSync();
     if (status.source !== 'env') {
       await refreshTraceStatus();
@@ -28,7 +28,7 @@ export default function traceLogRoutes(app: Express) {
     const refreshed = getTraceStatusSync();
     const filePath = logFilePath();
     const available = logFileExists();
-    res.json({
+    return res.json({
       enabled: refreshed.value,
       source: refreshed.source,
       logFilePath: filePath,
@@ -43,15 +43,15 @@ export default function traceLogRoutes(app: Express) {
     });
   });
 
-  router.post('/', async (req, res) => {
+  router.post('/', async (req, res): Promise<void> => {
     const enable = Boolean(req.body?.enabled);
     await setTraceLogging(enable);
     log.info({ enable }, 'trace logging toggled via API');
     const status = getTraceStatusSync();
-    res.json({ enabled: status.value, source: status.source });
+    return res.json({ enabled: status.value, source: status.source });
   });
 
-  router.get('/download', (req, res) => {
+  router.get('/download', (req, res): Promise<void> => {
     const filePath = logFilePath();
     try {
       if (!fs.existsSync(filePath)) {
@@ -63,7 +63,7 @@ export default function traceLogRoutes(app: Express) {
       stream.pipe(res);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to read log file';
-      res.status(500).json({ error: message });
+      return res.status(500).json({ error: message });
     }
   });
 

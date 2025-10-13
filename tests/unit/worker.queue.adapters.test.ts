@@ -208,7 +208,7 @@ describe('Queue Adapters Tests', () => {
       const handler = jest.fn().mockResolvedValue(undefined);
       let callTime: number;
 
-      adapter.subscribe('delayed.topic', async (payload) => {
+      adapter.subscribe('delayed.topic', async (payload: any) => {
         callTime = Date.now();
         return handler(payload);
       });

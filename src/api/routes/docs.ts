@@ -30,13 +30,13 @@ export default function mount(app: Express) {
       }));
 
       // Serve raw OpenAPI spec
-      app.get('/openapi.yaml', (_req, res) => {
+      app.get('/openapi.yaml', (_req, res): Promise<void> => {
         res.type('text/yaml');
-        res.sendFile(openapiPath);
+        return res.sendFile(openapiPath);
       });
 
-      app.get('/openapi.json', (_req, res) => {
-        res.json(swaggerDocument);
+      app.get('/openapi.json', (_req, res): Promise<void> => {
+        return res.json(swaggerDocument);
       });
 
       log.info({ path: '/api-docs' }, '📚 API documentation available');

@@ -1,6 +1,11 @@
+/**
+ * Project management routes with standardized API responses
+ */
 import type { Express } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../auth/middleware';
+import { ApiResponse } from '../../lib/apiResponse';
+import { createApiError } from '../../lib/errors';
 import { listProjects, getProject, createProject, updateProject, deleteProject } from '../../lib/projects';
 import type { Project } from '../../lib/projects';
 
@@ -30,30 +35,98 @@ function normalizeProjectInput(input: Partial<UpsertInput>): Partial<Project> {
   return result;
 }
 
+/**
+ * Mount project management routes
+ *
+ * @param app - Express application instance
+ */
 export default function mount(app: Express){
-  app.get('/projects', requireAuth, async (req, res) => {
-    const rows = await listProjects();
-    res.json({ projects: rows });
+  /**
+   * List all projects
+   */
+  app.get('/projects', requireAuth, async (req, res): Promise<void> => {
+    try {
+      const rows = await listProjects();
+      ApiResponse.success(res, { projects: rows });
+    } catch (error) {
+      const apiError = createApiError.internal('Failed to list projects', error);
+      ApiResponse.fromApiError(res, apiError);
+    }
   });
-  app.post('/projects', requireAuth, async (req, res) => {
-    const parsed = UpsertSchema.safeParse(req.body || {});
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    const row = await createProject(normalizeProjectInput(parsed.data));
-    res.status(201).json(row);
+
+  /**
+   * Create a new project
+   */
+  app.post('/projects', requireAuth, async (req, res): Promise<void> => {
+    try {
+      const parsed = UpsertSchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        const errors = parsed.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code
+        }));
+        const apiError = createApiError.validationMultiple('Invalid project data', errors);
+        return ApiResponse.fromApiError(res, apiError);
+      }
+      const row = await createProject(normalizeProjectInput(parsed.data));
+      ApiResponse.success(res, row, 201);
+    } catch (error) {
+      const apiError = createApiError.internal('Failed to create project', error);
+      ApiResponse.fromApiError(res, apiError);
+    }
   });
-  app.get('/projects/:id', requireAuth, async (req, res) => {
-    const row = await getProject(req.params.id);
-    if (!row) return res.status(404).json({ error: 'not found' });
-    res.json(row);
+
+  /**
+   * Get a specific project by ID
+   */
+  app.get('/projects/:id', requireAuth, async (req, res): Promise<void> => {
+    try {
+      const row = await getProject(req.params.id);
+      if (!row) {
+        const apiError = createApiError.notFound('Project', req.params.id);
+        return ApiResponse.fromApiError(res, apiError);
+      }
+      ApiResponse.success(res, row);
+    } catch (error) {
+      const apiError = createApiError.internal('Failed to get project', error, { projectId: req.params.id });
+      ApiResponse.fromApiError(res, apiError);
+    }
   });
-  app.patch('/projects/:id', requireAuth, async (req, res) => {
-    const parsed = UpsertSchema.partial().safeParse(req.body || {});
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    const row = await updateProject(req.params.id, normalizeProjectInput(parsed.data));
-    res.json(row);
+
+  /**
+   * Update a project
+   */
+  app.patch('/projects/:id', requireAuth, async (req, res): Promise<void> => {
+    try {
+      const parsed = UpsertSchema.partial().safeParse(req.body || {});
+      if (!parsed.success) {
+        const errors = parsed.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code
+        }));
+        const apiError = createApiError.validationMultiple('Invalid project data', errors);
+        return ApiResponse.fromApiError(res, apiError);
+      }
+      const row = await updateProject(req.params.id, normalizeProjectInput(parsed.data));
+      ApiResponse.success(res, row);
+    } catch (error) {
+      const apiError = createApiError.internal('Failed to update project', error, { projectId: req.params.id });
+      ApiResponse.fromApiError(res, apiError);
+    }
   });
-  app.delete('/projects/:id', requireAuth, async (req, res) => {
-    await deleteProject(req.params.id);
-    res.json({ ok: true });
+
+  /**
+   * Delete a project
+   */
+  app.delete('/projects/:id', requireAuth, async (req, res): Promise<void> => {
+    try {
+      await deleteProject(req.params.id);
+      ApiResponse.success(res, { message: 'Project deleted successfully' });
+    } catch (error) {
+      const apiError = createApiError.internal('Failed to delete project', error, { projectId: req.params.id });
+      ApiResponse.fromApiError(res, apiError);
+    }
   });
 }

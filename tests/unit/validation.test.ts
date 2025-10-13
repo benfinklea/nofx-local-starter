@@ -89,6 +89,7 @@ describe('Validation Tests', () => {
 
     test('removes control characters', () => {
       const removeControlChars = (input: string): string => {
+        // eslint-disable-next-line no-control-regex
         return input.replace(/[\x00-\x1F\x7F]/g, '');
       };
 
@@ -280,7 +281,9 @@ describe('Validation Tests', () => {
         let isEven = false;
 
         for (let i = cleaned.length - 1; i >= 0; i--) {
-          let digit = parseInt(cleaned[i]);
+          const char = cleaned[i];
+          if (!char) continue; // Skip if undefined
+          let digit = parseInt(char, 10);
 
           if (isEven) {
             digit *= 2;

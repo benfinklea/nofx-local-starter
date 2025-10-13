@@ -104,7 +104,7 @@ describe('gate handler', () => {
     } as any);
     mockSaveArtifact.mockResolvedValue('https://example.com/artifact.json');
     mockBuildMinimalEnv.mockReturnValue({ NODE_ENV: 'test' });
-    mockGetProject.mockResolvedValue(null);
+    mockGetProject.mockResolvedValue(undefined);
     mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/mock/workspace');
     mockShouldGateBlock.mockReturnValue(true); // Default to blocking for critical gates
 
@@ -476,7 +476,7 @@ describe('gate handler', () => {
     });
 
     it('should handle artifact upload failures gracefully', async () => {
-      mockSaveArtifact.mockResolvedValue(null); // Simulate upload failure
+      mockSaveArtifact.mockResolvedValue(undefined); // Simulate upload failure
 
       mockSpawnSync.mockReturnValue({
         status: 0,

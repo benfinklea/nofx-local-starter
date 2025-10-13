@@ -157,10 +157,10 @@ describe('Store Module', () => {
         );
       });
 
-      it('should handle non-existent run gracefully', async () => {
+      it('should throw error for non-existent run', async () => {
         mockFsp.readFile.mockRejectedValue(new Error('File not found'));
 
-        await expect(store.updateRun('non-existent', { status: 'running' })).resolves.not.toThrow();
+        await expect(store.updateRun('non-existent', { status: 'running' })).rejects.toThrow('Run non-existent not found');
       });
     });
 

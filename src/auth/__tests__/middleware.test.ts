@@ -122,7 +122,7 @@ describe('Auth Middleware - Security Tests', () => {
       });
 
       it('prevents API key enumeration attacks', async () => {
-        const maliciousKeys = [
+        const maliciousKeys: Array<string | null | undefined> = [
           '', null, undefined, 'admin', 'root', 'test',
           '../../etc/passwd', '<script>alert(1)</script>',
           'nofx_test_' + 'a'.repeat(1000),
@@ -130,7 +130,7 @@ describe('Auth Middleware - Security Tests', () => {
         ];
 
         for (const key of maliciousKeys) {
-          mockReq.headers = { 'x-api-key': key };
+          mockReq.headers = { 'x-api-key': key as any };
           (verifyApiKey as jest.Mock).mockResolvedValue(null);
 
           await authenticate(mockReq as Request, mockRes as Response, mockNext);
@@ -436,7 +436,7 @@ describe('Auth Middleware - Security Tests', () => {
 
         await tierMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
-        expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Limit', expectedLimits[i].toString());
+        expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Limit', expectedLimits[i]!.toString());
       }
     });
 

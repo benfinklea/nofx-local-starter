@@ -156,7 +156,7 @@ describe('git_ops handler', () => {
     });
 
     it('should fail when project not found', async () => {
-      mockGetProject.mockResolvedValue(null);
+      mockGetProject.mockResolvedValue(undefined);
 
       await gitOpsHandler.run({
         runId: 'run-123',

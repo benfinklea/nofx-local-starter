@@ -77,28 +77,28 @@ function serializeIncident(incident: any) {
 }
 
 export default function mount(app: Express) {
-  app.get('/responses/ops/summary', async (req, res) => {
+  app.get('/responses/ops/summary', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const summary = getResponsesOperationsSummary();
-      res.json(summary);
+      return res.json(summary);
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to build summary' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to build summary' });
     }
   });
 
-  app.get('/responses/ops/incidents', async (req, res) => {
+  app.get('/responses/ops/incidents', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const status = typeof req.query.status === 'string' ? (req.query.status as 'open' | 'resolved') : 'open';
       const incidents = listResponseIncidents(status);
-      res.json({ incidents });
+      return res.json({ incidents });
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list incidents' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list incidents' });
     }
   });
 
-  app.post('/responses/ops/incidents/:id/resolve', async (req, res) => {
+  app.post('/responses/ops/incidents/:id/resolve', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     try {
@@ -116,16 +116,16 @@ export default function mount(app: Express) {
         disposition: parsed.disposition,
         linkedRunId: parsed.linkedRunId,
       });
-      res.json({ incident: serializeIncident(incident) });
+      return res.json({ incident: serializeIncident(incident) });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to resolve incident' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to resolve incident' });
     }
   });
 
-  app.post('/responses/ops/prune', async (req, res) => {
+  app.post('/responses/ops/prune', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const schema = z.object({ days: z.number().int().positive().max(365) });
@@ -133,16 +133,16 @@ export default function mount(app: Express) {
         days: typeof req.body?.days !== 'undefined' ? Number(req.body.days) : Number(req.query?.days ?? 0),
       });
       pruneResponsesOlderThanDays(parsed.days);
-      res.json({ ok: true, summary: getResponsesOperationsSummary() });
+      return res.json({ ok: true, summary: getResponsesOperationsSummary() });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'prune failed' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'prune failed' });
     }
   });
 
-  app.post('/responses/ops/ui-event', async (req, res) => {
+  app.post('/responses/ops/ui-event', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const schema = z.object({
@@ -152,16 +152,16 @@ export default function mount(app: Express) {
       });
       const payload = schema.parse(req.body ?? {});
       log.info({ event: 'responses.ui_event', ...payload }, 'Responses UI interaction');
-      res.json({ ok: true });
+      return res.json({ ok: true });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to log ui event' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to log ui event' });
     }
   });
 
-  app.post('/responses/runs/:id/retry', async (req, res) => {
+  app.post('/responses/runs/:id/retry', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     try {
@@ -172,7 +172,7 @@ export default function mount(app: Express) {
       });
       const parsed = schema.parse(req.body ?? {});
       const result = await retryResponsesRun(id, parsed);
-      res.status(201).json({
+      return res.status(201).json({
         runId: result.runId,
         bufferedMessages: result.bufferedMessages,
         reasoning: result.reasoningSummaries,
@@ -192,11 +192,11 @@ export default function mount(app: Express) {
       if (err instanceof Error && err.message === 'run not found') {
         return res.status(404).json({ error: 'not found' });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'retry failed' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'retry failed' });
     }
   });
 
-  app.post('/responses/runs/:id/moderation-notes', async (req, res) => {
+  app.post('/responses/runs/:id/moderation-notes', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     try {
@@ -211,18 +211,18 @@ export default function mount(app: Express) {
         note: parsed.note,
         disposition: parsed.disposition,
       });
-      res.status(201).json({
+      return res.status(201).json({
         note: serializeModeratorNote(note),
       });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to record note' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to record note' });
     }
   });
 
-  app.post('/responses/runs/:id/rollback', async (req, res) => {
+  app.post('/responses/runs/:id/rollback', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     try {
@@ -236,7 +236,7 @@ export default function mount(app: Express) {
       });
       const parsed = schema.parse(req.body ?? {});
       const snapshot = await rollbackResponsesRun(id, parsed);
-      res.json(snapshot);
+      return res.json(snapshot);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
@@ -244,33 +244,33 @@ export default function mount(app: Express) {
       if (err instanceof Error && err.message.includes('not found')) {
         return res.status(404).json({ error: err.message });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'rollback failed' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'rollback failed' });
     }
   });
 
-  app.post('/responses/runs/:id/export', async (req, res) => {
+  app.post('/responses/runs/:id/export', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     try {
       const location = await exportResponsesRun(id);
-      res.json({ ok: true, path: location });
+      return res.json({ ok: true, path: location });
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'export failed' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'export failed' });
     }
   });
 
-  app.get('/responses/runs', async (req, res) => {
+  app.get('/responses/runs', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const runtime = getResponsesRuntime();
       const runs = runtime.archive.listRuns().map(serializeRun);
-      res.json({ runs });
+      return res.json({ runs });
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list runs' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list runs' });
     }
   });
 
-  app.get('/responses/runs/:id', async (req, res) => {
+  app.get('/responses/runs/:id', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     try {
@@ -280,7 +280,7 @@ export default function mount(app: Express) {
 
       const incidents = getRunIncidents(id);
 
-      res.json({
+      return res.json({
         run: serializeRun(timeline.run),
         events: timeline.events.map(serializeEvent),
         bufferedMessages: runtime.coordinator.getBufferedMessages(id),
@@ -294,7 +294,7 @@ export default function mount(app: Express) {
         incidents,
       });
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch run' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch run' });
     }
   });
 }

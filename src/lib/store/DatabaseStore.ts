@@ -146,7 +146,7 @@ export class DatabaseStore implements StoreDriver {
 
   async countRemainingSteps(runId: string): Promise<number> {
     const result = await pgQuery<{ count: string }>(`select count(*)::int as count from nofx.step where run_id=$1 and status not in ('succeeded','cancelled')`, [runId]);
-    return Number(result.rows[0].count);
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   async recordEvent(runId: string, type: string, payload: JsonValue = {}): Promise<void> {
@@ -273,6 +273,8 @@ export class DatabaseStore implements StoreDriver {
       [runData.id, runData.plan, runData.status, runData.project_id, runData.user_id, runData.metadata]
     );
     const result = await pgQuery<RunRow>(`select * from nofx.run where id=$1`, [runId]);
-    return result.rows[0];
+    const row = result.rows[0];
+    if (!row) throw new Error(`Failed to retrieve created run ${runId}`);
+    return row;
   }
 }

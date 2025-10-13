@@ -11,6 +11,9 @@ let queue: typeof import('../../src/lib/queue');
 let factories: typeof import('../../src/testing/factories');
 
 beforeAll(async () => {
+  // Unmock ioredis for this integration test
+  jest.unmock('ioredis');
+
   // Ensure modules reload with DB/Redis drivers
   jest.resetModules();
   process.env.DATA_DRIVER = 'db';
@@ -43,7 +46,9 @@ beforeAll(async () => {
   } catch {
     envReady = false;
   } finally {
-    redis.disconnect();
+    try {
+      redis.disconnect();
+    } catch {}
   }
 
   if (!envReady) {
@@ -76,9 +81,11 @@ afterAll(async () => {
     // Clean up queue if it was loaded
     if (queue) {
       try {
+        // Import a fresh IORedis to avoid module issues
+        const { default: FreshIORedis } = await import('ioredis');
         const { Queue } = await import('bullmq');
-        // Create an IORedis connection instance to avoid constructor issues
-        const connection = new IORedis(REDIS_URL, { lazyConnect: true });
+        // Create an IORedis connection instance
+        const connection = new FreshIORedis(REDIS_URL);
         const q = new Queue(queue.STEP_READY_TOPIC, { connection });
         await q.drain(true);
         await q.close();
@@ -90,6 +97,7 @@ afterAll(async () => {
     }
   }
 
+  jest.unmock('ioredis'); // Unmock before resetting modules
   jest.resetModules();
   delete process.env.DATA_DRIVER;
   delete process.env.QUEUE_DRIVER;
@@ -117,8 +125,9 @@ test('DB + Redis drivers persist events and enqueue reliably', async () => {
   await retryStep(run.id, step.id);
 
   // Verify queue received job via Redis adapter
-  const counts = await queue.getCounts(queue.STEP_READY_TOPIC) as { waiting: number; delayed: number };
-  expect(counts.waiting + counts.delayed).toBeGreaterThan(0);
+  const counts = await queue.getCounts(queue.STEP_READY_TOPIC) as any;
+  // Job might be waiting, delayed, or already active if a worker picked it up
+  expect(counts.waiting + counts.delayed + counts.active).toBeGreaterThan(0);
 
   // Verify DB reflects new status and inbox has been cleared/reset
   const refreshedStep = await store.getStep(step.id);

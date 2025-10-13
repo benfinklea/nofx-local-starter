@@ -13,7 +13,7 @@ export default function mount(app: Express) {
   /**
    * Get available pricing plans
    */
-  app.get('/billing/plans', async (_req: Request, res: Response) => {
+  app.get('/billing/plans', async (_req: Request, res: Response): Promise<void> => {
     try {
       const supabase = createServiceClient();
       if (!supabase) {
@@ -29,17 +29,17 @@ export default function mount(app: Express) {
         .eq('active', true)
         .order('metadata->sort_order');
 
-      res.json({ plans: products || [] });
+      return res.json({ plans: products || [] });
     } catch (error) {
       log.error({ error }, 'Error fetching plans');
-      res.status(500).json({ error: 'Failed to fetch plans' });
+      return res.status(500).json({ error: 'Failed to fetch plans' });
     }
   });
 
   /**
    * Get user's current subscription
    */
-  app.get('/billing/subscription', requireAuth, async (req: Request, res: Response) => {
+  app.get('/billing/subscription', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -65,21 +65,21 @@ export default function mount(app: Express) {
 
       const tier = await getUserTier(req.userId);
 
-      res.json({
+      return res.json({
         subscription: subscription || null,
         tier,
         hasActiveSubscription: !!subscription
       });
     } catch (error) {
       log.error({ error }, 'Error fetching subscription');
-      res.status(500).json({ error: 'Failed to fetch subscription' });
+      return res.status(500).json({ error: 'Failed to fetch subscription' });
     }
   });
 
   /**
    * Create Stripe Checkout session
    */
-  app.post('/billing/checkout', requireAuth, async (req: Request, res: Response) => {
+  app.post('/billing/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -102,17 +102,17 @@ export default function mount(app: Express) {
       // Track checkout initiation
       await trackUsage(req.userId, 'checkout_initiated', 1, { priceId });
 
-      res.json({ url: checkoutUrl });
+      return res.json({ url: checkoutUrl });
     } catch (error) {
       log.error({ error }, 'Error creating checkout session');
-      res.status(500).json({ error: 'Failed to create checkout session' });
+      return res.status(500).json({ error: 'Failed to create checkout session' });
     }
   });
 
   /**
    * Create Stripe Customer Portal session
    */
-  app.post('/billing/portal', requireAuth, async (req: Request, res: Response) => {
+  app.post('/billing/portal', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -126,17 +126,17 @@ export default function mount(app: Express) {
         return res.status(500).json({ error: 'Failed to create portal session' });
       }
 
-      res.json({ url: portalUrl });
+      return res.json({ url: portalUrl });
     } catch (error) {
       log.error({ error }, 'Error creating portal session');
-      res.status(500).json({ error: 'Failed to create portal session' });
+      return res.status(500).json({ error: 'Failed to create portal session' });
     }
   });
 
   /**
    * Get usage statistics for current billing period
    */
-  app.get('/billing/usage', requireAuth, async (req: Request, res: Response) => {
+  app.get('/billing/usage', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -172,7 +172,7 @@ export default function mount(app: Express) {
         .eq('tier', tier)
         .single();
 
-      res.json({
+      return res.json({
         usage: aggregated,
         limits: {
           runs: tierData?.max_runs_per_month || 0,
@@ -187,14 +187,14 @@ export default function mount(app: Express) {
       });
     } catch (error) {
       log.error({ error }, 'Error fetching usage');
-      res.status(500).json({ error: 'Failed to fetch usage' });
+      return res.status(500).json({ error: 'Failed to fetch usage' });
     }
   });
 
   /**
    * Cancel subscription
    */
-  app.post('/billing/cancel', requireAuth, async (req: Request, res: Response) => {
+  app.post('/billing/cancel', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -225,7 +225,7 @@ export default function mount(app: Express) {
         return res.status(500).json({ error: 'Failed to cancel subscription' });
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: immediately
           ? 'Subscription cancelled immediately'
@@ -233,14 +233,14 @@ export default function mount(app: Express) {
       });
     } catch (error) {
       log.error({ error }, 'Error cancelling subscription');
-      res.status(500).json({ error: 'Failed to cancel subscription' });
+      return res.status(500).json({ error: 'Failed to cancel subscription' });
     }
   });
 
   /**
    * Resume cancelled subscription
    */
-  app.post('/billing/resume', requireAuth, async (req: Request, res: Response) => {
+  app.post('/billing/resume', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -269,13 +269,13 @@ export default function mount(app: Express) {
         return res.status(500).json({ error: 'Failed to resume subscription' });
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Subscription resumed successfully'
       });
     } catch (error) {
       log.error({ error }, 'Error resuming subscription');
-      res.status(500).json({ error: 'Failed to resume subscription' });
+      return res.status(500).json({ error: 'Failed to resume subscription' });
     }
   });
 }

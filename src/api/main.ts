@@ -116,17 +116,33 @@ mountSaasRoutes(app);
 mountDynamicRoutes(app);
 
 // Global error handler
-app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction): void => {
   const correlationId = req.headers['x-correlation-id'] || `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  console.error('Unhandled error:', {
-    error: error.message,
-    stack: error.stack,
-    correlationId,
-    url: req.url,
-    method: req.method,
-    userAgent: req.headers['user-agent']
-  });
+  // Don't log JSON parse errors in test mode - they're expected
+  const isTestMode = process.env.NODE_ENV === 'test';
+  const isJsonParseError = error instanceof SyntaxError && 'body' in error;
+
+  if (!isTestMode || !isJsonParseError) {
+    console.error('Unhandled error:', {
+      error: error.message,
+      stack: error.stack,
+      correlationId,
+      url: req.url,
+      method: req.method,
+      userAgent: req.headers['user-agent']
+    });
+  }
+
+  // Handle JSON parsing errors specifically
+  if (isJsonParseError) {
+    res.status(400).json({
+      error: 'Invalid JSON in request body',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
 
   // Don't expose sensitive error details in production
   const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';

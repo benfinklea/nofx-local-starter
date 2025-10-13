@@ -17,7 +17,8 @@ export class EventManagementService {
   recordEvent(runId: string, input: { sequence?: number; type: string; payload: unknown; occurredAt?: Date }): EventRecord {
     const eventsPath = this.fileManager.eventsFile(runId);
     const events = this.fileManager.readJSON<SerializableEvent[]>(eventsPath, []);
-    const lastSequence = events.length ? events[events.length - 1].sequence : 0;
+    const lastEvent = events[events.length - 1];
+    const lastSequence = lastEvent ? lastEvent.sequence : 0;
     const nextSequence = input.sequence ?? lastSequence + 1;
 
     if (events.some((event) => event.sequence === nextSequence)) {

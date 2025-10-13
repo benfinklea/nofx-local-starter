@@ -274,7 +274,7 @@ describe('bash handler', () => {
     });
 
     it('should use workspace parameter as direct path when project not found', async () => {
-      mockGetProject.mockResolvedValue(null);
+      mockGetProject.mockResolvedValue(undefined);
 
       const mockProcess = new MockChildProcess();
       mockSpawn.mockReturnValue(mockProcess as any);

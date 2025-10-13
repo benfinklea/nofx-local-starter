@@ -9,21 +9,12 @@ async function globalSetup(config: FullConfig) {
   const page = await browser.newPage();
 
   try {
-    // Navigate to login page
+    // In test/dev mode, use the /dev/login endpoint which auto-sets admin cookie
     console.log(`🔐 Authenticating admin user at ${baseURL}`);
-    await page.goto(`${baseURL}/ui/login`);
+    await page.goto(`${baseURL}/dev/login`, { waitUntil: 'networkidle' });
 
-    // Wait for login form to be available
-    await page.waitForSelector('input[name="password"], input[type="password"]', { timeout: 30000 });
-
-    // Fill password (using default admin password)
-    await page.fill('input[name="password"], input[type="password"]', 'admin123');
-
-    // Submit form
-    await page.click('button[type="submit"], input[type="submit"], button:has-text("Login")');
-
-    // Wait for successful login (redirect or success indicator)
-    await page.waitForTimeout(2000);
+    // Wait a moment for cookie to be set and redirects to complete
+    await page.waitForTimeout(1000);
 
     // Check if we have admin cookie
     const cookies = await page.context().cookies();
@@ -31,17 +22,14 @@ async function globalSetup(config: FullConfig) {
 
     if (adminCookie) {
       console.log('✅ Admin authentication successful');
-
-      // Save authenticated state
-      const authFile = path.join(__dirname, '.auth', 'admin.json');
-      await page.context().storageState({ path: authFile });
-      console.log(`💾 Saved authentication state to ${authFile}`);
     } else {
       console.log('⚠️  Admin cookie not found, but proceeding...');
-      // Save state anyway for tests that don't require authentication
-      const authFile = path.join(__dirname, '.auth', 'admin.json');
-      await page.context().storageState({ path: authFile });
     }
+
+    // Save authenticated state
+    const authFile = path.join(__dirname, '.auth', 'admin.json');
+    await page.context().storageState({ path: authFile });
+    console.log(`💾 Saved authentication state to ${authFile}`);
 
   } catch (error) {
     console.error('❌ Global setup failed:', error);

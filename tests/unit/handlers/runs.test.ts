@@ -336,9 +336,13 @@ describe('Runs Handlers', () => {
       await handleCreateRun(mockReq as Request, mockRes as Response);
 
       expect(statusMock).toHaveBeenCalledWith(400);
+      // Error should be a formatted string describing the validation issues
       expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-        error: expect.any(Object),
+        error: expect.any(String),
       }));
+      // Verify it contains useful information about what's missing
+      const errorCall = jsonMock.mock.calls[0][0];
+      expect(errorCall.error).toMatch(/goal|steps/);
     });
 
     it('should handle missing prompt in standard mode', async () => {
@@ -460,6 +464,9 @@ describe('Runs Handlers', () => {
       // Verify the run was created successfully
       expect(mockStore.createRun).toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(201);
+
+      // Wait for async processing
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       // Verify steps were enqueued (inline execution may or may not run depending on config)
       expect(mockQueue.enqueue).toHaveBeenCalled();

@@ -65,7 +65,7 @@ describe('manual handler', () => {
     };
 
     it('should create a new gate when none exists', async () => {
-      mockStore.getLatestGate.mockResolvedValue(null);
+      mockStore.getLatestGate.mockResolvedValue(undefined);
 
       await manualHandler.run({
         runId: 'run-123',
@@ -263,7 +263,7 @@ describe('manual handler', () => {
     });
 
     it('should handle different manual tool variants', async () => {
-      mockStore.getLatestGate.mockResolvedValue(null);
+      mockStore.getLatestGate.mockResolvedValue(undefined);
 
       const customStep = {
         id: 'step-custom',

@@ -5,23 +5,23 @@ import { isAdmin } from '../../lib/auth';
 
 export default function mount(app: Express){
   // List gates for a run
-  app.get('/runs/:id/gates', async (req, res) => {
+  app.get('/runs/:id/gates', async (req, res): Promise<void> => {
     const runId = req.params.id;
     const rows = await store.listGatesByRun(runId);
-    res.json(rows);
+    return res.json(rows);
   });
 
   // Create a gate explicitly (optional; manual handler also auto-creates)
-  app.post('/gates', async (req, res) => {
+  app.post('/gates', async (req, res): Promise<void> => {
     const { run_id, step_id, gate_type } = req.body || {};
     if (!run_id || !gate_type) return res.status(400).json({ error: 'run_id and gate_type required' });
     const g = await store.createOrGetGate(run_id, step_id || '', gate_type as string);
     await recordEvent(run_id, 'gate.created', { gate: g }, step_id || undefined);
-    res.status(201).json(g);
+    return res.status(201).json(g);
   });
 
   // Approve a gate
-  app.post('/gates/:id/approve', async (req, res) => {
+  app.post('/gates/:id/approve', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const id = req.params.id;
     const approvedBy = req.body?.approved_by || 'local-user';
@@ -46,11 +46,11 @@ export default function mount(app: Express){
     const gate = { id, run_id: found.run_id, status: 'passed' } as { id: string; run_id: string; status: string };
     if (!gate) return res.status(404).json({ error: 'not found' });
     await recordEvent(gate.run_id, 'gate.approved', { gateId: gate.id, approvedBy, reason });
-    res.json(gate);
+    return res.json(gate);
   });
 
   // Waive a gate
-  app.post('/gates/:id/waive', async (req, res) => {
+  app.post('/gates/:id/waive', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const id = req.params.id;
     const approvedBy = req.body?.approved_by || 'local-user';
@@ -72,6 +72,6 @@ export default function mount(app: Express){
     const gate = { id, run_id: found.run_id, status: 'waived' } as { id: string; run_id: string; status: string };
     if (!gate) return res.status(404).json({ error: 'not found' });
     await recordEvent(gate.run_id, 'gate.waived', { gateId: gate.id, approvedBy, reason });
-    res.json(gate);
+    return res.json(gate);
   });
 }

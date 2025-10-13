@@ -24,10 +24,10 @@ module.exports = {
   ],
   coverageThreshold: {
     global: {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
+      branches: 75,
+      functions: 80,
+      lines: 80,
+      statements: 80
     }
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
@@ -50,7 +50,17 @@ module.exports = {
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
         skipLibCheck: true,
-        strict: false
+        strict: true,
+        noUnusedLocals: false,
+        noUnusedParameters: false,
+        noImplicitReturns: true
+      },
+      diagnostics: {
+        warnOnly: false,
+        // Only ignore codes that are truly unavoidable in test environment
+        // 6133: unused variable (often false positives in test setup)
+        // 7017: try-catch binding (common in error handling tests)
+        ignoreCodes: [6133, 7017]
       }
     }]
   }

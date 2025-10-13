@@ -20,7 +20,7 @@ export default function mount(app: Express){
       return res.redirect(`/dev/login?next=${encodeURIComponent(next)}`);
     }
     // In production, render login page (you'd need to create this template)
-    res.status(200).send(`
+    return res.status(200).send(`
       <!DOCTYPE html>
       <html>
       <head><title>Login</title></head>
@@ -40,14 +40,14 @@ export default function mount(app: Express){
       return res.redirect('/ui/app/#/runs');
     }
     const rows = await store.listRuns(100);
-    res.render('runs', { runs: rows });
+    return res.render('runs', { runs: rows });
   });
   // Place the 'new' route BEFORE the ':id' route to avoid param capture
   app.get('/ui/runs/new', async (_req, res) => {
     if (runsReactEnabled) {
       return res.redirect('/ui/app/#/runs/new');
     }
-    res.render('new_run');
+    return res.render('new_run');
   });
   app.get('/ui/runs/:id', async (req, res) => {
     if (runsReactEnabled) {
@@ -61,7 +61,7 @@ export default function mount(app: Express){
     }
     const artifacts = await store.listArtifactsByRun(runId);
     const gates = await store.listGatesByRun(runId);
-    res.render('run', { run, artifacts, gates });
+    return res.render('run', { run, artifacts, gates });
   });
   app.get('/ui/settings', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
@@ -71,18 +71,18 @@ export default function mount(app: Express){
     let settings: Settings | null = null; let models: ModelRow[] = [];
     try { settings = await getSettings(); } catch {}
     try { models = await listModels(); } catch {}
-    res.render('settings', { preloaded: { settings, models } });
+    return res.render('settings', { preloaded: { settings, models } });
   });
   app.get('/ui/dev', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
-    res.render('dev_settings');
+    return res.render('dev_settings');
   });
   app.get('/ui/models', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
     if (settingsReactEnabled) {
       return res.redirect('/ui/app/#/models');
     }
-    res.render('models');
+    return res.render('models');
   });
   app.get('/ui/builder', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
@@ -101,7 +101,7 @@ export default function mount(app: Express){
         createdAt: run.createdAt.toISOString(),
       }));
     } catch {}
-    res.render('builder', { preloaded: { templates, responsesRuns } });
+    return res.render('builder', { preloaded: { templates, responsesRuns } });
   });
   app.get('/ui/responses', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
@@ -122,7 +122,7 @@ export default function mount(app: Express){
       }));
       summary = getResponsesOperationsSummary();
     } catch {}
-    res.render('responses_runs', { preloaded: { runs, summary } });
+    return res.render('responses_runs', { preloaded: { runs, summary } });
   });
   app.get('/ui/responses/:id', async (req, res) => {
     if (!isAdmin(req)) return res.redirect('/ui/login');
@@ -154,7 +154,7 @@ export default function mount(app: Express){
         },
       });
     }
-    res.render('responses_run', {
+    return res.render('responses_run', {
       preloaded: {
         run: {
           runId: timeline.run.runId,
@@ -197,7 +197,7 @@ export default function mount(app: Express){
     }
     const { data, error } = await supabase.storage.from(ARTIFACT_BUCKET).createSignedUrl(pth, 3600);
     if (error || !data) return res.status(404).send('not found');
-    res.redirect(data.signedUrl);
+    return res.redirect(data.signedUrl);
   });
 }
 

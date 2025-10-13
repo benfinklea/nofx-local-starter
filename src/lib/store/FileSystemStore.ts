@@ -236,7 +236,7 @@ export class FileSystemStore implements StoreDriver {
     const file = path.join(ROOT, 'outbox.json');
     const rows: OutboxRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
     const idx = rows.findIndex(r => r.id === id);
-    if (idx >= 0) {
+    if (idx >= 0 && rows[idx]) {
       rows[idx].sent = true;
       await fsp.writeFile(file, JSON.stringify(rows, null, 2));
     }

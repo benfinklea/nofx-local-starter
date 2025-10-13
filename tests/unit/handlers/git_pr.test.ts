@@ -170,7 +170,7 @@ describe('git_pr handler', () => {
 
     it('should require manual approval by default', async () => {
       // Mock no existing gate
-      mockStore.getLatestGate.mockResolvedValue(null);
+      mockStore.getLatestGate.mockResolvedValue(undefined);
 
       await gitPrHandler.run({
         runId: 'run-123',
@@ -503,7 +503,7 @@ describe('git_pr handler', () => {
 
     it('should handle missing GitHub token', async () => {
       // Mock missing token
-      mockGetSecret.mockReturnValue(null);
+      mockGetSecret.mockReturnValue(undefined);
 
       await gitPrHandler.run({
         runId: 'run-123',

@@ -5,22 +5,22 @@ import { importOpenAIModels, seedAnthropicModels, seedGeminiModels, listOpenAIMo
 import { getSettings, updateSettings } from '../../lib/settings';
 
 export default function mount(app: Express){
-  app.get('/models', async (req, res) => {
+  app.get('/models', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const rows = await listModels();
-    res.json({ models: rows });
+    return res.json({ models: rows });
   });
-  app.post('/models', async (req, res) => {
+  app.post('/models', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     try {
       const m = await upsertModel(req.body || {});
-      res.status(201).json(m);
+      return res.status(201).json(m);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      res.status(400).json({ error: msg });
+      return res.status(400).json({ error: msg });
     }
   });
-  app.post('/models/preview/openai', async (req, res) => {
+  app.post('/models/preview/openai', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     try {
       const filterRaw = (req.body && (req.body.filter || req.body.includes)) || '';
@@ -29,13 +29,13 @@ export default function mount(app: Express){
       const exclude = Array.isArray(excludeRaw) ? excludeRaw : String(excludeRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
       const recommendedOnly = filter.length === 0 ? !!(req.body && (req.body.recommendedOnly ?? true)) : false;
       const candidates = await listOpenAIModels({ filter, exclude, recommendedOnly });
-      res.json({ candidates, count: candidates.length });
+      return res.json({ candidates, count: candidates.length });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      res.status(400).json({ error: msg });
+      return res.status(400).json({ error: msg });
     }
   });
-  app.post('/models/import/:vendor', async (req, res) => {
+  app.post('/models/import/:vendor', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const v = (req.params.vendor || '').toLowerCase();
     try {
@@ -79,7 +79,7 @@ export default function mount(app: Express){
     }
   });
 
-  app.post('/models/promote/gemini', async (req, res) => {
+  app.post('/models/promote/gemini', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     try {
       const from = 'gemini-1.5-pro';
@@ -109,15 +109,15 @@ export default function mount(app: Express){
         }
       } as const;
       await updateSettings(next);
-      res.json({ ok: true, updatedModel: to });
+      return res.json({ ok: true, updatedModel: to });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      res.status(400).json({ error: msg });
+      return res.status(400).json({ error: msg });
     }
   });
-  app.delete('/models/:id', async (req, res) => {
+  app.delete('/models/:id', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     await deleteModel(req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   });
 }

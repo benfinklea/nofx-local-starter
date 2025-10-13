@@ -7,7 +7,7 @@ import { isAdmin } from '../../lib/auth';
 import { configureAutoBackup } from '../../lib/autobackup';
 
 export default function mount(app: Express){
-  app.get('/settings', async (req, res) => {
+  app.get('/settings', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const settings = await getSettings();
     type RuleRow = { table_name: string; allowed_ops: string[]; constraints: Record<string, unknown> };
@@ -15,10 +15,10 @@ export default function mount(app: Express){
       .catch(()=>({ rows: [] as RuleRow[] }));
     let models: ModelRow[] = [];
     try { models = await listModels(); } catch { models = []; }
-    res.json({ settings, db_write_rules: rules.rows, models });
+    return res.json({ settings, db_write_rules: rules.rows, models });
   });
 
-  app.post('/settings', async (req, res) => {
+  app.post('/settings', async (req, res): Promise<void> => {
     if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
     const body = req.body || {};
     const next = await updateSettings(body.settings || {});
@@ -38,6 +38,6 @@ export default function mount(app: Express){
     try { await configureAutoBackup(next.ops?.backupIntervalMin); } catch {}
     // Invalidate LLM caches on settings change (model routing/pricing might change)
     try { await invalidateNamespace('llm'); } catch {}
-    res.json({ ok: true, settings: next });
+    return res.json({ ok: true, settings: next });
   });
 }

@@ -1,39 +1,68 @@
 import { Queue, Worker, JobsOptions, Job } from "bullmq";
-import IORedis from "ioredis";
 import { log } from "../logger";
 import { metrics } from "../metrics";
 import { STEP_DLQ_TOPIC } from "./constants";
+import {
+  toRetryablePayload,
+  getAttemptNumber,
+  createRetryPayload,
+  getProvider,
+} from "../typeGuards";
+
+// Use synchronous require for IORedis to work properly with jest mocks
+function getIORedis() {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const IORedis = require("ioredis");
+  return IORedis.default || IORedis;
+}
 
 export class RedisQueueAdapter {
-  connection: IORedis;
+  private redisUrl: string;
   queues = new Map<string, Queue>();
-  private readonly backoffScheduleMs = [0, 2000, 5000, 10000];
+  private readonly backoffScheduleMs: readonly number[] = [0, 2000, 5000, 10000] as const;
   private readonly DLQ_TOPIC = STEP_DLQ_TOPIC;
 
   constructor() {
-    // Initialize connection in constructor to ensure proper initialization order
-    this.connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
-      maxRetriesPerRequest: null
-    });
-
-    this.connection.on('connect', () => log.info('redis.connect'));
-    this.connection.on('ready', () => log.info('redis.ready'));
-    this.connection.on('error', (err) => log.error({ err }, 'redis.error'));
-    this.connection.on('reconnecting', () => log.warn('redis.reconnecting'));
-    this.connection.on('end', () => log.warn('redis.end'));
+    this.redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
   }
 
-  private getQueue(topic: string) {
-    if (!this.queues.has(topic)) {
-      if (!this.connection) {
-        throw new Error('Redis connection not initialized');
-      }
-      const q = new Queue(topic, { connection: this.connection });
-      this.queues.set(topic, q);
+  private getQueue(topic: string): Queue {
+    // Input validation
+    if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
+      throw new Error('Queue topic must be a non-empty string');
     }
-    return this.queues.get(topic)!;
+
+    if (!this.queues.has(topic)) {
+      try {
+        const IORedis = getIORedis();
+        const connection = new IORedis(this.redisUrl, {
+          maxRetriesPerRequest: null,
+          retryStrategy: (times: number) => {
+            // Exponential backoff with max delay of 3 seconds
+            return Math.min(times * 50, 3000);
+          }
+        });
+
+        // Handle connection errors
+        connection.on('error', (err: Error) => {
+          log.error({ topic, error: err }, 'Redis connection error');
+        });
+
+        const q = new Queue(topic, { connection });
+        this.queues.set(topic, q);
+      } catch (error) {
+        log.error({ topic, error }, 'Failed to create queue');
+        throw new Error(`Failed to initialize queue "${topic}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    const queue = this.queues.get(topic);
+    if (!queue) {
+      throw new Error(`Queue ${topic} not found after initialization`);
+    }
+    return queue;
   }
-  private async updateGauges(topic: string) {
+  private async updateGauges(topic: string): Promise<void> {
     try {
       const q = this.getQueue(topic);
       const c = await q.getJobCounts('waiting','active','completed','failed','delayed','paused');
@@ -60,68 +89,116 @@ export class RedisQueueAdapter {
       } catch {}
     } catch {}
   }
-  async enqueue(topic: string, payload: unknown, options?: JobsOptions) {
-    await this.getQueue(topic).add("job", payload, options);
-    log.info({ topic, payload }, "enqueued");
-    this.updateGauges(topic);
+  async enqueue(topic: string, payload: unknown, options?: JobsOptions): Promise<void> {
+    // Input validation
+    if (!topic || typeof topic !== 'string') {
+      throw new Error('Topic must be a non-empty string');
+    }
+
+    try {
+      const q = this.getQueue(topic);
+      await q.add("job", payload, options);
+      log.info({ topic, payload }, "enqueued");
+      // Update gauges in background, don't block on failure
+      this.updateGauges(topic).catch(err => {
+        log.warn({ topic, error: err }, 'Failed to update gauges after enqueue');
+      });
+    } catch (error) {
+      log.error({ topic, payload, error }, 'Failed to enqueue job');
+      throw new Error(`Failed to enqueue job to "${topic}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
-  subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>) {
-    const concurrency = Math.max(1, Number(process.env.WORKER_CONCURRENCY || process.env.NOFX_WORKER_CONCURRENCY || 1));
-    const w = new Worker(topic, async (job) => {
-      await handler(job.data);
-    }, { connection: this.connection, concurrency });
-    w.on('ready', () => { log.info({ topic }, 'worker.ready'); this.updateGauges(topic); });
-    w.on('active', (job) => { log.info({ topic, jobId: job.id }, 'worker.active'); this.updateGauges(topic); });
-    w.on('completed', (job) => { log.info({ topic, jobId: job.id, status: 'completed' }, 'worker.completed'); this.updateGauges(topic); });
-    w.on('failed', async (job, err) => {
-      log.error({ topic, jobId: job?.id, status: 'failed', err }, 'worker.failed');
-      try {
-        if (!job) return;
-        const rawData = job.data;
-        const payload = (typeof rawData === 'object' && rawData !== null)
-          ? rawData as Record<string, unknown>
-          : {};
-        const attempt = Number(payload['__attempt'] ?? 1);
-        const nextDelay = this.backoffScheduleMs[attempt];
-        if (Number.isFinite(nextDelay)) {
-          const nextPayload = { ...payload, __attempt: attempt + 1 };
-          await this.getQueue(topic).add('job', nextPayload, { delay: nextDelay });
-          try {
-            const providerValue = payload['provider'];
-            const provider = typeof providerValue === 'string'
-              ? providerValue
-              : String(providerValue ?? 'queue');
-            metrics.retriesTotal.inc({ provider });
-          } catch {}
-        } else {
-          await this.getQueue(this.DLQ_TOPIC).add('job', payload, { delay: 0 });
-          log.warn({ topic, jobId: job.id, attempts: attempt }, 'redis.to_dlq');
+  subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>): void {
+    // Input validation
+    if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
+      throw new Error('Topic must be a non-empty string');
+    }
+
+    if (typeof handler !== 'function') {
+      throw new Error('Handler must be a function');
+    }
+
+    try {
+      const concurrency = Math.max(1, Number(process.env.WORKER_CONCURRENCY || process.env.NOFX_WORKER_CONCURRENCY || 1));
+      const IORedis = getIORedis();
+      const connection = new IORedis(this.redisUrl, { maxRetriesPerRequest: null });
+
+      // Handle connection errors
+      connection.on('error', (err: Error) => {
+        log.error({ topic, error: err }, 'Worker Redis connection error');
+      });
+
+      const w = new Worker(topic, async (job) => {
+        try {
+          await handler(job.data);
+        } catch (error) {
+          log.error({ topic, jobId: job.id, error }, 'Handler execution failed');
+          throw error; // Re-throw to trigger retry logic
         }
-      } catch (e) {
-        log.error({ e }, 'redis.failed-handler.error');
-      }
-      this.updateGauges(topic);
-    });
-    log.info({ topic }, "subscribed");
+      }, { connection, concurrency });
+
+      w.on('ready', () => { log.info({ topic }, 'worker.ready'); this.updateGauges(topic); });
+      w.on('active', (job) => { log.info({ topic, jobId: job.id }, 'worker.active'); this.updateGauges(topic); });
+      w.on('completed', (job) => { log.info({ topic, jobId: job.id, status: 'completed' }, 'worker.completed'); this.updateGauges(topic); });
+      w.on('failed', async (job, err) => {
+        log.error({ topic, jobId: job?.id, status: 'failed', err }, 'worker.failed');
+        try {
+          if (!job) return;
+
+          // Use type guard to safely extract payload data
+          const rawData = job.data;
+          const payload = toRetryablePayload(rawData);
+          const attempt = getAttemptNumber(payload);
+          const nextDelay = this.backoffScheduleMs[attempt];
+
+          if (Number.isFinite(nextDelay)) {
+            // Create retry payload with incremented attempt
+            const nextPayload = createRetryPayload(rawData);
+            const q = this.getQueue(topic);
+            await q.add('job', nextPayload, { delay: nextDelay });
+
+            try {
+              // Use type guard to safely extract provider
+              const provider = getProvider(payload);
+              metrics.retriesTotal.inc({ provider });
+            } catch {}
+          } else {
+            // Max retries reached, move to DLQ
+            const dlq = this.getQueue(this.DLQ_TOPIC);
+            await dlq.add('job', payload, { delay: 0 });
+            log.warn({ topic, jobId: job.id, attempts: attempt }, 'redis.to_dlq');
+          }
+        } catch (e) {
+          log.error({ e }, 'redis.failed-handler.error');
+        }
+        this.updateGauges(topic);
+      });
+
+      log.info({ topic }, "subscribed");
+    } catch (error) {
+      log.error({ topic, error }, 'Failed to subscribe to topic');
+      throw new Error(`Failed to subscribe to "${topic}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
-  async getCounts(topic: string) {
+  async getCounts(topic: string): Promise<Record<string, number>> {
     const q = this.getQueue(topic);
     return q.getJobCounts('waiting','active','completed','failed','delayed','paused');
   }
 
-  async listDlq(topic: string) {
+  async listDlq(topic: string): Promise<unknown[]> {
     const q = this.getQueue(topic);
     const jobs: Job[] = await q.getJobs(['waiting','delayed']);
     return jobs.map(j => j.data);
   }
-  async rehydrateDlq(topic: string, max = 50) {
+  async rehydrateDlq(topic: string, max = 50): Promise<number> {
     const q = this.getQueue(topic);
     const jobs: Job[] = await q.getJobs(['waiting','delayed']);
     const take = jobs.slice(0, max);
     let n = 0;
     for (const j of take) {
-      await this.getQueue('step.ready').add('job', { ...j.data, __attempt: 1 }, { delay: 0 });
+      const readyQ = this.getQueue('step.ready');
+      await readyQ.add('job', { ...j.data, __attempt: 1 }, { delay: 0 });
       await j.remove();
       n += 1;
     }

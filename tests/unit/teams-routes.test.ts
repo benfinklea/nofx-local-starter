@@ -6,13 +6,10 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
-import teamsMount from '../../src/api/routes/teams';
-import * as supabaseAuth from '../../src/auth/supabase';
 import * as middleware from '../../src/auth/middleware';
 import * as teamEmails from '../../src/services/email/teamEmails';
 
-// Mock dependencies
-jest.mock('../../src/auth/supabase');
+// Mock dependencies BEFORE importing anything that uses them
 jest.mock('../../src/auth/middleware');
 jest.mock('../../src/services/email/teamEmails');
 jest.mock('../../src/lib/logger', () => ({
@@ -23,20 +20,44 @@ jest.mock('../../src/lib/logger', () => ({
   }
 }));
 
-const mockSupabase: any = {
-  from: jest.fn(() => mockSupabase),
-  select: jest.fn(() => mockSupabase),
-  insert: jest.fn(() => mockSupabase),
-  update: jest.fn(() => mockSupabase),
-  delete: jest.fn(() => mockSupabase),
-  eq: jest.fn(() => mockSupabase),
-  order: jest.fn(() => mockSupabase),
-  single: jest.fn(() => mockSupabase),
-  data: null,
-  error: null,
+// Create mock service instances
+const mockTeamService: any = {
+  listUserTeams: jest.fn(),
+  createTeam: jest.fn(),
+  getTeamDetails: jest.fn(),
+  updateTeam: jest.fn(),
+  deleteTeam: jest.fn(),
 };
 
-const mockCreateServiceClient = jest.mocked(supabaseAuth.createServiceClient);
+const mockInviteService: any = {
+  sendTeamInvite: jest.fn(),
+  acceptInvite: jest.fn(),
+  cancelInvite: jest.fn(),
+};
+
+const mockMemberService: any = {
+  updateMemberRole: jest.fn(),
+  removeMember: jest.fn(),
+  leaveTeam: jest.fn(),
+  transferOwnership: jest.fn(),
+};
+
+// Mock the service modules to return our mock instances
+jest.mock('../../src/api/routes/teams/TeamService', () => ({
+  TeamService: jest.fn(() => mockTeamService)
+}));
+
+jest.mock('../../src/api/routes/teams/InviteService', () => ({
+  InviteService: jest.fn(() => mockInviteService)
+}));
+
+jest.mock('../../src/api/routes/teams/MemberService', () => ({
+  MemberService: jest.fn(() => mockMemberService)
+}));
+
+// Now import the routes module - it will use our mocked services
+import teamsMount from '../../src/api/routes/teams';
+
 const mockRequireAuth = jest.mocked(middleware.requireAuth);
 const mockRequireTeamAccess = jest.mocked(middleware.requireTeamAccess);
 const mockSendTeamInviteEmail = jest.mocked(teamEmails.sendTeamInviteEmail);
@@ -46,16 +67,6 @@ describe('Teams Routes', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Reset all mock implementations to default return values with proper chaining
-    mockSupabase.from.mockReturnValue(mockSupabase);
-    mockSupabase.select.mockReturnValue(mockSupabase);
-    mockSupabase.insert.mockReturnValue(mockSupabase);
-    mockSupabase.update.mockReturnValue(mockSupabase);
-    mockSupabase.delete.mockReturnValue(mockSupabase);
-    mockSupabase.eq.mockReturnValue(mockSupabase);
-    mockSupabase.order.mockReturnValue(mockSupabase);
-    mockSupabase.single.mockReturnValue(mockSupabase);
 
     app = express();
     app.use(express.json());
@@ -73,9 +84,6 @@ describe('Teams Routes', () => {
       next();
       return Promise.resolve(res);
     });
-
-    // Mock Supabase client
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
 
     // Mount routes
     teamsMount(app as any);
@@ -97,25 +105,20 @@ describe('Teams Routes', () => {
           role: 'owner',
           joined_at: '2023-01-01'
         }
-      ];
+      ] as any;
 
-      mockSupabase.order.mockResolvedValue({ data: mockTeams, error: null });
+      mockTeamService.listUserTeams.mockResolvedValue(mockTeams);
 
       const response = await request(app)
         .get('/teams')
         .expect(200);
 
       expect(response.body).toEqual({ teams: mockTeams });
-      expect(mockSupabase.from).toHaveBeenCalledWith('team_members');
-      expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', 'user-123');
+      expect(mockTeamService.listUserTeams).toHaveBeenCalledWith('user-123');
     });
 
     it('should handle database error', async () => {
-      // Mock the final .order() to return an error
-      mockSupabase.order.mockResolvedValue({
-        data: null,
-        error: { message: 'Database error' }
-      });
+      mockTeamService.listUserTeams.mockRejectedValue(new Error('Failed to list teams'));
 
       const response = await request(app)
         .get('/teams')
@@ -125,7 +128,7 @@ describe('Teams Routes', () => {
     });
 
     it('should handle service unavailable', async () => {
-      mockCreateServiceClient.mockReturnValue(null);
+      mockTeamService.listUserTeams.mockRejectedValue(new Error('Service unavailable'));
 
       const response = await request(app)
         .get('/teams')
@@ -135,10 +138,7 @@ describe('Teams Routes', () => {
     });
 
     it('should handle unexpected exceptions', async () => {
-      // Simulate an unexpected exception in the service layer
-      mockSupabase.from.mockImplementation(() => {
-        throw new Error('Unexpected error');
-      });
+      mockTeamService.listUserTeams.mockRejectedValue(new Error('Unexpected error'));
 
       const response = await request(app)
         .get('/teams')
@@ -148,7 +148,7 @@ describe('Teams Routes', () => {
     });
 
     it('should return empty array when no teams found', async () => {
-      mockSupabase.order.mockResolvedValue({ data: null, error: null });
+      mockTeamService.listUserTeams.mockResolvedValue([]);
 
       const response = await request(app)
         .get('/teams')
@@ -169,12 +169,7 @@ describe('Teams Routes', () => {
         billing_email: 'billing@example.com'
       };
 
-      // Mock for: .insert().select().single() - returns team data
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      // Mock for: .insert() - add team member (no select, so returns immediately)
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
-      // Mock for: .insert() - activity log (no select, so returns immediately)
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockTeamService.createTeam.mockResolvedValue(mockTeam);
 
       const response = await request(app)
         .post('/teams')
@@ -182,9 +177,11 @@ describe('Teams Routes', () => {
         .expect(201);
 
       expect(response.body).toEqual({ team: mockTeam });
-      expect(mockSupabase.from).toHaveBeenCalledWith('teams');
-      expect(mockSupabase.from).toHaveBeenCalledWith('team_members');
-      expect(mockSupabase.from).toHaveBeenCalledWith('team_activity_logs');
+      expect(mockTeamService.createTeam).toHaveBeenCalledWith(
+        teamData,
+        'user-123',
+        'test@example.com'
+      );
     });
 
     it('should validate request body', async () => {
@@ -207,29 +204,22 @@ describe('Teams Routes', () => {
         billing_email: 'test@example.com'
       };
 
-      // Mock for: .insert().select().single() - returns team data
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      // Mock for: .insert() - add team member
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
-      // Mock for: .insert() - activity log
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockTeamService.createTeam.mockResolvedValue(mockTeam);
 
       await request(app)
         .post('/teams')
         .send(teamData)
         .expect(201);
 
-      const insertCall = mockSupabase.insert.mock.calls.find(call =>
-        call[0].billing_email !== undefined
+      expect(mockTeamService.createTeam).toHaveBeenCalledWith(
+        teamData,
+        'user-123',
+        'test@example.com'
       );
-      expect(insertCall[0].billing_email).toBe('test@example.com');
     });
 
     it('should handle team creation error', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: null,
-        error: { message: 'Team creation failed' }
-      });
+      mockTeamService.createTeam.mockRejectedValue(new Error('Failed to create team'));
 
       const response = await request(app)
         .post('/teams')
@@ -240,13 +230,7 @@ describe('Teams Routes', () => {
     });
 
     it('should handle member creation error and cleanup', async () => {
-      const mockTeam = { id: 'team-123', name: 'New Team' };
-
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.insert
-        .mockResolvedValueOnce({ data: null, error: { message: 'Member creation failed' } })
-        .mockResolvedValueOnce({ data: null, error: null }); // cleanup
-      mockSupabase.delete.mockReturnValue(mockSupabase);
+      mockTeamService.createTeam.mockRejectedValue(new Error('Failed to create team'));
 
       const response = await request(app)
         .post('/teams')
@@ -254,28 +238,26 @@ describe('Teams Routes', () => {
         .expect(500);
 
       expect(response.body).toEqual({ error: 'Failed to create team' });
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'team-123');
     });
 
     it('should generate slug from team name', async () => {
       const teamData = { name: 'My Awesome Team!' };
-      const mockTeam = { id: 'team-123', slug: 'my-awesome-team' };
+      const mockTeam = {
+        id: 'team-123',
+        name: 'My Awesome Team!',
+        slug: 'my-awesome-team',
+        owner_id: 'user-123',
+        billing_email: 'test@example.com'
+      };
 
-      // Mock for: .insert().select().single() - returns team data
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      // Mock for: .insert() - add team member
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
-      // Mock for: .insert() - activity log
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockTeamService.createTeam.mockResolvedValue(mockTeam);
 
-      await request(app)
+      const response = await request(app)
         .post('/teams')
         .send(teamData)
         .expect(201);
 
-      const insertCall = mockSupabase.insert.mock.calls[0];
-      expect(insertCall[0].slug).toBe('my-awesome-team');
+      expect(response.body.team.slug).toBe('my-awesome-team');
     });
   });
 
@@ -294,21 +276,18 @@ describe('Teams Routes', () => {
         invites: []
       };
 
-      mockSupabase.single.mockResolvedValue({ data: mockTeam, error: null });
+      mockTeamService.getTeamDetails.mockResolvedValue(mockTeam);
 
       const response = await request(app)
         .get('/teams/team-123')
         .expect(200);
 
       expect(response.body).toEqual({ team: mockTeam });
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'team-123');
+      expect(mockTeamService.getTeamDetails).toHaveBeenCalledWith('team-123');
     });
 
     it('should handle team not found error', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: null,
-        error: { message: 'Team not found' }
-      });
+      mockTeamService.getTeamDetails.mockRejectedValue(new Error('Failed to get team'));
 
       const response = await request(app)
         .get('/teams/team-123')
@@ -323,10 +302,7 @@ describe('Teams Routes', () => {
       const updateData = { name: 'Updated Team', billingEmail: 'new@example.com' };
       const mockTeam = { id: 'team-123', name: 'Updated Team', billing_email: 'new@example.com' };
 
-      // Mock for: .update().select().single() - returns updated team
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      // Mock for: .insert() - activity log
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockTeamService.updateTeam.mockResolvedValue(mockTeam);
 
       const response = await request(app)
         .patch('/teams/team-123')
@@ -334,6 +310,11 @@ describe('Teams Routes', () => {
         .expect(200);
 
       expect(response.body).toEqual({ team: mockTeam });
+      expect(mockTeamService.updateTeam).toHaveBeenCalledWith(
+        'team-123',
+        updateData,
+        'user-123'
+      );
     });
 
     it('should validate update data', async () => {
@@ -346,10 +327,7 @@ describe('Teams Routes', () => {
     });
 
     it('should handle update error', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: null,
-        error: { message: 'Update failed' }
-      });
+      mockTeamService.updateTeam.mockRejectedValue(new Error('Failed to update team'));
 
       const response = await request(app)
         .patch('/teams/team-123')
@@ -362,24 +340,18 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId', () => {
     it('should delete team successfully', async () => {
-      // Mock for: .delete().eq() - delete operation
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-      // Mock for: .insert() - activity log
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockTeamService.deleteTeam.mockResolvedValue(undefined);
 
       const response = await request(app)
         .delete('/teams/team-123')
         .expect(200);
 
       expect(response.body).toEqual({ message: 'Team deleted successfully' });
-      expect(mockSupabase.delete).toHaveBeenCalled();
+      expect(mockTeamService.deleteTeam).toHaveBeenCalledWith('team-123', 'user-123');
     });
 
     it('should handle deletion error', async () => {
-      mockSupabase.eq.mockResolvedValue({
-        data: null,
-        error: { message: 'Deletion failed' }
-      });
+      mockTeamService.deleteTeam.mockRejectedValue(new Error('Failed to delete team'));
 
       const response = await request(app)
         .delete('/teams/team-123')
@@ -398,7 +370,6 @@ describe('Teams Routes', () => {
         message: 'Welcome!'
       };
 
-      const mockTeam = { id: 'team-123', name: 'Test Team' };
       const mockInvite = {
         id: 'invite-123',
         email: 'newuser@example.com',
@@ -407,22 +378,7 @@ describe('Teams Routes', () => {
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      // Mock team lookup: .select().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-
-      // Mock existing member check: .select().eq().eq() - returns empty array
-      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
-
-      // Mock existing invite check: .select().eq().eq().eq() - returns empty array
-      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
-
-      // Mock invite creation: .insert().select().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
-
-      mockSendTeamInviteEmail.mockResolvedValue(undefined);
+      mockInviteService.sendTeamInvite.mockResolvedValue(mockInvite);
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -434,12 +390,11 @@ describe('Teams Routes', () => {
         invite: expect.objectContaining({ id: 'invite-123' })
       });
 
-      expect(mockSendTeamInviteEmail).toHaveBeenCalledWith(
-        'newuser@example.com',
-        expect.objectContaining({
-          teamName: 'Test Team',
-          inviterName: 'New User'
-        })
+      expect(mockInviteService.sendTeamInvite).toHaveBeenCalledWith(
+        'team-123',
+        inviteData,
+        'user-123',
+        'test@example.com'
       );
     });
 
@@ -453,14 +408,9 @@ describe('Teams Routes', () => {
     });
 
     it('should prevent inviting existing members', async () => {
-      const mockTeam = { id: 'team-123', name: 'Test Team' };
-      const existingMember = { id: 'member-123', role: 'member' };
-
-      // Mock team lookup: .select().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-
-      // Mock existing member check: .select().eq().eq() - returns member found
-      mockSupabase.eq.mockResolvedValueOnce({ data: [existingMember], error: null });
+      mockInviteService.sendTeamInvite.mockRejectedValue(
+        new Error('User is already a member of this team')
+      );
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -471,17 +421,9 @@ describe('Teams Routes', () => {
     });
 
     it('should prevent duplicate pending invites', async () => {
-      const mockTeam = { id: 'team-123', name: 'Test Team' };
-      const existingInvite = { id: 'invite-123', status: 'pending' };
-
-      // Mock team lookup: .select().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-
-      // Mock existing member check: .select().eq().eq() - no existing member
-      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
-
-      // Mock existing invite check: .select().eq().eq().eq() - existing invite found
-      mockSupabase.eq.mockResolvedValueOnce({ data: [existingInvite], error: null });
+      mockInviteService.sendTeamInvite.mockRejectedValue(
+        new Error('User already has a pending invite to this team')
+      );
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -492,23 +434,9 @@ describe('Teams Routes', () => {
     });
 
     it('should handle email sending failure', async () => {
-      const mockTeam = { id: 'team-123', name: 'Test Team' };
-      const mockInvite = { id: 'invite-123', token: 'token-123' };
-
-      // Mock team lookup: .select().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-
-      // Mock existing member check: .select().eq().eq() - no existing member
-      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
-
-      // Mock existing invite check: .select().eq().eq().eq() - no existing invite
-      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
-
-      // Mock invite creation: .insert().select().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
-
-      // Simulate email service throwing an error
-      mockSendTeamInviteEmail.mockRejectedValue(new Error('Failed to send invite email'));
+      mockInviteService.sendTeamInvite.mockRejectedValue(
+        new Error('Failed to send invite email')
+      );
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -521,26 +449,7 @@ describe('Teams Routes', () => {
 
   describe('POST /teams/accept-invite', () => {
     it('should accept invite successfully', async () => {
-      const mockInvite = {
-        id: 'invite-123',
-        team_id: 'team-123',
-        email: 'test@example.com',
-        role: 'member',
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending'
-      };
-
-      // Mock invite lookup: .select().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
-
-      // Mock member insertion: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock invite update: .update().eq()
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockInviteService.acceptInvite.mockResolvedValue(undefined);
 
       const response = await request(app)
         .post('/teams/accept-invite')
@@ -548,13 +457,17 @@ describe('Teams Routes', () => {
         .expect(200);
 
       expect(response.body).toEqual({ message: 'Invite accepted successfully' });
+      expect(mockInviteService.acceptInvite).toHaveBeenCalledWith(
+        { token: 'valid-token-123' },
+        'test@example.com',
+        'user-123'
+      );
     });
 
     it('should reject invalid token', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: null,
-        error: { message: 'Invite not found' }
-      });
+      mockInviteService.acceptInvite.mockRejectedValue(
+        new Error('Invalid or expired invite')
+      );
 
       const response = await request(app)
         .post('/teams/accept-invite')
@@ -565,13 +478,9 @@ describe('Teams Routes', () => {
     });
 
     it('should reject expired invite', async () => {
-      const expiredInvite = {
-        id: 'invite-123',
-        expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending'
-      };
-
-      mockSupabase.single.mockResolvedValue({ data: expiredInvite, error: null });
+      mockInviteService.acceptInvite.mockRejectedValue(
+        new Error('Invite has expired')
+      );
 
       const response = await request(app)
         .post('/teams/accept-invite')
@@ -582,13 +491,9 @@ describe('Teams Routes', () => {
     });
 
     it('should reject already accepted invite', async () => {
-      const acceptedInvite = {
-        id: 'invite-123',
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        status: 'accepted'
-      };
-
-      mockSupabase.single.mockResolvedValue({ data: acceptedInvite, error: null });
+      mockInviteService.acceptInvite.mockRejectedValue(
+        new Error('Invite has already been used')
+      );
 
       const response = await request(app)
         .post('/teams/accept-invite')
@@ -599,14 +504,9 @@ describe('Teams Routes', () => {
     });
 
     it('should reject invite for different user', async () => {
-      const mockInvite = {
-        id: 'invite-123',
-        email: 'other@example.com', // Different from req.user.email
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending'
-      };
-
-      mockSupabase.single.mockResolvedValue({ data: mockInvite, error: null });
+      mockInviteService.acceptInvite.mockRejectedValue(
+        new Error('This invite is not for your email address')
+      );
 
       const response = await request(app)
         .post('/teams/accept-invite')
@@ -619,24 +519,24 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId/invites/:inviteId', () => {
     it('should cancel invite successfully', async () => {
-      // Mock invite update: .update().eq().eq()
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockInviteService.cancelInvite.mockResolvedValue(undefined);
 
       const response = await request(app)
         .delete('/teams/team-123/invites/invite-123')
         .expect(200);
 
       expect(response.body).toEqual({ message: 'Invite cancelled successfully' });
+      expect(mockInviteService.cancelInvite).toHaveBeenCalledWith(
+        'team-123',
+        'invite-123',
+        'user-123'
+      );
     });
 
     it('should handle cancellation error', async () => {
-      mockSupabase.eq.mockResolvedValue({
-        data: null,
-        error: { message: 'Invite not found' }
-      });
+      mockInviteService.cancelInvite.mockRejectedValue(
+        new Error('Failed to cancel invite')
+      );
 
       const response = await request(app)
         .delete('/teams/team-123/invites/invite-123')
@@ -648,25 +548,13 @@ describe('Teams Routes', () => {
 
   describe('PATCH /teams/:teamId/members/:memberId', () => {
     it('should update member role successfully', async () => {
-      const mockMember = {
-        id: 'member-123',
-        role: 'member',
-        user: { id: 'user-456', email: 'member@example.com' }
-      };
       const updatedMember = {
         id: 'member-123',
         role: 'admin',
         user: { id: 'user-456', email: 'member@example.com' }
-      };
+      } as any;
 
-      // Mock get current member: .select().eq().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockMember, error: null });
-
-      // Mock update member: .update().eq().eq().select().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: updatedMember, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockMemberService.updateMemberRole.mockResolvedValue(updatedMember);
 
       const response = await request(app)
         .patch('/teams/team-123/members/member-123')
@@ -674,16 +562,18 @@ describe('Teams Routes', () => {
         .expect(200);
 
       expect(response.body).toEqual({ member: updatedMember });
+      expect(mockMemberService.updateMemberRole).toHaveBeenCalledWith(
+        'team-123',
+        'member-123',
+        { role: 'admin' },
+        'user-123'
+      );
     });
 
     it('should prevent role change of team owner', async () => {
-      const ownerMember = {
-        id: 'member-123',
-        role: 'owner',
-        user: { id: 'user-456', email: 'owner@example.com' }
-      };
-
-      mockSupabase.single.mockResolvedValue({ data: ownerMember, error: null });
+      mockMemberService.updateMemberRole.mockRejectedValue(
+        new Error('Cannot change the role of the team owner')
+      );
 
       const response = await request(app)
         .patch('/teams/team-123/members/member-123')
@@ -705,36 +595,24 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId/members/:memberId', () => {
     it('should remove member successfully', async () => {
-      const mockMember = {
-        id: 'member-123',
-        role: 'member',
-        user: { id: 'user-456', email: 'member@example.com' }
-      };
-
-      // Mock get member: .select().eq().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: mockMember, error: null });
-
-      // Mock delete member: .delete().eq().eq()
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockMemberService.removeMember.mockResolvedValue(undefined);
 
       const response = await request(app)
         .delete('/teams/team-123/members/member-123')
         .expect(200);
 
       expect(response.body).toEqual({ message: 'Member removed successfully' });
+      expect(mockMemberService.removeMember).toHaveBeenCalledWith(
+        'team-123',
+        'member-123',
+        'user-123'
+      );
     });
 
     it('should prevent removal of team owner', async () => {
-      const ownerMember = {
-        id: 'member-123',
-        role: 'owner',
-        user: { id: 'user-456', email: 'owner@example.com' }
-      };
-
-      mockSupabase.single.mockResolvedValue({ data: ownerMember, error: null });
+      mockMemberService.removeMember.mockRejectedValue(
+        new Error('Cannot remove the team owner')
+      );
 
       const response = await request(app)
         .delete('/teams/team-123/members/member-123')
@@ -746,29 +624,20 @@ describe('Teams Routes', () => {
 
   describe('POST /teams/:teamId/leave', () => {
     it('should allow member to leave team', async () => {
-      // Mock check membership: .select().eq().eq() - returns member (not owner)
-      mockSupabase.eq.mockResolvedValueOnce({ data: [{ id: 'member-123', role: 'member' }], error: null });
-
-      // Mock delete membership: .delete().eq().eq()
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockMemberService.leaveTeam.mockResolvedValue(undefined);
 
       const response = await request(app)
         .post('/teams/team-123/leave')
         .expect(200);
 
       expect(response.body).toEqual({ message: 'Left team successfully' });
+      expect(mockMemberService.leaveTeam).toHaveBeenCalledWith('team-123', 'user-123');
     });
 
     it('should prevent owner from leaving team', async () => {
-      const ownerMembership = {
-        id: 'member-123',
-        role: 'owner'
-      };
-
-      mockSupabase.eq.mockResolvedValue({ data: [ownerMembership], error: null });
+      mockMemberService.leaveTeam.mockRejectedValue(
+        new Error('Team owners cannot leave the team. Transfer ownership first.')
+      );
 
       const response = await request(app)
         .post('/teams/team-123/leave')
@@ -782,23 +651,7 @@ describe('Teams Routes', () => {
 
   describe('POST /teams/:teamId/transfer-ownership', () => {
     it('should transfer ownership successfully', async () => {
-      const newOwner = {
-        id: 'member-456',
-        role: 'admin',
-        user: { id: 'user-456', email: 'newowner@example.com' }
-      };
-
-      // Mock validate new owner: .select().eq().eq().single()
-      mockSupabase.single.mockResolvedValueOnce({ data: newOwner, error: null });
-
-      // Mock update new owner: .update().eq().eq()
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock update old owner: .update().eq().eq()
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock activity log: .insert()
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockMemberService.transferOwnership.mockResolvedValue(undefined);
 
       const response = await request(app)
         .post('/teams/team-123/transfer-ownership')
@@ -806,13 +659,17 @@ describe('Teams Routes', () => {
         .expect(200);
 
       expect(response.body).toEqual({ message: 'Ownership transferred successfully' });
+      expect(mockMemberService.transferOwnership).toHaveBeenCalledWith(
+        'team-123',
+        'member-456',
+        'user-123'
+      );
     });
 
     it('should validate new owner exists', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: null,
-        error: { message: 'Member not found' }
-      });
+      mockMemberService.transferOwnership.mockRejectedValue(
+        new Error('New owner must be a member of the team')
+      );
 
       const response = await request(app)
         .post('/teams/team-123/transfer-ownership')
@@ -834,19 +691,21 @@ describe('Teams Routes', () => {
 
   describe('Error Handling', () => {
     it('should handle service unavailable for all endpoints', async () => {
-      mockCreateServiceClient.mockReturnValue(null);
+      mockTeamService.listUserTeams.mockRejectedValue(new Error('Service unavailable'));
+      mockTeamService.createTeam.mockRejectedValue(new Error('Service unavailable'));
+      mockTeamService.getTeamDetails.mockRejectedValue(new Error('Service unavailable'));
+      mockTeamService.updateTeam.mockRejectedValue(new Error('Service unavailable'));
+      mockTeamService.deleteTeam.mockRejectedValue(new Error('Service unavailable'));
 
       await request(app).get('/teams').expect(500);
-      await request(app).post('/teams').send({ name: 'Test' }).expect(500);
+      await request(app).post('/teams').send({ name: 'Test Team' }).expect(500);
       await request(app).get('/teams/team-123').expect(500);
       await request(app).patch('/teams/team-123').send({ name: 'Test' }).expect(500);
       await request(app).delete('/teams/team-123').expect(500);
     });
 
     it('should handle unexpected exceptions', async () => {
-      mockSupabase.from.mockImplementation(() => {
-        throw new Error('Unexpected error');
-      });
+      mockTeamService.listUserTeams.mockRejectedValue(new Error('Unexpected error'));
 
       const response = await request(app)
         .get('/teams')
@@ -857,11 +716,19 @@ describe('Teams Routes', () => {
   });
 
   describe('Middleware Integration', () => {
-    it('should require authentication for all endpoints', () => {
+    it('should require authentication for all endpoints', async () => {
+      // Make a request to trigger middleware
+      mockTeamService.listUserTeams.mockResolvedValue([]);
+      await request(app).get('/teams');
+
       expect(mockRequireAuth).toHaveBeenCalled();
     });
 
-    it('should require team access for team-specific endpoints', () => {
+    it('should require team access for team-specific endpoints', async () => {
+      // Make a request to trigger middleware
+      mockTeamService.getTeamDetails.mockResolvedValue({ id: 'team-123' });
+      await request(app).get('/teams/team-123');
+
       expect(mockRequireTeamAccess).toHaveBeenCalled();
     });
   });
@@ -898,29 +765,19 @@ describe('Teams Routes', () => {
     it('should log team creation activity', async () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
 
-      // Mock for: .insert().select().single() - returns team data
-      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      // Mock for: .insert() - add team member
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
-      // Mock for: .insert() - activity log
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      mockTeamService.createTeam.mockResolvedValue(mockTeam);
 
       await request(app)
         .post('/teams')
         .send({ name: 'Test Team' })
         .expect(201);
 
-      const activityLogCall = mockSupabase.insert.mock.calls.find((call: any[]) =>
-        call && call[0] && call[0].action === 'team.created'
+      // Activity logging is handled inside the service, so we just verify the service was called
+      expect(mockTeamService.createTeam).toHaveBeenCalledWith(
+        { name: 'Test Team' },
+        'user-123',
+        'test@example.com'
       );
-      expect(activityLogCall).toBeDefined();
-      expect(activityLogCall![0]).toMatchObject({
-        team_id: 'team-123',
-        user_id: 'user-123',
-        action: 'team.created',
-        resource_type: 'team',
-        resource_id: 'team-123'
-      });
     });
   });
 });

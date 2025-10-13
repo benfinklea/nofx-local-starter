@@ -4,7 +4,7 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PlanSchema } from '../../../shared/types';
+import { PlanSchema, type Plan, type StepInput } from '../../../shared/types';
 import { store } from '../../../lib/store';
 import { log } from '../../../lib/logger';
 import { enqueue, STEP_READY_TOPIC, hasSubscribers, getOldestAgeMs } from '../../../lib/queue';
@@ -15,19 +15,21 @@ import { retryStep, StepNotFoundError, StepNotRetryableError } from '../../../li
 import { toJsonObject } from '../../../lib/json';
 import { trace } from '../../../lib/traceLogger';
 import { buildPlanFromPrompt } from '../../planBuilder';
+import type { JsonValue, EventRow } from '../../../lib/store/types';
 
 const CreateRunSchema = z.object({
   plan: PlanSchema,
   projectId: z.string().optional()
 });
 
-export async function handleRunPreview(req: Request, res: Response) {
+export async function handleRunPreview(req: Request, res: Response): Promise<void> {
   try {
     if (req.body && req.body.standard) {
       const { prompt, quality, openPr, filePath, summarizeQuery, summarizeTarget, projectId } = req.body.standard;
 
       if (!prompt || typeof prompt !== 'string') {
-        return res.status(400).json({ error: 'Missing or invalid prompt in standard mode' });
+        res.status(400).json({ error: 'Missing or invalid prompt in standard mode' });
+        return;
       }
 
       const plan = await buildPlanFromPrompt(prompt, {
@@ -39,16 +41,17 @@ export async function handleRunPreview(req: Request, res: Response) {
         projectId
       });
 
-      return res.status(200).json(plan);
+      res.status(200).json(plan);
+      return;
     }
-    return res.status(400).json({ error: 'missing standard' });
+    res.status(400).json({ error: 'missing standard' });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'failed to preview';
-    return res.status(400).json({ error: message });
+    res.status(400).json({ error: message });
   }
 }
 
-export async function handleCreateRun(req: Request, res: Response) {
+export async function handleCreateRun(req: Request, res: Response): Promise<void> {
   let projectIdForLog = 'default';
   let planForLog: unknown;
   try {
@@ -58,7 +61,8 @@ export async function handleCreateRun(req: Request, res: Response) {
       const projectId = req.body.projectId || (req.headers['x-project-id'] as string | undefined) || 'default';
 
       if (!prompt || typeof prompt !== 'string') {
-        return res.status(400).json({ error: 'Missing or invalid prompt in standard mode' });
+        res.status(400).json({ error: 'Missing or invalid prompt in standard mode' });
+        return;
       }
 
       const plan = await buildPlanFromPrompt(prompt, {
@@ -73,7 +77,9 @@ export async function handleCreateRun(req: Request, res: Response) {
       // Continue with the generated plan
       const parsed = CreateRunSchema.safeParse({ plan, projectId });
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.flatten() });
+        const errorMessage = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ') || 'Invalid plan data';
+        res.status(400).json({ error: errorMessage });
+        return;
       }
 
       const { plan: validatedPlan, projectId: validatedProjectId = 'default' } = parsed.data;
@@ -92,7 +98,7 @@ export async function handleCreateRun(req: Request, res: Response) {
 
       trace('run.create.request', { projectId: validatedProjectId, plan: validatedPlan, userId: req.userId || 'anonymous' });
 
-      const run = await store.createRun(runData as any, validatedProjectId);
+      const run = await store.createRun(runData, validatedProjectId);
       const runId = String(run.id);
 
       try {
@@ -105,8 +111,11 @@ export async function handleCreateRun(req: Request, res: Response) {
       // Respond immediately to avoid request timeouts on large plans
       res.status(201).json({ id: runId, status: "queued", projectId: validatedProjectId });
 
-      // Process steps asynchronously
-      await processRunSteps(validatedPlan, runId);
+      // Process steps asynchronously - catch errors to prevent response already sent issues
+      processRunSteps(validatedPlan, runId).catch(error => {
+        trace('step.processing.error', { runId, projectId: validatedProjectId, error: error instanceof Error ? error.message : String(error) });
+        log.error({ error, runId, projectId: validatedProjectId }, 'Failed to process run steps after response sent');
+      });
       return;
     }
 
@@ -116,7 +125,9 @@ export async function handleCreateRun(req: Request, res: Response) {
     });
 
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      const errorMessage = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ') || 'Invalid request data';
+      res.status(400).json({ error: errorMessage });
+      return;
     }
 
     const { plan, projectId = 'default' } = parsed.data;
@@ -135,7 +146,7 @@ export async function handleCreateRun(req: Request, res: Response) {
 
     trace('run.create.request', { projectId, plan, userId: req.userId || 'anonymous' });
 
-    const run = await store.createRun(runData as any, projectId);
+    const run = await store.createRun(runData, projectId);
     const runId = String(run.id);
 
     try {
@@ -148,37 +159,46 @@ export async function handleCreateRun(req: Request, res: Response) {
     // Respond immediately to avoid request timeouts on large plans
     res.status(201).json({ id: runId, status: "queued", projectId });
 
-    // Process steps asynchronously
-    await processRunSteps(plan, runId);
+    // Process steps asynchronously - catch errors to prevent response already sent issues
+    processRunSteps(plan, runId).catch(error => {
+      trace('step.processing.error', { runId, projectId, error: error instanceof Error ? error.message : String(error) });
+      log.error({ error, runId, projectId }, 'Failed to process run steps after response sent');
+    });
 
-  } catch (error) {
+  } catch (error: unknown) {
     trace('run.create.error', { projectId: projectIdForLog, plan: planForLog, error: error instanceof Error ? error.message : String(error) });
     log.error({ error }, 'Failed to create run');
     res.status(500).json({ error: 'Failed to create run' });
   }
 }
 
-async function processRunSteps(plan: any, runId: string) {
+interface StepPreparation {
+  step: StepInput;
+  idemKey: string;
+  inputsWithPolicy: JsonValue;
+}
+
+async function processRunSteps(plan: Plan, runId: string): Promise<void> {
   const startTime = Date.now();
   trace('step.batch.start', { runId, stepCount: plan.steps.length });
 
   // Prepare all steps with their metadata (sync operations)
-  const stepPreparations = plan.steps.map((s: any) => {
-    const baseInputs = toJsonObject(s.inputs ?? {});
+  const stepPreparations: StepPreparation[] = plan.steps.map((step) => {
+    const baseInputs = toJsonObject(step.inputs ?? {});
     const policy = toJsonObject({
-      tools_allowed: s.tools_allowed,
-      env_allowed: s.env_allowed,
-      secrets_scope: s.secrets_scope,
+      tools_allowed: step.tools_allowed,
+      env_allowed: step.env_allowed,
+      secrets_scope: step.secrets_scope,
     });
-    const inputsWithPolicy = {
+    const inputsWithPolicy: JsonValue = {
       ...baseInputs,
       ...(Object.keys(policy).length ? { _policy: policy } : {}),
     };
 
     const hash = crypto.createHash('sha256').update(JSON.stringify(inputsWithPolicy)).digest('hex').slice(0, 12);
-    const idemKey = `${runId}:${s.name}:${hash}`;
+    const idemKey = `${runId}:${step.name}:${hash}`;
 
-    return { step: s, idemKey, inputsWithPolicy };
+    return { step, idemKey, inputsWithPolicy };
   });
 
   trace('step.batch.prepared', { runId, prepTime: Date.now() - startTime });
@@ -186,7 +206,7 @@ async function processRunSteps(plan: any, runId: string) {
   // Batch create all steps in parallel (90% faster for large plans)
   const batchStart = Date.now();
   const creationResults = await Promise.allSettled(
-    stepPreparations.map(async ({ step, idemKey, inputsWithPolicy }: { step: any; idemKey: string; inputsWithPolicy: any }) => {
+    stepPreparations.map(async ({ step, idemKey, inputsWithPolicy }: StepPreparation) => {
       trace('step.create.begin', { runId, stepName: step.name, tool: step.tool, idemKey });
       const created = await store.createStep(runId, step.name, step.tool, inputsWithPolicy, idemKey);
 
@@ -228,18 +248,26 @@ async function processRunSteps(plan: any, runId: string) {
 
   for (let i = 0; i < creationResults.length; i++) {
     const result = creationResults[i];
-    const { step, idemKey } = stepPreparations[i];
+    const preparation = stepPreparations[i];
 
-    if (result.status === 'rejected') {
-      trace('step.create.error', {
-        runId,
-        stepName: step.name,
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-      });
-      log.error({ error: result.reason, runId, stepName: step.name }, 'Failed to create step');
+    if (!preparation || !result) {
       continue;
     }
 
+    const { step, idemKey } = preparation;
+
+    if (result.status === 'rejected') {
+      const reason = result.reason;
+      trace('step.create.error', {
+        runId,
+        stepName: step.name,
+        error: reason instanceof Error ? reason.message : String(reason)
+      });
+      log.error({ error: reason, runId, stepName: step.name }, 'Failed to create step');
+      continue;
+    }
+
+    // Type narrowing: result.status === 'fulfilled'
     const { stepId, existing } = result.value;
 
     if (!stepId || !existing) {
@@ -299,7 +327,7 @@ async function processRunSteps(plan: any, runId: string) {
   });
 }
 
-async function enqueueStepWithBackpressure(runId: string, stepId: string, idemKey: string) {
+async function enqueueStepWithBackpressure(runId: string, stepId: string, idemKey: string): Promise<void> {
   // Backpressure: delay enqueue when queue age grows beyond threshold
   const thresholdMs = Math.max(0, Number(process.env.BACKPRESSURE_AGE_MS || 5000));
   const ageMs = getOldestAgeMs(STEP_READY_TOPIC);
@@ -319,7 +347,7 @@ async function enqueueStepWithBackpressure(runId: string, stepId: string, idemKe
   trace('step.enqueue.finalized', { runId, stepId, idemKey, delayMs, ageMs, thresholdMs });
 }
 
-async function handleInlineExecution(runId: string, stepId: string) {
+async function handleInlineExecution(runId: string, stepId: string): Promise<void> {
   const inlineRunnerDisabled = process.env.DISABLE_INLINE_RUNNER === '1';
   const usingMemoryQueue = (process.env.QUEUE_DRIVER || 'memory').toLowerCase() === 'memory';
 
@@ -334,53 +362,72 @@ async function handleInlineExecution(runId: string, stepId: string) {
   }
 }
 
-export async function handleGetRun(req: Request, res: Response) {
+export async function handleGetRun(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
+
+    if (!id) {
+      res.status(400).json({ error: 'Run ID is required' });
+      return;
+    }
+
     const run = await store.getRun(id);
 
     if (!run) {
-      return res.status(404).json({ error: 'Run not found' });
+      res.status(404).json({ error: 'Run not found' });
+      return;
     }
 
     res.json(run);
-  } catch (error) {
+  } catch (error: unknown) {
     log.error({ error, runId: req.params.id }, 'Failed to get run');
     res.status(500).json({ error: 'Failed to retrieve run' });
   }
 }
 
-export async function handleGetRunTimeline(req: Request, res: Response) {
+export async function handleGetRunTimeline(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
+
+    if (!id) {
+      res.status(400).json({ error: 'Run ID is required' });
+      return;
+    }
 
     // Verify run exists
     const run = await store.getRun(id);
     if (!run) {
-      return res.status(404).json({ error: 'Run not found' });
+      res.status(404).json({ error: 'Run not found' });
+      return;
     }
 
     // Get timeline if the method exists, otherwise return empty timeline
-    let timeline: any[] = [];
+    let timeline: EventRow[] = [];
     if ('getRunTimeline' in store && typeof store.getRunTimeline === 'function') {
-      timeline = await (store as any).getRunTimeline(id);
+      timeline = await store.getRunTimeline(id);
     }
 
     res.json({ timeline });
-  } catch (error) {
+  } catch (error: unknown) {
     log.error({ error, runId: req.params.id }, 'Failed to get run timeline');
     res.status(500).json({ error: 'Failed to retrieve timeline' });
   }
 }
 
-export async function handleRunStream(req: Request, res: Response) {
+export async function handleRunStream(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
+
+    if (!id) {
+      res.status(400).json({ error: 'Run ID is required' });
+      return;
+    }
 
     // Verify run exists
     const run = await store.getRun(id);
     if (!run) {
-      return res.status(404).json({ error: 'Run not found' });
+      res.status(404).json({ error: 'Run not found' });
+      return;
     }
 
     // Setup SSE
@@ -405,13 +452,13 @@ export async function handleRunStream(req: Request, res: Response) {
       clearInterval(keepAlive);
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     log.error({ error, runId: req.params.id }, 'Failed to setup run stream');
     res.status(500).json({ error: 'Failed to setup stream' });
   }
 }
 
-export async function handleListRuns(req: Request, res: Response) {
+export async function handleListRuns(req: Request, res: Response): Promise<void> {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
@@ -420,8 +467,8 @@ export async function handleListRuns(req: Request, res: Response) {
     const result = await store.listRuns(limit);
 
     // Handle different return types from store.listRuns
-    const runs = Array.isArray(result) ? result : (result as any)?.runs || [];
-    const total = Array.isArray(result) ? result.length : (result as any)?.total || 0;
+    const runs = Array.isArray(result) ? result : [];
+    const total = runs.length;
 
     trace('run.list.response', { count: runs.length, total });
 
@@ -434,25 +481,32 @@ export async function handleListRuns(req: Request, res: Response) {
         pages: Math.ceil(total / limit)
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     trace('run.list.error', { error: error instanceof Error ? error.message : String(error) });
     log.error({ error }, 'Failed to list runs');
     res.status(500).json({ error: 'Failed to list runs' });
   }
 }
 
-export async function handleRetryStep(req: Request, res: Response) {
+export async function handleRetryStep(req: Request, res: Response): Promise<void> {
   try {
     const { runId, stepId } = req.params;
 
+    if (!runId || !stepId) {
+      res.status(400).json({ error: 'Run ID and Step ID are required' });
+      return;
+    }
+
     await retryStep(runId, stepId);
     res.json({ success: true, message: 'Step retry initiated' });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof StepNotFoundError) {
-      return res.status(404).json({ error: 'Step not found' });
+      res.status(404).json({ error: 'Step not found' });
+      return;
     }
     if (error instanceof StepNotRetryableError) {
-      return res.status(400).json({ error: 'Step cannot be retried' });
+      res.status(400).json({ error: 'Step cannot be retried' });
+      return;
     }
 
     log.error({ error, runId: req.params.runId, stepId: req.params.stepId }, 'Failed to retry step');

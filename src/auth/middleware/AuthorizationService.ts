@@ -53,6 +53,7 @@ export class AuthorizationService {
     } catch (error) {
       log.error({ error }, 'Error checking admin status');
       res.status(500).json({ error: 'Authorization check failed' });
+      return;
     }
   }
 
@@ -95,6 +96,7 @@ export class AuthorizationService {
       } catch (error) {
         log.error({ error }, 'Error checking team access');
         res.status(500).json({ error: 'Authorization check failed' });
+        return;
       }
     };
   }

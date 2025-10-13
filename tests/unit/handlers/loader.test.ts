@@ -306,7 +306,8 @@ describe('handler loader', () => {
       });
 
       // Test environment should have fewer handlers (unless LOAD_ALL_HANDLERS is set)
-      expect(results[0]).toBeLessThanOrEqual(results[1]);
+      // Use non-null assertion since we know results has 4 elements
+      expect(results[0]!).toBeLessThanOrEqual(results[1]!);
       expect(results[1]).toBe(results[2]); // dev and prod should have same count
     });
 

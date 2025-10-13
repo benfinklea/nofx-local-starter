@@ -5,9 +5,15 @@
 
 import { Response } from 'express';
 import { getContext, log } from './observability';
+import {
+  ApiError,
+  isApiError,
+  getHttpStatusFromApiError,
+  type ValidationErrorDetail,
+} from './errors';
 
 // Standard response envelope for successful operations
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T> {
   success: true;
   data: T;
   meta?: {
@@ -204,6 +210,72 @@ export class ApiResponse {
   }
 
   /**
+   * Send error response from ApiError discriminated union
+   * This provides type-safe error handling across the application
+   */
+  static fromApiError(res: Response, error: ApiError): Response {
+    const status = getHttpStatusFromApiError(error);
+    const ctx = getContext();
+
+    // Map ApiError to ProblemDetails format
+    const problem: ProblemDetails = {
+      type: `urn:nofx:error:${error.type}`,
+      title: this.getTitleForErrorType(error.type),
+      status,
+      detail: error.message,
+      instance: ctx?.requestId ? `/requests/${ctx.requestId}` : undefined,
+      correlationId: ctx?.correlationId,
+    };
+
+    // Add type-specific fields
+    if (error.type === 'validation') {
+      problem.errors = [{ field: error.field, message: error.message, code: error.code }];
+    } else if (error.type === 'validation_multiple') {
+      problem.errors = error.errors;
+    } else if (error.type === 'rate_limit' && error.retryAfter) {
+      res.header('Retry-After', String(error.retryAfter));
+    }
+
+    // Remove undefined fields
+    Object.keys(problem).forEach(key => {
+      if (problem[key as keyof ProblemDetails] === undefined) {
+        delete problem[key as keyof ProblemDetails];
+      }
+    });
+
+    log.warn({
+      event: 'api.response.error.typed',
+      status,
+      errorType: error.type,
+      correlationId: ctx?.correlationId,
+    }, 'Sending typed error response');
+
+    return res.status(status)
+      .header('Content-Type', 'application/problem+json')
+      .json(problem);
+  }
+
+  /**
+   * Get human-readable title for error type
+   */
+  private static getTitleForErrorType(type: ApiError['type']): string {
+    const titles: Record<ApiError['type'], string> = {
+      validation: 'Validation Error',
+      validation_multiple: 'Validation Failed',
+      authentication: 'Authentication Required',
+      authorization: 'Access Denied',
+      not_found: 'Resource Not Found',
+      conflict: 'Conflict',
+      rate_limit: 'Rate Limit Exceeded',
+      internal: 'Internal Server Error',
+      external: 'External Service Error',
+      timeout: 'Request Timeout',
+      bad_request: 'Bad Request',
+    };
+    return titles[type];
+  }
+
+  /**
    * Helper for paginated responses
    */
   static paginated<T>(
@@ -225,19 +297,27 @@ export class ApiResponse {
 
 /**
  * Middleware to handle async route errors
+ * Automatically converts ApiError to proper HTTP response
  */
 export function asyncHandler(fn: (req: any, res: any, next: any) => Promise<void>) {
   return (req: any, res: any, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch((error) => {
+    Promise.resolve(fn(req, res, next)).catch((error: unknown) => {
       log.error({
         event: 'api.unhandled.error',
-        error: error.message,
-        stack: error.stack,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
         correlationId: getContext()?.correlationId
       }, 'Unhandled error in route handler');
 
       if (!res.headersSent) {
-        ApiResponse.internalError(res, error.message);
+        // Check if it's a typed ApiError
+        if (isApiError(error)) {
+          ApiResponse.fromApiError(res, error);
+        } else if (error instanceof Error) {
+          ApiResponse.internalError(res, error.message);
+        } else {
+          ApiResponse.internalError(res, String(error));
+        }
       }
     });
   };

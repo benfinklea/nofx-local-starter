@@ -62,17 +62,17 @@ function ensureAdmin(req: Request, res: Response): boolean {
 }
 
 export default function mount(app: Express) {
-  app.get('/builder/templates', async (req, res) => {
+  app.get('/builder/templates', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const templates = await manager.listTemplates();
-      res.json({ templates });
+      return res.json({ templates });
     } catch (err: unknown) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list templates' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list templates' });
     }
   });
 
-  app.post('/builder/templates', async (req, res) => {
+  app.post('/builder/templates', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const payload = templateSchema.parse(req.body ?? {});
@@ -95,16 +95,16 @@ export default function mount(app: Express) {
         conversationPolicy: payload.conversationPolicy,
       };
       const created = await manager.createTemplate(input);
-      res.status(201).json(created);
+      return res.status(201).json(created);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to create template' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to create template' });
     }
   });
 
-  app.put('/builder/templates/:id', async (req, res) => {
+  app.put('/builder/templates/:id', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const parsed = templateSchema.partial().parse(req.body ?? {});
@@ -130,7 +130,7 @@ export default function mount(app: Express) {
       if (parsed.historyPlan !== undefined) patch.historyPlan = parsed.historyPlan;
       if (parsed.conversationPolicy !== undefined) patch.conversationPolicy = parsed.conversationPolicy;
       const updated = await manager.updateTemplate(req.params.id, patch);
-      res.json(updated);
+      return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
@@ -138,11 +138,11 @@ export default function mount(app: Express) {
       if (err instanceof Error && err.message === 'template not found') {
         return res.status(404).json({ error: 'not found' });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update template' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update template' });
     }
   });
 
-  app.post('/builder/templates/:id/deploy', async (req, res) => {
+  app.post('/builder/templates/:id/deploy', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const payload = deploySchema.parse(req.body ?? {});
@@ -151,7 +151,7 @@ export default function mount(app: Express) {
         channel: payload.channel,
         enabled: payload.enabled,
       });
-      res.json(updated);
+      return res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
@@ -159,24 +159,24 @@ export default function mount(app: Express) {
       if (err instanceof Error && err.message === 'template not found') {
         return res.status(404).json({ error: 'not found' });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update deployment' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update deployment' });
     }
   });
 
-  app.get('/builder/templates/:id/history', async (req, res) => {
+  app.get('/builder/templates/:id/history', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const history = await manager.getHistory(req.params.id);
-      res.json({ history });
+      return res.json({ history });
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'template not found') {
         return res.status(404).json({ error: 'not found' });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch history' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch history' });
     }
   });
 
-  app.post('/builder/templates/:id/compile', async (req, res) => {
+  app.post('/builder/templates/:id/compile', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const payload = compileSchema.parse(req.body ?? {});
@@ -185,7 +185,7 @@ export default function mount(app: Express) {
         variables: payload.variables,
         metadata: payload.metadata,
       });
-      res.json(compiled);
+      return res.json(compiled);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });
@@ -193,11 +193,11 @@ export default function mount(app: Express) {
       if (err instanceof Error && err.message === 'template not found') {
         return res.status(404).json({ error: 'not found' });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to compile template' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to compile template' });
     }
   });
 
-  app.post('/builder/templates/:id/run', async (req, res) => {
+  app.post('/builder/templates/:id/run', async (req, res): Promise<void> => {
     if (!ensureAdmin(req, res)) return;
     try {
       const payload = runSchema.parse(req.body ?? {});
@@ -217,7 +217,7 @@ export default function mount(app: Express) {
         background: payload.background ?? false,
       });
 
-      res.status(201).json({
+      return res.status(201).json({
         runId: result.runId,
         bufferedMessages: result.bufferedMessages,
         reasoning: result.reasoningSummaries,
@@ -231,7 +231,7 @@ export default function mount(app: Express) {
       if (err instanceof Error && err.message === 'template not found') {
         return res.status(404).json({ error: 'not found' });
       }
-      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to execute template' });
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to execute template' });
     }
   });
 }

@@ -9,7 +9,7 @@ import { sendTeamInviteEmail } from '../../../services/email/teamEmails';
 import type { InviteMemberData, AcceptInviteData } from './types';
 
 export class InviteService {
-  private async getSupabaseClient() {
+  private getSupabaseClient() {
     const supabase = createServiceClient();
     if (!supabase) {
       throw new Error('Service unavailable');
@@ -23,7 +23,7 @@ export class InviteService {
     inviterUserId: string,
     inviterEmail: string
   ) {
-    const supabase = await this.getSupabaseClient();
+    const supabase = this.getSupabaseClient();
 
     // Get team details
     const { data: team, error: teamError } = await supabase
@@ -94,7 +94,7 @@ export class InviteService {
   }
 
   async acceptInvite(acceptData: AcceptInviteData, userEmail: string, userId: string) {
-    const supabase = await this.getSupabaseClient();
+    const supabase = this.getSupabaseClient();
 
     // Get invite details
     const { data: invite, error: inviteError } = await supabase
@@ -149,7 +149,7 @@ export class InviteService {
   }
 
   async cancelInvite(teamId: string, inviteId: string, userId: string) {
-    const supabase = await this.getSupabaseClient();
+    const supabase = this.getSupabaseClient();
 
     const { error } = await supabase
       .from('team_invites')
@@ -167,13 +167,27 @@ export class InviteService {
   }
 
   private async validateNotExistingMember(teamId: string, email: string) {
-    const supabase = await this.getSupabaseClient();
+    const supabase = this.getSupabaseClient();
 
+    // First, get the user ID from the email
+    const { data: users } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email);
+
+    // If no user exists with this email, they can't be a member
+    if (!users || users.length === 0) {
+      return;
+    }
+
+    const userId = users[0].id;
+
+    // Check if this user is already a team member
     const { data: existingMember } = await supabase
       .from('team_members')
       .select('id')
       .eq('team_id', teamId)
-      .eq('user.email', email); // Assuming join with users table
+      .eq('user_id', userId);
 
     if (existingMember && existingMember.length > 0) {
       throw new Error('User is already a member of this team');
@@ -181,7 +195,7 @@ export class InviteService {
   }
 
   private async validateNoPendingInvite(teamId: string, email: string) {
-    const supabase = await this.getSupabaseClient();
+    const supabase = this.getSupabaseClient();
 
     const { data: existingInvites } = await supabase
       .from('team_invites')
@@ -220,7 +234,7 @@ export class InviteService {
     resourceId: string,
     metadata: Record<string, unknown>
   ) {
-    const supabase = await this.getSupabaseClient();
+    const supabase = this.getSupabaseClient();
 
     await supabase
       .from('team_activity_logs')

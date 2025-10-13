@@ -16,11 +16,12 @@ import {
 const authService = new AuthService();
 const apiKeyService = new ApiKeyService();
 
-export async function handleSignUp(req: Request, res: Response) {
+export async function handleSignUp(req: Request, res: Response): Promise<void> {
   try {
     const parsed = SignUpSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     const result = await authService.signUp(parsed.data, req, res);
@@ -33,11 +34,12 @@ export async function handleSignUp(req: Request, res: Response) {
   }
 }
 
-export async function handleLogin(req: Request, res: Response) {
+export async function handleLogin(req: Request, res: Response): Promise<void> {
   try {
     const parsed = LoginSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     const result = await authService.signIn(parsed.data, req, res);
@@ -50,7 +52,7 @@ export async function handleLogin(req: Request, res: Response) {
   }
 }
 
-export async function handleLogout(req: Request, res: Response) {
+export async function handleLogout(req: Request, res: Response): Promise<void> {
   try {
     await authService.signOut(req, res);
     res.json({ success: true, message: 'Logged out successfully' });
@@ -60,12 +62,13 @@ export async function handleLogout(req: Request, res: Response) {
   }
 }
 
-export async function handleRefreshToken(req: Request, res: Response) {
+export async function handleRefreshToken(req: Request, res: Response): Promise<void> {
   try {
     const { refresh_token } = req.body;
 
     if (!refresh_token) {
-      return res.status(400).json({ error: 'Refresh token is required' });
+      res.status(400).json({ error: 'Refresh token is required' });
+      return;
     }
 
     const result = await authService.refreshSession(refresh_token, req, res);
@@ -78,11 +81,12 @@ export async function handleRefreshToken(req: Request, res: Response) {
   }
 }
 
-export async function handleResetPassword(req: Request, res: Response) {
+export async function handleResetPassword(req: Request, res: Response): Promise<void> {
   try {
     const parsed = ResetPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     await authService.resetPassword(parsed.data);
@@ -98,11 +102,12 @@ export async function handleResetPassword(req: Request, res: Response) {
   }
 }
 
-export async function handleUpdatePassword(req: Request, res: Response) {
+export async function handleUpdatePassword(req: Request, res: Response): Promise<void> {
   try {
     const parsed = UpdatePasswordSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
     }
 
     await authService.updatePassword(parsed.data, req, res);
@@ -115,10 +120,11 @@ export async function handleUpdatePassword(req: Request, res: Response) {
   }
 }
 
-export async function handleGetProfile(req: Request, res: Response) {
+export async function handleGetProfile(req: Request, res: Response): Promise<void> {
   try {
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     const user = await authService.getUserProfile(req.userId);
@@ -131,18 +137,20 @@ export async function handleGetProfile(req: Request, res: Response) {
   }
 }
 
-export async function handleCreateApiKey(req: Request, res: Response) {
+export async function handleCreateApiKey(req: Request, res: Response): Promise<void> {
   try {
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     const { name, permissions } = req.body;
 
     if (!name || !Array.isArray(permissions)) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Name and permissions array are required'
       });
+      return;
     }
 
     const apiKey = await apiKeyService.createApiKey(
@@ -164,10 +172,11 @@ export async function handleCreateApiKey(req: Request, res: Response) {
   }
 }
 
-export async function handleListApiKeys(req: Request, res: Response) {
+export async function handleListApiKeys(req: Request, res: Response): Promise<void> {
   try {
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     const apiKeys = await apiKeyService.listApiKeys(req.userId);
@@ -178,16 +187,18 @@ export async function handleListApiKeys(req: Request, res: Response) {
   }
 }
 
-export async function handleDeleteApiKey(req: Request, res: Response) {
+export async function handleDeleteApiKey(req: Request, res: Response): Promise<void> {
   try {
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     const { id } = req.params;
 
     if (!id) {
-      return res.status(400).json({ error: 'API key ID is required' });
+      res.status(400).json({ error: 'API key ID is required' });
+      return;
     }
 
     await apiKeyService.deleteApiKey(id, req.userId, req);

@@ -8,22 +8,21 @@ import { requireAuth } from '../../auth/middleware';
 import { performanceMonitor } from '../../lib/performance-monitor';
 import {
   benchmarkRunner,
-  getBenchmarkStats,
-  generateBenchmarkReport,
   exportBenchmarkResults
 } from '../../lib/benchmarks';
 
 const router = Router();
 
 // Super admin email check middleware
-function requireSuperAdmin(req: any, res: Response, next: any) {
+function requireSuperAdmin(req: any, res: Response, next: any): void {
   const userEmail = req.user?.email || req.session?.user?.email;
 
   if (userEmail !== 'ben@volacci.com') {
-    return res.status(403).json({
+    res.status(403).json({
       error: 'Access denied',
       message: 'Super admin access required'
     });
+    return;
   }
 
   next();
@@ -36,13 +35,13 @@ router.use(requireSuperAdmin);
 /**
  * Super Admin Dashboard - Main admin interface
  */
-router.get('/dashboard', (req: Request, res: Response) => {
+router.get('/dashboard', (_req: Request, res: Response): Promise<void> => {
   try {
     const summary = performanceMonitor.getSummary();
     const isHealthy = performanceMonitor.isHealthy();
     const suites = benchmarkRunner.listSuites();
 
-    res.render('super-admin-dashboard', {
+    return res.render('super-admin-dashboard', {
       title: 'NOFX Super Admin Dashboard',
       summary,
       isHealthy,
@@ -51,7 +50,7 @@ router.get('/dashboard', (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to load admin dashboard',
       message: (error as Error).message
     });
@@ -61,14 +60,14 @@ router.get('/dashboard', (req: Request, res: Response) => {
 /**
  * Get all performance data (admin view)
  */
-router.get('/performance/full', (req: Request, res: Response) => {
+router.get('/performance/full', (_req: Request, res: Response): Promise<void> => {
   try {
     const current = performanceMonitor.getCurrentSnapshot();
     const summary = performanceMonitor.getSummary();
     const snapshots = performanceMonitor.getSnapshots(200);
     const suites = benchmarkRunner.listSuites();
 
-    res.json({
+    return res.json({
       status: 'success',
       data: {
         current,
@@ -81,7 +80,7 @@ router.get('/performance/full', (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to get full performance data',
       message: (error as Error).message
     });
@@ -91,13 +90,13 @@ router.get('/performance/full', (req: Request, res: Response) => {
 /**
  * Run performance benchmarks (admin only)
  */
-router.post('/benchmarks/run', async (req: Request, res: Response) => {
+router.post('/benchmarks/run', async (req: Request, res: Response): Promise<void> => {
   try {
     const { suiteName, description } = req.body;
 
     // This would trigger a benchmark run
     // For now, return success message
-    res.json({
+    return res.json({
       status: 'success',
       message: `Benchmark suite '${suiteName}' scheduled to run`,
       data: {
@@ -108,7 +107,7 @@ router.post('/benchmarks/run', async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to run benchmarks',
       message: (error as Error).message
     });
@@ -118,7 +117,7 @@ router.post('/benchmarks/run', async (req: Request, res: Response) => {
 /**
  * Export all performance data
  */
-router.post('/export/performance', (req: Request, res: Response) => {
+router.post('/export/performance', (_req: Request, res: Response): Promise<void> => {
   try {
     // Export benchmark results
     exportBenchmarkResults();
@@ -134,13 +133,13 @@ router.post('/export/performance', (req: Request, res: Response) => {
       benchmarks: 'Exported to benchmarks/results/ directory'
     };
 
-    res.json({
+    return res.json({
       status: 'success',
       message: 'Performance data exported successfully',
       data: exportData
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to export performance data',
       message: (error as Error).message
     });
@@ -150,19 +149,19 @@ router.post('/export/performance', (req: Request, res: Response) => {
 /**
  * System control - Reset performance monitoring
  */
-router.post('/system/reset-performance', (req: Request, res: Response) => {
+router.post('/system/reset-performance', (_req: Request, res: Response): Promise<void> => {
   try {
     performanceMonitor.reset();
     benchmarkRunner.clear();
 
-    res.json({
+    return res.json({
       status: 'success',
       message: 'Performance monitoring data reset',
       resetBy: 'ben@volacci.com',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to reset performance data',
       message: (error as Error).message
     });
@@ -172,13 +171,13 @@ router.post('/system/reset-performance', (req: Request, res: Response) => {
 /**
  * Get system information (admin view)
  */
-router.get('/system/info', (req: Request, res: Response) => {
+router.get('/system/info', (_req: Request, res: Response): Promise<void> => {
   try {
     const memoryUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
     const uptime = process.uptime();
 
-    res.json({
+    return res.json({
       status: 'success',
       data: {
         process: {
@@ -205,7 +204,7 @@ router.get('/system/info', (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to get system info',
       message: (error as Error).message
     });
@@ -215,12 +214,12 @@ router.get('/system/info', (req: Request, res: Response) => {
 /**
  * Update performance thresholds (admin only)
  */
-router.post('/performance/thresholds', (req: Request, res: Response) => {
+router.post('/performance/thresholds', (req: Request, res: Response): Promise<void> => {
   try {
     const thresholds = req.body;
     performanceMonitor.updateThresholds(thresholds);
 
-    res.json({
+    return res.json({
       status: 'success',
       message: 'Performance thresholds updated',
       data: thresholds,
@@ -228,7 +227,7 @@ router.post('/performance/thresholds', (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to update thresholds',
       message: (error as Error).message
     });

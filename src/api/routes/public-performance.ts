@@ -16,7 +16,7 @@ const router = Router();
 // Simple error handler for public endpoints
 function handleError(res: Response, error: Error, message: string) {
   console.error(`Public performance API error: ${message}`, error);
-  res.status(500).json({
+  return res.status(500).json({
     status: 'error',
     message,
     error: error.message,
@@ -32,7 +32,7 @@ router.get('/health', (req: Request, res: Response) => {
     const isHealthy = performanceMonitor.isHealthy();
     const summary = performanceMonitor.getSummary();
 
-    res.status(isHealthy ? 200 : 503).json({
+    return res.status(isHealthy ? 200 : 503).json({
       status: isHealthy ? 'healthy' : 'unhealthy',
       data: {
         healthy: isHealthy,
@@ -47,7 +47,7 @@ router.get('/health', (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to check performance health');
+    return handleError(res, error as Error, 'Failed to check performance health');
   }
 });
 
@@ -57,14 +57,14 @@ router.get('/health', (req: Request, res: Response) => {
 router.get('/current', (req: Request, res: Response) => {
   try {
     const snapshot = performanceMonitor.getCurrentSnapshot();
-    res.json({
+    return res.json({
       status: 'success',
       data: snapshot,
       healthy: performanceMonitor.isHealthy(),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to get performance snapshot');
+    return handleError(res, error as Error, 'Failed to get performance snapshot');
   }
 });
 
@@ -76,14 +76,14 @@ router.get('/summary', (req: Request, res: Response) => {
     const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string) : undefined;
     const summary = performanceMonitor.getSummary(timeRange);
 
-    res.json({
+    return res.json({
       status: 'success',
       data: summary,
       healthy: performanceMonitor.isHealthy(),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to get performance summary');
+    return handleError(res, error as Error, 'Failed to get performance summary');
   }
 });
 
@@ -95,14 +95,14 @@ router.get('/snapshots', (req: Request, res: Response) => {
     const count = req.query.count ? parseInt(req.query.count as string) : 100;
     const snapshots = performanceMonitor.getSnapshots(count);
 
-    res.json({
+    return res.json({
       status: 'success',
       data: snapshots,
       count: snapshots.length,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to get performance snapshots');
+    return handleError(res, error as Error, 'Failed to get performance snapshots');
   }
 });
 
@@ -113,13 +113,13 @@ router.get('/benchmarks/suites', (req: Request, res: Response) => {
   try {
     const suites = benchmarkRunner.listSuites();
 
-    res.json({
+    return res.json({
       status: 'success',
       data: suites,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to get benchmark suites');
+    return handleError(res, error as Error, 'Failed to get benchmark suites');
   }
 });
 
@@ -139,13 +139,13 @@ router.get('/benchmarks/stats/:suiteName', (req: Request, res: Response) => {
       });
     }
 
-    res.json({
+    return res.json({
       status: 'success',
       data: stats,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to get benchmark statistics');
+    return handleError(res, error as Error, 'Failed to get benchmark statistics');
   }
 });
 
@@ -157,7 +157,7 @@ router.get('/info', (req: Request, res: Response) => {
     const memoryUsage = process.memoryUsage();
     const uptime = process.uptime();
 
-    res.json({
+    return res.json({
       status: 'success',
       data: {
         uptime: uptime * 1000, // Convert to milliseconds
@@ -174,7 +174,7 @@ router.get('/info', (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    handleError(res, error as Error, 'Failed to get system info');
+    return handleError(res, error as Error, 'Failed to get system info');
   }
 });
 
@@ -182,7 +182,7 @@ router.get('/info', (req: Request, res: Response) => {
  * Ping endpoint for connectivity testing
  */
 router.get('/ping', (req: Request, res: Response) => {
-  res.json({
+  return res.json({
     status: 'success',
     message: 'pong',
     timestamp: new Date().toISOString()

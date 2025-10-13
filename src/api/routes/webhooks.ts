@@ -36,7 +36,7 @@ export default function mount(app: Express) {
   app.post(
     '/webhooks/stripe',
     express.raw({ type: 'application/json' }),
-    async (req: Request, res: Response) => {
+    async (req: Request, res: Response): Promise<void> => {
       // Validate webhook signature
       const validation = webhookValidationService.validateWebhook(req, res);
       if (validation.error || !validation.event) {
@@ -54,7 +54,7 @@ export default function mount(app: Express) {
       try {
         await processWebhookEvent(event);
 
-        res.json({ received: true });
+        return res.json({ received: true });
       } catch (error) {
         log.error({
           error,
@@ -64,7 +64,7 @@ export default function mount(app: Express) {
 
         // Return 200 to prevent Stripe from retrying
         // We log the error but don't want infinite retries
-        res.json({ received: true, error: 'Processing error' });
+        return res.json({ received: true, error: 'Processing error' });
       }
     }
   );
@@ -122,26 +122,26 @@ export default function mount(app: Express) {
   /**
    * Test endpoint for webhook (development only)
    */
-  app.post('/webhooks/test', async (req: Request, res: Response) => {
+  app.post('/webhooks/test', async (req: Request, res: Response): Promise<void> => {
     // Runtime check for production
     if (process.env.NODE_ENV === 'production') {
       return res.status(404).json({ error: 'Not found' });
     }
 
     log.info({ body: req.body }, 'Test webhook received');
-    res.json({ received: true, test: true });
+    return res.json({ received: true, test: true });
   });
 
   /**
    * Health check for webhooks
    */
-  app.get('/webhooks/health', (_req: Request, res: Response) => {
+  app.get('/webhooks/health', (_req: Request, res: Response): Promise<void> => {
     const configured = !!(
       process.env.STRIPE_SECRET_KEY &&
       process.env.STRIPE_WEBHOOK_SECRET
     );
 
-    res.json({
+    return res.json({
       ok: configured,
       stripe: configured ? 'configured' : 'not configured',
       timestamp: new Date().toISOString()

@@ -40,7 +40,7 @@ function checkPort(host: string, port: number, timeoutMs=600): Promise<boolean> 
 }
 
 export default function mount(app: Express){
-  app.post('/dev/restart', async (req, res) => {
+  app.post('/dev/restart', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     try {
       const apiFlag = path.join(process.cwd(), '.dev-restart-api');
@@ -48,48 +48,48 @@ export default function mount(app: Express){
       const now = String(Date.now());
       fs.writeFileSync(apiFlag, now);
       fs.writeFileSync(workerFlag, now);
-      res.json({ ok: true });
+      return res.json({ ok: true });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'restart failed';
-      res.status(500).json({ error: message });
+      return res.status(500).json({ error: message });
     }
   });
 
-  app.post('/dev/restart/api', async (req, res) => {
+  app.post('/dev/restart/api', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     try {
       const apiFlag = path.join(process.cwd(), '.dev-restart-api');
       fs.writeFileSync(apiFlag, String(Date.now()));
-      res.json({ ok: true });
+      return res.json({ ok: true });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'restart failed';
-      res.status(500).json({ error: message });
+      return res.status(500).json({ error: message });
     }
   });
 
-  app.post('/dev/restart/worker', async (req, res) => {
+  app.post('/dev/restart/worker', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     try {
       const workerFlag = path.join(process.cwd(), '.dev-restart-worker');
       fs.writeFileSync(workerFlag, String(Date.now()));
-      res.json({ ok: true });
+      return res.json({ ok: true });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'restart failed';
-      res.status(500).json({ error: message });
+      return res.status(500).json({ error: message });
     }
   });
 
   // Observability stack controls (docker compose up/down)
-  app.get('/dev/observability/status', async (req, res) => {
+  app.get('/dev/observability/status', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     const [prom, graf, otel] = await Promise.all([
       checkPort('127.0.0.1', 9090),
       checkPort('127.0.0.1', 3001),
       checkPort('127.0.0.1', 4318)
     ]);
-    res.json({ prometheus: prom, grafana: graf, otel_collector: otel });
+    return res.json({ prometheus: prom, grafana: graf, otel_collector: otel });
   });
-  app.post('/dev/observability/up', async (req, res) => {
+  app.post('/dev/observability/up', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     const cwd = path.join(process.cwd(), 'docs', 'observability');
     // Try `docker compose`, then fallback to `docker-compose`
@@ -97,31 +97,31 @@ export default function mount(app: Express){
     if (first.code === 0) return res.json({ ok: true, engine: 'docker compose', logs: first.stdout });
     const second = await run('docker-compose up -d', cwd);
     if (second.code === 0) return res.json({ ok: true, engine: 'docker-compose', logs: second.stdout });
-    res.status(500).json({ error: 'failed to start observability stack', logs: first.stderr + '\n' + second.stderr });
+    return res.status(500).json({ error: 'failed to start observability stack', logs: first.stderr + '\n' + second.stderr });
   });
-  app.post('/dev/observability/down', async (req, res) => {
+  app.post('/dev/observability/down', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     const cwd = path.join(process.cwd(), 'docs', 'observability');
     const first = await run('docker compose down -v', cwd);
     if (first.code === 0) return res.json({ ok: true, engine: 'docker compose', logs: first.stdout });
     const second = await run('docker-compose down -v', cwd);
     if (second.code === 0) return res.json({ ok: true, engine: 'docker-compose', logs: second.stdout });
-    res.status(500).json({ error: 'failed to stop observability stack', logs: first.stderr + '\n' + second.stderr });
+    return res.status(500).json({ error: 'failed to stop observability stack', logs: first.stderr + '\n' + second.stderr });
   });
 
   // Tracing controls (API process only)
-  app.get('/dev/tracing/status', async (req, res) => {
+  app.get('/dev/tracing/status', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
-    res.json(tracingStatus());
+    return res.json(tracingStatus());
   });
-  app.post('/dev/tracing/enable', async (req, res) => {
+  app.post('/dev/tracing/enable', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     try { await enableTracing('nofx-api'); return res.json({ ok: true }); } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'failed';
       return res.status(500).json({ error: message });
     }
   });
-  app.post('/dev/tracing/disable', async (req, res) => {
+  app.post('/dev/tracing/disable', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     try { await disableTracing(); return res.json({ ok: true }); } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'failed';
@@ -132,7 +132,7 @@ export default function mount(app: Express){
   // Alert tests (synthetic). Dev only; writes metrics directly for short duration.
   let queueDepthTimer: NodeJS.Timeout | null = null;
   let errorRateTimer: NodeJS.Timeout | null = null;
-  app.post('/dev/alerts/test/queue-depth', async (req, res) => {
+  app.post('/dev/alerts/test/queue-depth', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     const durationMs = Math.max(5_000, Math.min(300_000, Number((req.body?.durationMs) || 60_000)));
     const target = Math.max(1, Math.min(500, Number((req.body?.target) || 60)));
@@ -146,9 +146,9 @@ export default function mount(app: Express){
         if (Date.now() >= end && queueDepthTimer) { clearInterval(queueDepthTimer); queueDepthTimer = null; }
       } catch {}
     }, 1000);
-    res.json({ ok: true, durationMs, target });
+    return res.json({ ok: true, durationMs, target });
   });
-  app.post('/dev/alerts/test/error-rate', async (req, res) => {
+  app.post('/dev/alerts/test/error-rate', async (req, res): Promise<void> => {
     if (!requireAdmin(req, res)) return;
     const durationMs = Math.max(5_000, Math.min(300_000, Number((req.body?.durationMs) || 60_000)));
     const failPct = Math.max(1, Math.min(90, Number((req.body?.failPct) || 10))); // default 10%
@@ -163,6 +163,6 @@ export default function mount(app: Express){
         if (Date.now() >= end && errorRateTimer) { clearInterval(errorRateTimer); errorRateTimer = null; }
       } catch {}
     }, 1000);
-    res.json({ ok: true, durationMs, failPct });
+    return res.json({ ok: true, durationMs, failPct });
   });
 }

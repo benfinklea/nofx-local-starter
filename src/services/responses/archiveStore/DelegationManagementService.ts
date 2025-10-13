@@ -40,9 +40,15 @@ export class DelegationManagementService {
     const index = delegations.findIndex((entry) => entry.callId === callId);
     if (index < 0) throw new Error(`delegation ${callId} not found for run ${runId}`);
     const existing = delegations[index];
+    if (!existing) throw new Error(`delegation ${callId} not found at index ${index} for run ${runId}`);
     const updated: DelegationRecord = {
-      ...existing,
-      ...updates,
+      callId: existing.callId,
+      toolName: updates.toolName ?? existing.toolName,
+      status: updates.status ?? existing.status,
+      arguments: updates.arguments ?? existing.arguments,
+      linkedRunId: updates.linkedRunId ?? existing.linkedRunId,
+      output: updates.output ?? existing.output,
+      error: updates.error ?? existing.error,
       requestedAt: updates.requestedAt ? new Date(updates.requestedAt) : existing.requestedAt,
       completedAt: updates.completedAt
         ? new Date(updates.completedAt)

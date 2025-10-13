@@ -1,0 +1,5 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]: "{\"error\":\"Not found\",\"timestamp\":\"2025-10-13T02:10:47.732Z\"}"
+```

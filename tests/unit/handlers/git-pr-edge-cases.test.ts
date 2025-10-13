@@ -423,7 +423,7 @@ describe('git_pr edge cases for 100% coverage', () => {
       (call: any) => call[0] === 'git' && call[1]?.[0] === 'commit'
     );
     expect(commitCalls.length).toBeGreaterThan(0);
-    expect(commitCalls[0][1]).toEqual(['commit', '-m', 'Update by NOFX run run-123']);
+    expect(commitCalls[0]?.[1]).toEqual(['commit', '-m', 'Update by NOFX run run-123']);
 
     // Should use default title in PR
     expect(mockFetch).toHaveBeenCalledWith(

@@ -153,7 +153,7 @@ describe('Worker Handlers Tests', () => {
         run_id: 'run-456',
         name: 'echo-test',
         tool: 'test:echo',
-        inputs: null
+        inputs: {} as any // Use type assertion for test purposes
       };
 
       await testEchoHandler.run({ runId: 'run-456', step });

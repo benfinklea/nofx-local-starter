@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "nofx_admin",
+      "value": "1|010b7b8ab0d5056096fad392b0764fc562c67f5ad78c571a96f82c2dc7baa74a",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

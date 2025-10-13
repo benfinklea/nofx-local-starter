@@ -6,22 +6,13 @@ const authFile = path.join(__dirname, '.auth', 'admin.json');
 setup('authenticate', async ({ page }) => {
   console.log('🔐 Setting up authentication...');
 
-  // Navigate to login page
-  await page.goto('/ui/login');
+  // In test/dev mode, use the /dev/login endpoint which auto-sets admin cookie
+  await page.goto('/dev/login', { waitUntil: 'networkidle' });
 
-  // Wait for login form
-  await page.waitForSelector('input[name="password"], input[type="password"]');
+  // Wait a moment for cookie to be set and redirects to complete
+  await page.waitForTimeout(1000);
 
-  // Fill in admin password
-  await page.fill('input[name="password"], input[type="password"]', 'admin123');
-
-  // Submit form
-  await page.click('button[type="submit"], input[type="submit"], button:has-text("Login")');
-
-  // Wait for successful login
-  await page.waitForTimeout(2000);
-
-  // Verify we're logged in by checking for admin-specific elements or cookies
+  // Verify we're logged in by checking for admin cookie
   const cookies = await page.context().cookies();
   const adminCookie = cookies.find(cookie => cookie.name === 'admin');
 

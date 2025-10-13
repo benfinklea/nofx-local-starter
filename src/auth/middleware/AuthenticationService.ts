@@ -6,6 +6,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { getUserFromRequest, verifyApiKey, createAuditLog, getUserTier } from '../supabase';
 import { log } from '../../lib/logger';
+import { getErrorMessage } from '../../lib/errors';
+import { isApiKeyVerificationResult, isUserProfile } from '../../lib/typeGuards';
 
 export class AuthenticationService {
   /**
@@ -27,9 +29,9 @@ export class AuthenticationService {
 
       // No valid authentication found
       this.sendAuthenticationError(res);
-    } catch (error) {
+    } catch (error: unknown) {
       log.error({ error }, 'Authentication error');
-      res.status(500).json({ error: 'Authentication failed' });
+      res.status(500).json({ error: 'Authentication failed', message: getErrorMessage(error) });
     }
   }
 
@@ -37,13 +39,17 @@ export class AuthenticationService {
    * Authenticate using API key
    */
   private async authenticateWithApiKey(req: Request): Promise<boolean> {
-    const apiKey = req.headers['x-api-key'] as string;
-    if (!apiKey) {
+    const apiKey = req.headers['x-api-key'];
+
+    // Type guard: ensure API key is a string
+    if (typeof apiKey !== 'string' || apiKey.length === 0) {
       return false;
     }
 
     const result = await verifyApiKey(apiKey, { ip: req.ip });
-    if (!result) {
+
+    // Type guard: validate the result structure
+    if (!isApiKeyVerificationResult(result)) {
       return false;
     }
 
@@ -67,7 +73,9 @@ export class AuthenticationService {
    */
   private async authenticateWithJWT(req: Request, res: Response): Promise<boolean> {
     const user = await getUserFromRequest(req, res);
-    if (!user) {
+
+    // Type guard: validate user profile structure
+    if (!isUserProfile(user)) {
       return false;
     }
 
@@ -92,19 +100,34 @@ export class AuthenticationService {
    * Require authentication - blocks unauthenticated requests
    */
   async requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-    // Bypass auth in test/integration mode
-    if (process.env.NODE_ENV === 'test' || process.env.BYPASS_AUTH === 'true') {
-      req.userId = req.headers['x-test-user-id'] as string || 'test-user-123';
-      req.userTier = 'free';
-      return next();
+    // In test mode, authenticate through the mocked supabase functions
+    // This allows tests to control authentication behavior
+    if (process.env.NODE_ENV === 'test') {
+      // Try to authenticate using mocked functions
+      const apiKeyResult = await this.authenticateWithApiKey(req);
+      if (apiKeyResult) {
+        return next();
+      }
+
+      const jwtResult = await this.authenticateWithJWT(req, res);
+      if (jwtResult) {
+        return next();
+      }
+
+      // If no authentication succeeded, return 401
+      res.status(401).json({
+        error: 'Authentication required',
+        message: 'Please provide a valid JWT token or API key'
+      });
+      return;
     }
 
     await this.authenticate(req, res, () => {
       if (!req.userId) {
-        return res.status(401).json({
-          error: 'Authentication required',
-          message: 'You must be logged in to access this resource'
+        res.status(401).json({
+          error: 'Authentication required. You must be logged in to access this resource'
         });
+        return;
       }
       next();
     });
@@ -129,8 +152,8 @@ export class AuthenticationService {
 
       // No authentication found, but that's OK for optional auth
       next();
-    } catch (error) {
-      log.error({ error }, 'Optional authentication error');
+    } catch (error: unknown) {
+      log.error({ error, message: getErrorMessage(error) }, 'Optional authentication error');
       // Continue even if auth fails since it's optional
       next();
     }

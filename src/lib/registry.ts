@@ -384,7 +384,7 @@ export async function publishAgent(payload: PublishAgentRequest, tenantId: strin
     const tags = payload.tags ?? [];
     const capabilities = payload.capabilities ?? [];
     const metadata = payload.metadata ?? {};
-    let agentRow: AgentRow;
+    let agentRow: AgentRow | undefined;
 
     if (existingRes.rows[0]) {
       const updatedRes = await query<AgentRow>(
@@ -412,6 +412,8 @@ export async function publishAgent(payload: PublishAgentRequest, tenantId: strin
       );
       agentRow = inserted.rows[0];
     }
+
+    if (!agentRow) throw new Error('Failed to upsert agent registry');
 
     await query(
       `update nofx.agent_versions set status = 'archived' where agent_id = $1 and version <> $2`,
@@ -551,8 +553,9 @@ export async function listTemplates(queryParams: ListTemplatesQuery = {}): Promi
     summaries = summaries.sort((a, b) => (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0));
   }
 
-  const nextCursor = hasMore && sortOrder === 'recent' && pagedRows.length
-    ? encodeTemplateCursor(pagedRows[pagedRows.length - 1])
+  const lastRow = pagedRows[pagedRows.length - 1];
+  const nextCursor = hasMore && sortOrder === 'recent' && lastRow
+    ? encodeTemplateCursor(lastRow)
     : undefined;
 
   return {
@@ -592,7 +595,7 @@ export async function publishTemplate(payload: PublishTemplateRequest): Promise<
     const existingRes = await query<TemplateRow>(`select * from nofx.template_registry where template_id = $1 limit 1`, [payload.templateId]);
     const tags = payload.tags ?? [];
     const metadata = payload.metadata ?? {};
-    let templateRow: TemplateRow;
+    let templateRow: TemplateRow | undefined;
 
     if (existingRes.rows[0]) {
       const updated = await query<TemplateRow>(
@@ -620,6 +623,8 @@ export async function publishTemplate(payload: PublishTemplateRequest): Promise<
       );
       templateRow = inserted.rows[0];
     }
+
+    if (!templateRow) throw new Error('Failed to upsert template registry');
 
     await query(
       `update nofx.template_versions set status = 'archived' where template_id = $1 and version <> $2`,

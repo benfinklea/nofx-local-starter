@@ -4,16 +4,16 @@ import { listProjects, getProject } from '../../lib/projects';
 
 export default function mount(app: Express) {
   // Projects management UI
-  app.get('/ui/projects', async (req, res) => {
+  app.get('/ui/projects', async (req, res): Promise<void> => {
     if (!isAdmin(req)) {
       return res.redirect('/ui/login');
     }
 
     try {
       const projects = await listProjects();
-      res.render('projects', { projects });
+      return res.render('projects', { projects });
     } catch (error) {
-      res.status(500).render('error', {
+      return res.status(500).render('error', {
         error: 'Failed to load projects',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -21,7 +21,7 @@ export default function mount(app: Express) {
   });
 
   // Individual project settings
-  app.get('/ui/projects/:id', async (req, res) => {
+  app.get('/ui/projects/:id', async (req, res): Promise<void> => {
     if (!isAdmin(req)) {
       return res.redirect('/ui/login');
     }
@@ -34,9 +34,9 @@ export default function mount(app: Express) {
         });
       }
 
-      res.render('project_settings', { project });
+      return res.render('project_settings', { project });
     } catch (error) {
-      res.status(500).render('error', {
+      return res.status(500).render('error', {
         error: 'Failed to load project',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
