@@ -133,15 +133,26 @@ describe('Agent SDK Integration', () => {
 
       expect(run.id).toBeTruthy();
 
-      // Wait for step to be created
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Create the step explicitly (normally orchestration does this)
+      const step = await store.createStep(
+        run.id,
+        'generate',
+        'codegen:v2',
+        {
+          topic: 'Testing',
+          bullets: ['Unit tests', 'Integration tests'],
+          filename: 'test.md',
+          model: 'claude-sonnet-4-5',
+        }
+      );
+
+      expect(step).toBeTruthy();
 
       const steps = await store.listStepsByRun(run.id);
       expect(steps.length).toBe(1);
 
-      const step = steps[0];
-      expect(step.tool).toBe('codegen:v2');
-      expect(step.status).toBe('pending');
+      expect(steps[0].tool).toBe('codegen:v2');
+      expect(steps[0].status).toBe('queued');
     }, 30000);
   });
 

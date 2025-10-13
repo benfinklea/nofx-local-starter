@@ -9,7 +9,18 @@ import { Queue, Worker } from 'bullmq';
 
 // Mock dependencies
 jest.mock('bullmq');
-jest.mock('ioredis');
+
+// Mock IORedis with proper event emitter
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    set: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    get: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
+    del: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    quit: jest.fn<() => Promise<string>>().mockResolvedValue('OK')
+  }));
+});
+
 jest.mock('../../logger', () => ({
   log: {
     info: jest.fn(),
@@ -115,7 +126,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
 
   describe('Worker Subscription', () => {
     it('creates worker with correct configuration', () => {
-      const handler = jest.fn().mockResolvedValue(undefined);
+      const handler = jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined);
 
       adapter.subscribe('test_topic', handler);
 
@@ -130,7 +141,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     });
 
     it('sets up worker event handlers', () => {
-      const handler = jest.fn().mockResolvedValue(undefined);
+      const handler = jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined);
 
       adapter.subscribe('test_topic', handler);
 
@@ -143,7 +154,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     it('respects worker concurrency environment variable', () => {
       process.env.WORKER_CONCURRENCY = '5';
 
-      adapter.subscribe('test_topic', jest.fn());
+      adapter.subscribe('test_topic', jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined));
 
       expect(MockedWorker).toHaveBeenCalledWith(
         expect.any(String),
@@ -158,7 +169,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
       delete process.env.WORKER_CONCURRENCY;
       delete process.env.NOFX_WORKER_CONCURRENCY;
 
-      adapter.subscribe('test_topic', jest.fn());
+      adapter.subscribe('test_topic', jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined));
 
       expect(MockedWorker).toHaveBeenCalledWith(
         expect.any(String),
@@ -237,7 +248,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
 
   describe('Retry Logic and DLQ', () => {
     it('sets up retry logic in failed handler', () => {
-      const handler = jest.fn().mockResolvedValue(undefined);
+      const handler = jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined);
 
       adapter.subscribe('test_topic', handler);
 
@@ -246,7 +257,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     });
 
     it('handles worker setup without errors', () => {
-      const handler = jest.fn().mockResolvedValue(undefined);
+      const handler = jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined);
 
       expect(() => {
         adapter.subscribe('test_topic', handler);
@@ -271,7 +282,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
       });
 
       expect(() => {
-        adapter.subscribe('test_topic', jest.fn().mockResolvedValue(undefined));
+        adapter.subscribe('test_topic', jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined));
       }).toThrow('Worker creation failed');
     });
   });
@@ -290,7 +301,7 @@ describe('RedisQueueAdapter - Integration Tests', () => {
     });
 
     it('handles rapid subscription setup', () => {
-      const handlers = Array(5).fill(null).map(() => jest.fn().mockResolvedValue(undefined));
+      const handlers = Array(5).fill(null).map(() => jest.fn<(payload: unknown) => Promise<unknown>>().mockResolvedValue(undefined));
 
       handlers.forEach((handler, i) => {
         adapter.subscribe(`topic_${i}`, handler);

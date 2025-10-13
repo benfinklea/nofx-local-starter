@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "docker-toolkit": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run"
+      ],
+      "env": {}
+    }
+  }
+}

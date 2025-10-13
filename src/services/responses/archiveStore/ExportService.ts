@@ -39,14 +39,15 @@ export class ExportService {
     return dest;
   }
 
-  moveToColdStorage(runId: string): void {
-    if (!this.coldStorageDir) return;
+  moveToColdStorage(runId: string): boolean {
+    if (!this.coldStorageDir) return false;
     const sourceDir = this.fileManager.runDir(runId);
-    if (!this.fileManager.fileExists(sourceDir)) return;
+    if (!this.fileManager.fileExists(sourceDir)) return false;
     const destinationRoot = path.resolve(this.coldStorageDir);
     this.fileManager.ensureDir(destinationRoot);
     const destination = path.join(destinationRoot, runId);
     this.fileManager.copyDirectory(sourceDir, destination);
     this.fileManager.deleteDirectory(sourceDir);
+    return true;
   }
 }

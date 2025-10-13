@@ -16,6 +16,7 @@ describeStress('Stress Tests - System Breaking Points', () => {
   let apiAvailable = false;
   let dbAvailable = false;
   let redisAvailable = false;
+  let sharedPool: Pool | null = null; // Shared pool across all database tests
   const skipReasons = new Set<string>();
 
   const markSkip = (reason: string) => {
@@ -64,16 +65,23 @@ describeStress('Stress Tests - System Breaking Points', () => {
     if (!process.env.DATABASE_URL) {
       markSkip('DATABASE_URL is not configured; skipping database stress tests.');
     } else {
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+      // Create a single shared pool for all database tests
+      sharedPool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        max: 5, // Allow multiple connections for better performance
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      });
 
       try {
-        await pool.query('SELECT 1');
+        await sharedPool.query('SELECT 1');
         dbAvailable = true;
+        console.log('✅ Database pool initialized and warmed up for stress tests');
       } catch (error) {
         dbAvailable = false;
         markSkip(`Database is unavailable (${(error as Error).message ?? 'unknown error'}); skipping database stress tests.`);
-      } finally {
-        await pool.end().catch(() => {});
+        await sharedPool.end().catch(() => {});
+        sharedPool = null;
       }
     }
 
@@ -99,7 +107,7 @@ describeStress('Stress Tests - System Breaking Points', () => {
     }
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     const duration = performance.now() - metrics.startTime;
     const requestCount = metrics.requests || 0;
     const errorRate = requestCount > 0 ? metrics.errors / requestCount : 0;
@@ -121,6 +129,12 @@ describeStress('Stress Tests - System Breaking Points', () => {
       P95 Latency: ${p95Latency.toFixed(2)}ms
       Requests/Second: ${requestsPerSecond.toFixed(2)}
     `);
+
+    // Clean up the shared pool
+    if (sharedPool) {
+      await sharedPool.end();
+      console.log('✅ Database pool closed');
+    }
   });
 
   describe('Database Stress', () => {
@@ -155,11 +169,14 @@ describeStress('Stress Tests - System Breaking Points', () => {
         return;
       }
 
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      if (!sharedPool) {
+        markSkip('Shared database pool not available');
+        return;
+      }
 
       try {
-        // Generate large dataset
-        await pool.query(`
+        // Generate large dataset using shared pool
+        await sharedPool.query(`
           WITH RECURSIVE large_set AS (
             SELECT 1 as n, random()::text || repeat('x', 1000) as data
             UNION ALL
@@ -173,8 +190,6 @@ describeStress('Stress Tests - System Breaking Points', () => {
         expect(['timeout', 'memory', 'canceled'].some(word =>
           error.message.toLowerCase().includes(word)
         )).toBeTruthy();
-      } finally {
-        await pool.end();
       }
     });
 
@@ -183,16 +198,20 @@ describeStress('Stress Tests - System Breaking Points', () => {
         return;
       }
 
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      if (!sharedPool) {
+        markSkip('Shared database pool not available');
+        return;
+      }
+
       const promises = [];
 
       for (let i = 0; i < 100; i++) {
         promises.push(
-          pool.query('BEGIN')
-            .then(() => pool.query('INSERT INTO nofx.event (run_id, type, payload) VALUES ($1, $2, $3)',
+          sharedPool.query('BEGIN')
+            .then(() => sharedPool!.query('INSERT INTO nofx.event (run_id, type, payload) VALUES ($1, $2, $3)',
               [crypto.randomUUID(), 'stress_test', { index: i }]))
-            .then(() => pool.query('COMMIT'))
-            .catch(() => pool.query('ROLLBACK'))
+            .then(() => sharedPool!.query('COMMIT'))
+            .catch(() => sharedPool!.query('ROLLBACK'))
         );
       }
 
@@ -201,7 +220,6 @@ describeStress('Stress Tests - System Breaking Points', () => {
 
       // At least some should succeed
       expect(succeeded).toBeGreaterThan(0);
-      await pool.end();
     });
   });
 

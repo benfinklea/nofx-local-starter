@@ -580,6 +580,9 @@ function filterByResourceConstraints(
 
 function calculateAgentCost(agent: SelectedAgent): number {
   // Calculate estimated cost based on agent capabilities
+  if (!agent.capabilities || !Array.isArray(agent.capabilities)) {
+    return 0;
+  }
   const totalCost = agent.capabilities.reduce((sum, cap) => {
     return sum + (cap.costPerOperation || 0);
   }, 0);

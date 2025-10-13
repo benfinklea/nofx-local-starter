@@ -12,10 +12,15 @@ jest.mock('../../src/auth/supabase', () => ({
   createServiceClient: jest.fn()
 }));
 
-jest.mock('../../src/auth/middleware', () => ({
-  requireAuth: jest.fn((req: any, res: any, next: any) => next()),
-  requireTeamAccess: jest.fn(() => (req: any, res: any, next: any) => next())
-}));
+jest.mock('../../src/auth/middleware', () => {
+  const mockRequireAuth = jest.fn((req: any, res: any, next: any) => next());
+  const mockRequireTeamAccess = jest.fn(() => (req: any, res: any, next: any) => next());
+
+  return {
+    requireAuth: mockRequireAuth,
+    requireTeamAccess: mockRequireTeamAccess
+  };
+});
 
 jest.mock('../../src/services/email/teamEmails', () => ({
   sendTeamInviteEmail: jest.fn()
@@ -32,18 +37,19 @@ jest.mock('../../src/lib/logger', () => ({
 import teamsMount from '../../src/api/routes/teams';
 import { createServiceClient } from '../../src/auth/supabase';
 import { sendTeamInviteEmail } from '../../src/services/email/teamEmails';
+import type { Express } from 'express';
 
 const mockCreateServiceClient = createServiceClient as jest.MockedFunction<typeof createServiceClient>;
 const mockSendTeamInviteEmail = sendTeamInviteEmail as jest.MockedFunction<typeof sendTeamInviteEmail>;
 
 describe('Teams Routes', () => {
-  let app: express.Application;
+  let app: Express;
   let mockSupabase: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    app = express();
+    app = express() as Express;
     app.use(express.json());
 
     // Add middleware to set user context
@@ -53,18 +59,16 @@ describe('Teams Routes', () => {
       next();
     });
 
-    // Mock Supabase client
-    mockSupabase = {
-      from: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn(),
-      order: jest.fn().mockReturnThis(),
-      single: jest.fn(),
-    };
-
+    // Create a comprehensive Supabase mock with proper chaining
+    mockSupabase = {} as any;
+    mockSupabase.from = jest.fn(() => mockSupabase);
+    mockSupabase.select = jest.fn(() => mockSupabase);
+    mockSupabase.insert = jest.fn(() => mockSupabase);
+    mockSupabase.update = jest.fn(() => mockSupabase);
+    mockSupabase.delete = jest.fn(() => mockSupabase);
+    mockSupabase.eq = jest.fn(() => mockSupabase);
+    mockSupabase.order = jest.fn(() => Promise.resolve({ data: [], error: null }));
+    mockSupabase.single = jest.fn(() => Promise.resolve({ data: null, error: null }));
     mockCreateServiceClient.mockReturnValue(mockSupabase);
 
     // Mount routes
@@ -89,7 +93,7 @@ describe('Teams Routes', () => {
         }
       ];
 
-      mockSupabase.eq.mockResolvedValue({ data: mockTeams, error: null });
+      mockSupabase.order.mockResolvedValue({ data: mockTeams, error: null });
 
       const response = await request(app)
         .get('/teams')
@@ -99,7 +103,7 @@ describe('Teams Routes', () => {
     });
 
     it('should handle database error', async () => {
-      mockSupabase.eq.mockResolvedValue({
+      mockSupabase.order.mockResolvedValue({
         data: null,
         error: { message: 'Database error' }
       });
@@ -239,7 +243,10 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId', () => {
     it('should delete team successfully', async () => {
+      // Mock the delete chain: .delete().eq(...)
       mockSupabase.eq.mockResolvedValue({ data: null, error: null });
+      // Also need to mock the activity log insert
+      mockSupabase.insert.mockResolvedValue({ data: null, error: null });
 
       const response = await request(app)
         .delete('/teams/team-123')
@@ -274,19 +281,28 @@ describe('Teams Routes', () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
       const mockInvite = {
         id: 'invite-123',
+        email: 'newuser@example.com',
+        role: 'member',
         token: 'invite-token-123',
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      mockSupabase.single
-        .mockResolvedValueOnce({ data: mockTeam, error: null })
-        .mockResolvedValueOnce({ data: mockInvite, error: null });
+      // Setup mocks for the sequence of operations in InviteService.sendTeamInvite
+      let singleCallCount = 0;
+      mockSupabase.single.mockImplementation(() => {
+        singleCallCount++;
+        if (singleCallCount === 1) {
+          // First call: Get team details
+          return Promise.resolve({ data: mockTeam, error: null });
+        } else {
+          // Second call: Create invite
+          return Promise.resolve({ data: mockInvite, error: null });
+        }
+      });
 
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: null, error: null });
-
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for checking existing member and pending invites (both should return empty)
+      mockSupabase.select.mockReturnValue(mockSupabase);
+      mockSupabase.eq.mockResolvedValue({ data: [], error: null });
 
       mockSendTeamInviteEmail.mockResolvedValue(undefined);
 
@@ -296,6 +312,12 @@ describe('Teams Routes', () => {
         .expect(201);
 
       expect(response.body.message).toBe('Invite sent successfully');
+      expect(response.body.invite).toEqual({
+        id: 'invite-123',
+        email: 'newuser@example.com',
+        role: 'member',
+        expires_at: mockInvite.expires_at
+      });
       expect(mockSendTeamInviteEmail).toHaveBeenCalled();
     });
 
@@ -312,10 +334,19 @@ describe('Teams Routes', () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
       const existingMember = { id: 'member-123', role: 'member' };
 
+      // First single() call gets the team
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: [existingMember], error: null })
-        .mockResolvedValueOnce({ data: null, error: null });
+
+      // First select/eq checks for existing member - return member found
+      let selectCallCount = 0;
+      mockSupabase.eq.mockImplementation(() => {
+        selectCallCount++;
+        if (selectCallCount === 1) {
+          // Check for existing member - found
+          return Promise.resolve({ data: [existingMember], error: null });
+        }
+        return Promise.resolve({ data: [], error: null });
+      });
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -384,7 +415,9 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId/invites/:inviteId', () => {
     it('should cancel invite successfully', async () => {
+      // Mock for update and subsequent activity log
       mockSupabase.eq.mockResolvedValue({ data: null, error: null });
+      mockSupabase.insert.mockResolvedValue({ data: null, error: null });
 
       const response = await request(app)
         .delete('/teams/team-123/invites/invite-123')
@@ -471,8 +504,17 @@ describe('Teams Routes', () => {
 
   describe('POST /teams/:teamId/leave', () => {
     it('should allow member to leave team', async () => {
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // First select/eq checks role - return member role
+      let eqCallCount = 0;
+      mockSupabase.eq.mockImplementation(() => {
+        eqCallCount++;
+        if (eqCallCount === 1 || eqCallCount === 2) {
+          // Check membership role - return member (not owner)
+          return Promise.resolve({ data: [{ id: 'member-123', role: 'member' }], error: null });
+        }
+        // Delete operation
+        return Promise.resolve({ data: null, error: null });
+      });
 
       const response = await request(app)
         .post('/teams/team-123/leave')
@@ -507,10 +549,17 @@ describe('Teams Routes', () => {
         user: { id: 'user-456', email: 'newowner@example.com' }
       };
 
+      // First single() to validate new owner
       mockSupabase.single.mockResolvedValueOnce({ data: newOwner, error: null });
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock the two update operations and activity log
+      let eqCallCount = 0;
+      mockSupabase.eq.mockImplementation(() => {
+        eqCallCount++;
+        // Both update operations succeed
+        return Promise.resolve({ data: null, error: null });
+      });
+
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)

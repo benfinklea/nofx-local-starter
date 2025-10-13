@@ -2,6 +2,15 @@ import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Mock the Agent SDK before any imports that use it
+jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
+  query: jest.fn(),
+  Options: {},
+  SDKMessage: {},
+  SDKAssistantMessage: {},
+  SDKResultMessage: {}
+}));
+
 jest.mock('../../src/tools/codegen', () => ({
   codegenReadme: jest.fn(async () => ({
     content: '# Generated\n',

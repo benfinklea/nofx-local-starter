@@ -26,3 +26,14 @@ export async function initAutoBackupFromSettings(){
     await configureAutoBackup(s.ops?.backupIntervalMin);
   } catch {}
 }
+
+/**
+ * Cleanup function to clear any active timers
+ * Should be called when shutting down or in tests
+ */
+export function cleanupAutoBackup(): void {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}

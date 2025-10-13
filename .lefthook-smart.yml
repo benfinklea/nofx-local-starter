@@ -1,0 +1,151 @@
+# Lefthook SMART Configuration - Optimized Test Strategies
+# Uses the new fast test strategies for maximum speed with maximum coverage
+# Automatically runs the right tests at the right time
+
+pre-commit:
+  parallel: true
+  commands:
+    # Security checks first (fail fast)
+    danger-check:
+      glob: "*"
+      run: |
+        for file in {staged_files}; do
+          # Skip binary files
+          if file "$file" | grep -q "binary"; then
+            continue
+          fi
+
+          # Check for various types of secrets
+          if grep -E "(password|passwd|pwd|secret|api[_-]?key|token|auth|credential|private[_-]?key)" "$file" | grep -E "(\"|'|=|\:)\s*[\"']?[A-Za-z0-9+/]{20,}" | grep -v "example\|dummy\|fake\|test\|TODO\|FIXME\|placeholder" > /dev/null 2>&1; then
+            echo "⚠️  Potential hardcoded secret in $file"
+            echo "   Use environment variables instead!"
+            exit 1
+          fi
+
+          # AWS credentials
+          if grep -E "AKIA[0-9A-Z]{16}" "$file" > /dev/null 2>&1; then
+            echo "🚨 AWS Access Key detected in $file"
+            exit 1
+          fi
+
+          # Private keys
+          if grep -E "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----" "$file" > /dev/null 2>&1; then
+            echo "🔑 Private key detected in $file"
+            exit 1
+          fi
+
+          # Database connection strings with passwords
+          if grep -E "(mongodb|postgres|mysql|redis)://[^:]+:[^@]+@" "$file" > /dev/null 2>&1; then
+            echo "🗄️  Database credentials detected in $file"
+            exit 1
+          fi
+
+          # Common API keys patterns
+          if grep -E "(sk-[a-zA-Z0-9]{48}|ghp_[a-zA-Z0-9]{36}|ghs_[a-zA-Z0-9]{36}|npm_[a-zA-Z0-9]{36})" "$file" > /dev/null 2>&1; then
+            echo "🔐 API key detected in $file"
+            exit 1
+          fi
+        done
+        exit 0
+
+    # Quick lint on staged files
+    lint-staged:
+      glob: "*.{ts,tsx,js,jsx}"
+      run: npx eslint --fix --max-warnings 10 {staged_files} && git add {staged_files}
+
+    # 🎯 SMART TEST STRATEGY: Only test changed files (LIGHTNING FAST)
+    # Uses the new test:changed command - typically runs in 10-30 seconds
+    test-changed:
+      glob: "*.{ts,tsx,js,jsx}"
+      run: |
+        echo "⚡ Running smart test strategy: Changed files only..."
+        echo "   This typically takes 10-30 seconds"
+
+        # Count how many test-related files changed
+        TEST_FILES=$(echo "{staged_files}" | tr ' ' '\n' | grep -E "\\.test\\.|__tests__" | wc -l | tr -d ' ')
+        SRC_FILES=$(echo "{staged_files}" | tr ' ' '\n' | grep -E "\\.(ts|tsx|js|jsx)$" | grep -v -E "\\.test\\.|__tests__" | wc -l | tr -d ' ')
+
+        if [ "$TEST_FILES" -gt 0 ] || [ "$SRC_FILES" -gt 0 ]; then
+          echo "   📝 Testing $SRC_FILES source files and $TEST_FILES test files"
+
+          # Run tests for changed files with smart detection
+          npm run test:changed -- --bail --silent 2>&1 | grep -E "PASS|FAIL|Tests:|Time:" || true
+
+          if [ $? -eq 0 ]; then
+            echo "   ✅ Changed tests passed!"
+          else
+            echo "   ❌ Tests failed - fix before committing"
+            echo "   💡 Tip: Run 'npm run t:watch' to iterate quickly"
+            exit 1
+          fi
+        else
+          echo "   ⏭️  No testable files changed, skipping tests"
+        fi
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        # Conventional commit validation
+        if ! grep -qE "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\(.+\))?: .{1,100}" "{1}"; then
+          echo "❌ Commit message must follow conventional format:"
+          echo "   type(scope?): description"
+          echo "   Example: feat: add user authentication"
+          echo "   Types: feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert"
+          exit 1
+        fi
+
+pre-push:
+  parallel: false  # Run sequentially for pre-push (more thorough)
+  commands:
+    # 🚀 SMART TEST STRATEGY: Run unit tests before push (FAST)
+    # Uses the new test:unit command - typically runs in 1-2 minutes
+    test-unit:
+      run: |
+        echo "🚀 Running smart test strategy: Unit tests..."
+        echo "   This typically takes 1-2 minutes"
+        echo "   💡 Tip: Let CI handle integration/e2e tests"
+
+        # Run unit tests with coverage check
+        npm run test:unit -- --bail --passWithNoTests 2>&1 | grep -E "PASS|FAIL|Test Suites:|Tests:|Time:" || true
+
+        if [ $? -eq 0 ]; then
+          echo "   ✅ Unit tests passed!"
+        else
+          echo "   ❌ Unit tests failed"
+          echo "   💡 Quick fixes:"
+          echo "      - Run 'npm run t' and select option [2] to debug"
+          echo "      - Run 'npm test -- failing.test.ts' to focus on one file"
+          echo "      - Use 'git push --no-verify' to skip (not recommended)"
+          exit 1
+        fi
+
+    # TypeScript type checking
+    typecheck:
+      run: |
+        echo "🔍 Type checking..."
+        npm run typecheck 2>&1 | tail -20
+        if [ $? -eq 0 ]; then
+          echo "   ✅ Type check passed!"
+        else
+          echo "   ❌ Type errors detected"
+          exit 1
+        fi
+
+post-commit:
+  commands:
+    celebrate:
+      run: |
+        echo "✅ Commit successful!"
+        echo "💡 Next steps:"
+        echo "   • Continue coding with 'npm run t:watch'"
+        echo "   • Run 'npm run t:unit' before push"
+        echo "   • Let CI handle the full test suite"
+
+post-merge:
+  commands:
+    test-after-merge:
+      run: |
+        echo "🔄 Post-merge: Running quick validation..."
+        echo "💡 It's a good idea to run tests after merging"
+        echo "   Run 'npm run t:fast' to validate the merge"

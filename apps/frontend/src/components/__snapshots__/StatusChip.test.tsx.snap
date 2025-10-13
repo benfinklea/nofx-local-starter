@@ -1,0 +1,157 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`StatusChip Component > Visual Regression > snapshot for all error statuses > status-chip-cancelled 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorError MuiChip-filledError css-1ihdc1n-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    cancelled
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all error statuses > status-chip-error 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorError MuiChip-filledError css-1ihdc1n-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    error
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all error statuses > status-chip-failed 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorError MuiChip-filledError css-1ihdc1n-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    failed
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all info statuses > status-chip-in_progress 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorInfo MuiChip-filledInfo css-16lfvse-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    in_progress
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all info statuses > status-chip-pending 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorInfo MuiChip-filledInfo css-16lfvse-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    pending
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all info statuses > status-chip-queued 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorInfo MuiChip-filledInfo css-16lfvse-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    queued
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all info statuses > status-chip-running 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorInfo MuiChip-filledInfo css-16lfvse-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    running
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all success statuses > status-chip-completed 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorSuccess MuiChip-filledSuccess css-1fiq0pv-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    completed
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all success statuses > status-chip-succeeded 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorSuccess MuiChip-filledSuccess css-1fiq0pv-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    succeeded
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all success statuses > status-chip-success 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorSuccess MuiChip-filledSuccess css-1fiq0pv-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    success
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all warning statuses > status-chip-incomplete 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorWarning MuiChip-filledWarning css-se6ndb-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    incomplete
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all warning statuses > status-chip-refused 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorWarning MuiChip-filledWarning css-se6ndb-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    refused
+  </span>
+</div>
+`;
+
+exports[`StatusChip Component > Visual Regression > snapshot for all warning statuses > status-chip-warning 1`] = `
+<div
+  class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorWarning MuiChip-filledWarning css-se6ndb-MuiChip-root"
+>
+  <span
+    class="MuiChip-label MuiChip-labelSmall css-eccknh-MuiChip-label"
+  >
+    warning
+  </span>
+</div>
+`;

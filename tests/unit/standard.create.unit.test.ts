@@ -1,5 +1,22 @@
 import request from 'supertest';
 
+// Mock authentication middleware to bypass auth checks
+jest.mock('../../src/auth/middleware', () => ({
+  requireAuth: jest.fn((req, res, next) => {
+    req.userId = 'test-user-id';
+    req.userTier = 'free';
+    next();
+  }),
+  optionalAuth: jest.fn((_req, _res, next) => next()),
+  checkUsage: jest.fn(() => jest.fn((_req, _res, next) => next())),
+  rateLimit: jest.fn(() => jest.fn((_req, _res, next) => next())),
+  trackApiUsage: jest.fn(() => jest.fn((_req, _res, next) => next())),
+  requireTeamAccess: jest.fn(() => jest.fn((_req, _res, next) => next())),
+  requireAdmin: jest.fn((_req, _res, next) => next()),
+  requireSubscription: jest.fn((_req, _res, next) => next()),
+  validateOwnership: jest.fn(() => jest.fn((_req, _res, next) => next())),
+}));
+
 jest.mock('../../src/lib/db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
     if (/insert into nofx\.run/.test(sql)) {
@@ -37,7 +54,7 @@ jest.mock('../../src/lib/settings', () => ({
   }))
 }));
 
-import app from '../../src/api/main';
+import { app } from '../../src/api/main';
 
 describe('POST /runs (standard)', () => {
   test('builds plan from standard prompt and enqueues steps', async () => {

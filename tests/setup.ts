@@ -106,6 +106,78 @@ jest.mock('../src/lib/supabase', () => ({
   ARTIFACT_BUCKET: 'test-artifacts'
 }));
 
+// Mock Claude Agent SDK to avoid ES module parsing issues
+// Session memory store for testing
+const sessionMemory = new Map<string, string[]>();
+
+jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
+  query: jest.fn().mockImplementation(function* ({ prompt, options }) {
+    const model = options?.model || 'claude-sonnet-4-5';
+    const sessionId = options?.resume;
+
+    // Validate model (simulate API behavior)
+    const validModels = [
+      'claude-sonnet-4-5',
+      'claude-sonnet-4',
+      'claude-opus-4',
+      'claude-haiku-3-5',
+    ];
+
+    if (!validModels.includes(model)) {
+      throw new Error(`Invalid model: ${model}. Must be one of: ${validModels.join(', ')}`);
+    }
+
+    // Build response with session memory
+    let responseText = 'Mock SDK response';
+
+    if (sessionId) {
+      // Get previous messages from session
+      const history = sessionMemory.get(sessionId) || [];
+
+      // Store current prompt
+      history.push(prompt);
+      sessionMemory.set(sessionId, history);
+
+      // Check if this is a follow-up question about previous messages
+      const lowerPrompt = prompt.toLowerCase();
+      if (lowerPrompt.includes('previous') || lowerPrompt.includes('remember') || lowerPrompt.includes('what did i') || lowerPrompt.includes('what was')) {
+        // Extract information from previous messages
+        for (const prevMsg of history) {
+          // Look for numbers in previous messages
+          const numberMatch = prevMsg.match(/\d+/);
+          if (numberMatch) {
+            responseText = `The number was ${numberMatch[0]}`;
+            break;
+          }
+        }
+      } else if (lowerPrompt.includes('remember this number')) {
+        // Acknowledge remembering
+        const numberMatch = prompt.match(/\d+/);
+        responseText = numberMatch ? `Acknowledged, I will remember ${numberMatch[0]}` : 'Acknowledged';
+      }
+    }
+
+    yield {
+      type: 'assistant',
+      message: {
+        content: [{ type: 'text', text: responseText }]
+      },
+      uuid: 'mock-uuid',
+      session_id: sessionId || 'mock-session'
+    };
+    yield {
+      type: 'result',
+      usage: {
+        input_tokens: 100,
+        output_tokens: 50
+      },
+      total_cost_usd: 0.001,
+      uuid: 'mock-result-uuid',
+      session_id: sessionId || 'mock-session'
+    };
+  })
+}));
+
 // Cleanup after each test
 afterEach(async () => {
   jest.clearAllMocks();

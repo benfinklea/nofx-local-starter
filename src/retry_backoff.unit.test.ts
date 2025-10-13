@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeAll, jest } from '@jest/globals';
-import { enqueue, subscribe, getCounts } from './lib/queue/index';
 
 interface RetryPayload {
   __attempt?: number;
@@ -14,9 +13,13 @@ interface QueueCountsSnapshot {
 describe('Memory queue retry backoff and exactly-once (delayed)', () => {
   beforeAll(() => {
     process.env.QUEUE_DRIVER = 'memory';
+    jest.resetModules();
   });
 
   it('retries with backoff [0,2s,5s] and succeeds once on third attempt', async () => {
+    // Dynamic import after env var is set
+    const { enqueue, subscribe, getCounts } = await import('./lib/queue/index');
+
     jest.useFakeTimers();
     const topic = 'test.backoff.' + Date.now();
     const attempts: number[] = [];

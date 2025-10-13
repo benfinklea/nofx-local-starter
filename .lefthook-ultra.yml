@@ -1,0 +1,128 @@
+# Lefthook ULTRA Configuration - Maximum Validation
+# For when you want comprehensive checks before every commit
+# ⚠️ Warning: This is SLOW but THOROUGH (use for important branches)
+
+pre-commit:
+  parallel: true
+  commands:
+    # All security checks
+    danger-check:
+      glob: "*"
+      run: |
+        for file in {staged_files}; do
+          if file "$file" | grep -q "binary"; then
+            continue
+          fi
+
+          # Comprehensive secret detection
+          if grep -E "(password|passwd|pwd|secret|api[_-]?key|token|auth|credential|private[_-]?key)" "$file" | grep -E "(\"|'|=|\:)\s*[\"']?[A-Za-z0-9+/]{20,}" | grep -v "example\|dummy\|fake\|test\|TODO\|FIXME\|placeholder" > /dev/null 2>&1; then
+            echo "⚠️  Potential hardcoded secret in $file"
+            exit 1
+          fi
+
+          if grep -E "AKIA[0-9A-Z]{16}" "$file" > /dev/null 2>&1; then
+            echo "🚨 AWS Access Key detected in $file"
+            exit 1
+          fi
+
+          if grep -E "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----" "$file" > /dev/null 2>&1; then
+            echo "🔑 Private key detected in $file"
+            exit 1
+          fi
+
+          if grep -E "(mongodb|postgres|mysql|redis)://[^:]+:[^@]+@" "$file" > /dev/null 2>&1; then
+            echo "🗄️  Database credentials detected in $file"
+            exit 1
+          fi
+
+          if grep -E "(sk-[a-zA-Z0-9]{48}|ghp_[a-zA-Z0-9]{36}|ghs_[a-zA-Z0-9]{36}|npm_[a-zA-Z0-9]{36})" "$file" > /dev/null 2>&1; then
+            echo "🔐 API key detected in $file"
+            exit 1
+          fi
+
+          # Dangerous patterns
+          if grep -E "(eval\(|exec\(|Function\()" "$file" > /dev/null 2>&1; then
+            if ! grep -E "// eslint-disable|/\* eslint-disable" "$file" > /dev/null 2>&1; then
+              echo "⚠️  Dangerous code pattern in $file"
+            fi
+          fi
+
+          # SQL injection
+          if grep -E "(query|execute)\(.*(\\$\{|\" \+|\' \+)" "$file" | grep -v "prepared\|parameterized" > /dev/null 2>&1; then
+            echo "💉 Potential SQL injection in $file"
+          fi
+
+          # Console logs
+          if [[ "$file" == *.ts || "$file" == *.tsx || "$file" == *.js || "$file" == *.jsx ]]; then
+            if grep -E "console\.(log|debug|info)" "$file" | grep -v "// eslint-disable\|// TODO\|// DEBUG" > /dev/null 2>&1; then
+              echo "📝 console.log detected in $file - use logger instead"
+            fi
+          fi
+        done
+        exit 0
+
+    # Strict linting
+    lint-staged:
+      glob: "*.{ts,tsx,js,jsx}"
+      run: npx eslint --fix --max-warnings 0 {staged_files} && git add {staged_files}
+
+    # 💯 ULTRA TEST STRATEGY: Full unit + integration for changed files
+    test-comprehensive:
+      glob: "*.{ts,tsx,js,jsx}"
+      run: |
+        echo "💯 Running ULTRA test strategy: Comprehensive validation..."
+        echo "   ⚠️  This may take 2-5 minutes"
+
+        # Run all related tests (unit + integration)
+        npm run test:changed -- --bail --coverage 2>&1
+
+        if [ $? -eq 0 ]; then
+          echo "   ✅ All tests passed with coverage!"
+        else
+          echo "   ❌ Tests failed"
+          echo "   💡 Consider using 'npm run hooks:smart' for faster iteration"
+          exit 1
+        fi
+
+    # Type checking
+    typecheck:
+      run: npm run typecheck
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        if ! grep -qE "^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\(.+\))?: .{1,100}" "{1}"; then
+          echo "❌ Commit message must follow conventional format"
+          exit 1
+        fi
+
+pre-push:
+  parallel: false
+  commands:
+    # Full test suite before push
+    test-all:
+      run: |
+        echo "💯 Running ULTRA pre-push validation..."
+        echo "   This runs: Unit + Integration + Smoke tests"
+        echo "   ⚠️  This may take 5-10 minutes"
+
+        npm run test:unit && npm run test:integration && npm run test:smoke
+
+        if [ $? -eq 0 ]; then
+          echo "   ✅ All test suites passed!"
+        else
+          echo "   ❌ Test suite failed"
+          exit 1
+        fi
+
+    # Pre-deploy checks
+    pre-deploy:
+      run: bash scripts/pre-deploy-checks.sh
+
+post-commit:
+  commands:
+    celebrate:
+      run: |
+        echo "✅ ULTRA validation passed!"
+        echo "🏆 Your code meets the highest standards"

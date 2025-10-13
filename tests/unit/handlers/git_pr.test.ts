@@ -103,16 +103,17 @@ describe('git_pr handler', () => {
     mockGetSecret.mockReturnValue('ghp_test_token');
 
     // Mock successful git operations by default
-    mockSpawnSync.mockImplementation((cmd: string, args: string[]) => {
-      if (cmd === 'git' && args.includes('config')) {
-        if (args.includes('--get')) {
-          if (args.includes('remote.origin.url')) {
+    mockSpawnSync.mockImplementation((cmd: string, args?: any, options?: any) => {
+      const argArray = Array.isArray(args) ? args : [];
+      if (cmd === 'git' && argArray.includes('config')) {
+        if (argArray.includes('--get')) {
+          if (argArray.includes('remote.origin.url')) {
             return { status: 0, stdout: 'git@github.com:owner/repo.git', stderr: '' } as any;
           }
-          if (args.includes('user.email')) {
+          if (argArray.includes('user.email')) {
             return { status: 0, stdout: 'test@example.com', stderr: '' } as any;
           }
-          if (args.includes('user.name')) {
+          if (argArray.includes('user.name')) {
             return { status: 0, stdout: 'Test User', stderr: '' } as any;
           }
         }
@@ -448,12 +449,13 @@ describe('git_pr handler', () => {
 
     it('should set git user config if not configured', async () => {
       // Mock git config commands failing initially
-      mockSpawnSync.mockImplementation((cmd: string, args: string[]) => {
-        if (cmd === 'git' && args.includes('config') && args.includes('--get')) {
-          if (args.includes('user.email') || args.includes('user.name')) {
+      mockSpawnSync.mockImplementation((cmd: string, args?: any, options?: any) => {
+        const argArray = Array.isArray(args) ? args : [];
+        if (cmd === 'git' && argArray.includes('config') && argArray.includes('--get')) {
+          if (argArray.includes('user.email') || argArray.includes('user.name')) {
             return { status: 1, stdout: '', stderr: 'not set' } as any;
           }
-          if (args.includes('remote.origin.url')) {
+          if (argArray.includes('remote.origin.url')) {
             return { status: 0, stdout: 'https://github.com/owner/repo.git', stderr: '' } as any;
           }
         }

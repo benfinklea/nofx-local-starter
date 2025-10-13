@@ -1,6 +1,9 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
-// Mock the observability module
+// Set NODE_ENV to development to trigger logging in app config
+process.env.NODE_ENV = 'development';
+
+// Mock the observability module BEFORE importing app config
 jest.mock('../../src/lib/observability', () => ({
   log: {
     error: jest.fn(),
@@ -10,30 +13,18 @@ jest.mock('../../src/lib/observability', () => ({
   }
 }));
 
-describe('Logging Standards', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+// Import modules after mocks are established and NODE_ENV is set
+import { log } from '../../src/lib/observability';
+import '../../src/config/app';
 
+describe('Logging Standards', () => {
   describe('Console.log Replacement', () => {
     it('should not use console.log in production code', async () => {
       // This test verifies that we've replaced console.log with proper logging
       // The actual verification is done via grep during CI/CD
 
-      // Import modules that previously had console.log
-      const { log } = require('../../src/lib/observability');
-
-      // Mock environment for app config
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
-
-      // Clear module cache to ensure fresh import
-      jest.resetModules();
-
-      // Import app config (which should use proper logging in dev mode)
-      require('../../src/config/app');
-
-      // Verify that proper logging was called instead of console.log
+      // Verify that proper logging was called during module initialization
+      // Note: The call happened during module import, before beforeEach can clear it
       expect(log.info).toHaveBeenCalledWith(
         expect.objectContaining({
           API_URL: expect.any(String),
@@ -41,9 +32,6 @@ describe('Logging Standards', () => {
         }),
         expect.stringContaining('App Configuration')
       );
-
-      // Restore environment
-      process.env.NODE_ENV = originalEnv;
     });
 
     it('should use structured logging with context', () => {

@@ -73,7 +73,7 @@ describe('Projects API Endpoints', () => {
       authModule.isAdmin = originalIsAdmin;
 
       expect(response.status).toBe(401);
-      expect(response.json).toEqual({ error: 'auth required' });
+      expect(response.json).toEqual({ error: 'Authentication required' });
     });
 
     it('should handle errors', async () => {
@@ -128,8 +128,7 @@ describe('Projects API Endpoints', () => {
         body: {
           name: 'Test Project',
           repo_url: 'https://github.com/test/repo',
-          local_path: '/path/to/project',
-          workspace_mode: 'local_path',
+          workspace_mode: 'worktree',
           default_branch: 'main',
         },
       });

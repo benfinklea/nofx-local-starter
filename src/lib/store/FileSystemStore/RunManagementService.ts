@@ -57,7 +57,8 @@ export class RunManagementService {
     const existingRun = await this.fileOps.readJsonFile(runPath);
 
     if (!existingRun) {
-      throw new Error(`Run ${id} not found`);
+      // Gracefully handle non-existent run - no-op instead of throwing
+      return;
     }
 
     const updatedRun = { ...(existingRun as object), ...patch };
@@ -90,12 +91,16 @@ export class RunManagementService {
           continue;
         }
 
-        // Convert to RunSummaryRow
+        // Convert to RunSummaryRow - extract title from plan.goal if available
+        const title = run.plan && typeof run.plan === 'object' && 'goal' in run.plan
+          ? String(run.plan.goal)
+          : '';
+
         const summary: RunSummaryRow = {
           id: run.id,
           status: run.status,
           created_at: run.created_at,
-          title: run.id ? `Run ${run.id.slice(0, 8)}` : 'Unknown Run' // Generate a default title
+          title
         };
         runs.push(summary);
       }

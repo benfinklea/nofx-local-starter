@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -31,6 +32,9 @@ module.exports = {
   testTimeout: 30000,
   maxWorkers: '50%',
   verbose: false, // Changed to false for cleaner output when running many tests
+  // Enable test result caching for faster incremental runs
+  cache: true,
+  cacheDirectory: '.jest-cache',
   // Test hardening configurations
   bail: false, // Changed to false - run all tests even if some fail
   detectOpenHandles: true, // Detect handles keeping Jest from exiting

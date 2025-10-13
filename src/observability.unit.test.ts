@@ -1,11 +1,34 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, jest, beforeEach } from '@jest/globals';
+
+// Set environment BEFORE any imports
+process.env.QUEUE_DRIVER = 'memory';
+process.env.DATA_DRIVER = 'fs';
+
+// Mock IORedis to prevent it from being loaded even when not used
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+    quit: jest.fn(() => Promise.resolve('OK')),
+    duplicate: jest.fn(function() {
+      return {
+        on: jest.fn(),
+        connect: jest.fn(),
+        disconnect: jest.fn(),
+        quit: jest.fn(() => Promise.resolve('OK'))
+      };
+    }),
+    keyPrefix: ''
+  }));
+});
+
 import { metrics } from './lib/metrics';
 import { getCounts, STEP_READY_TOPIC } from './lib/queue';
 
 describe('Observability & Queue basics', () => {
   beforeAll(async () => {
-    process.env.QUEUE_DRIVER = 'memory';
-    process.env.DATA_DRIVER = 'fs';
+    // Environment already set above before imports
   });
 
   it('metrics.render returns a text payload', async () => {

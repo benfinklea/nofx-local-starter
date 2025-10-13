@@ -237,12 +237,12 @@ export class RuntimeSummaryService {
     const incidents = this.runtime.incidents.listIncidents({ status: 'open' });
     return {
       count: incidents.length,
-      details: incidents.map(this.serializeIncident),
+      details: incidents.map((incident) => this.serializeIncident(incident)),
     };
   }
 
   private getRateLimitData() {
-    const tenantSummaries = this.runtime.tracker.getTenantSummaries().map(this.serializeTenantSummary);
+    const tenantSummaries = this.runtime.tracker.getTenantSummaries().map((summary) => this.serializeTenantSummary(summary));
     const lastSnapshot = this.runtime.tracker.getLastSnapshot();
 
     return {

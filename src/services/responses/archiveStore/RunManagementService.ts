@@ -99,13 +99,16 @@ export class RunManagementService {
     this.fileManager.deleteDirectory(dir);
   }
 
-  pruneOlderThan(cutoff: Date, coldStorageCallback?: (runId: string) => void): void {
+  pruneOlderThan(cutoff: Date, coldStorageCallback?: (runId: string) => boolean): void {
     const runs = this.listRuns();
     for (const run of runs) {
       if (run.updatedAt < cutoff) {
+        let moved = false;
         if (coldStorageCallback) {
-          coldStorageCallback(run.runId);
-        } else {
+          moved = coldStorageCallback(run.runId);
+        }
+        // If cold storage failed or wasn't configured, delete the run
+        if (!moved) {
           this.deleteRun(run.runId);
         }
       }

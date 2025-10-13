@@ -3,7 +3,7 @@
  */
 
 import path from 'node:path';
-import { promises as fsp } from 'node:fs';
+import fsp from 'node:fs/promises';
 import { ensureDirSync } from 'fs-extra';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -212,7 +212,9 @@ export class FileSystemStore implements StoreDriver {
 
   async outboxAdd(topic: string, payload: JsonValue): Promise<void> {
     const file = path.join(ROOT, 'outbox.json');
-    const rows: OutboxRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+    const content = await fsp.readFile(file, 'utf8').catch(() => '[]');
+    const parsed = JSON.parse(content);
+    const rows: OutboxRow[] = Array.isArray(parsed) ? parsed : [];
     rows.push({
       id: randomUUID(),
       topic,

@@ -17,8 +17,12 @@ describe('Standard interface preview', () => {
       .set('Content-Type','application/json');
     expect(rsp.status).toBe(200);
     const tools = rsp.body.steps.map((s:any)=>s.tool);
-    expect(tools.slice(0,3)).toEqual(['gate:typecheck','gate:lint','gate:unit']);
-    expect(tools).toContain('codegen');
+    // Codegen comes first, then gates are added after
+    expect(tools[0]).toBe('codegen');
+    expect(tools).toContain('gate:typecheck');
+    expect(tools).toContain('gate:lint');
+    expect(tools).toContain('gate:unit');
+    expect(tools).toContain('git_pr');
   });
 });
 

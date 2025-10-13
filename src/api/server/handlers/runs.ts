@@ -54,7 +54,60 @@ export async function handleCreateRun(req: Request, res: Response) {
   try {
     // Standard mode: build a plan from plain-language prompt and settings
     if (req.body && req.body.standard) {
-      return res.status(501).json({ error: 'Plan builder not implemented' });
+      const { prompt, quality, openPr, filePath, summarizeQuery, summarizeTarget } = req.body.standard;
+      const projectId = req.body.projectId || (req.headers['x-project-id'] as string | undefined) || 'default';
+
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid prompt in standard mode' });
+      }
+
+      const plan = await buildPlanFromPrompt(prompt, {
+        quality: Boolean(quality),
+        openPr: Boolean(openPr),
+        filePath,
+        summarizeQuery,
+        summarizeTarget,
+        projectId
+      });
+
+      // Continue with the generated plan
+      const parsed = CreateRunSchema.safeParse({ plan, projectId });
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+
+      const { plan: validatedPlan, projectId: validatedProjectId = 'default' } = parsed.data;
+      projectIdForLog = validatedProjectId;
+      planForLog = validatedPlan;
+
+      // Add user context to the run
+      const runData = {
+        ...validatedPlan,
+        user_id: req.userId || '',
+        metadata: {
+          created_by: req.userId || '',
+          tier: req.userTier || 'free'
+        }
+      };
+
+      trace('run.create.request', { projectId: validatedProjectId, plan: validatedPlan, userId: req.userId || 'anonymous' });
+
+      const run = await store.createRun(runData as any, validatedProjectId);
+      const runId = String(run.id);
+
+      try {
+        setContext({ runId, projectId: validatedProjectId });
+      } catch { }
+
+      await recordEvent(runId, "run.created", { plan: validatedPlan });
+      trace('run.create.success', { runId, projectId: validatedProjectId, status: run.status, createdAt: run.created_at });
+
+      // Respond immediately to avoid request timeouts on large plans
+      res.status(201).json({ id: runId, status: "queued", projectId: validatedProjectId });
+
+      // Process steps asynchronously
+      await processRunSteps(validatedPlan, runId);
+      return;
     }
 
     const parsed = CreateRunSchema.safeParse({

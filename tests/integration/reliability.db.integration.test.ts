@@ -5,6 +5,7 @@ const DB_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@local
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 let envReady = true;
+let sharedPool: Pool | null = null; // Shared pool across all tests
 let store: typeof import('../../src/lib/store').store;
 let queue: typeof import('../../src/lib/queue');
 let factories: typeof import('../../src/testing/factories');
@@ -18,13 +19,22 @@ beforeAll(async () => {
   process.env.REDIS_URL = REDIS_URL;
   process.env.INTEGRATION_TEST = '1';
 
-  const pool = new Pool({ connectionString: DB_URL });
+  // Create a single shared pool for all tests
+  sharedPool = new Pool({
+    connectionString: DB_URL,
+    max: 5, // Allow multiple connections for better performance
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  });
+
   try {
-    await pool.query('select 1');
-  } catch {
+    await sharedPool.query('select 1');
+    console.log('✅ Database pool initialized and warmed up');
+  } catch (error) {
     envReady = false;
-  } finally {
-    await pool.end().catch(() => {});
+    console.error('⚠️ Failed to connect to database:', error);
+    await sharedPool.end().catch(() => {});
+    sharedPool = null;
   }
 
   const redis = new IORedis(REDIS_URL, { lazyConnect: true });
@@ -48,23 +58,28 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Clean up persistent state when tests actually ran
-  if (envReady) {
-    const pool = new Pool({ connectionString: DB_URL });
+  if (envReady && sharedPool) {
     try {
-      await pool.query('truncate nofx.outbox;');
-      await pool.query('truncate nofx.inbox;');
-      await pool.query('truncate nofx.step cascade;');
-      await pool.query('truncate nofx.run cascade;');
-    } catch {
+      await sharedPool.query('truncate nofx.outbox;');
+      await sharedPool.query('truncate nofx.inbox;');
+      await sharedPool.query('truncate nofx.step cascade;');
+      await sharedPool.query('truncate nofx.run cascade;');
+      console.log('✅ Database cleanup completed');
+    } catch (error) {
       // ignore cleanup failures in teardown
+      console.warn('⚠️ Database cleanup failed (non-critical):', error);
     } finally {
-      await pool.end().catch(() => {});
+      await sharedPool.end().catch(() => {});
+      console.log('✅ Database pool closed');
     }
 
-    const { Queue } = await import('bullmq');
-    const q = new Queue(queue.STEP_READY_TOPIC, { connection: { url: REDIS_URL } });
-    await q.drain(true);
-    await q.close();
+    // Clean up queue if it was loaded
+    if (queue) {
+      const { Queue } = await import('bullmq');
+      const q = new Queue(queue.STEP_READY_TOPIC, { connection: { url: REDIS_URL } });
+      await q.drain(true);
+      await q.close();
+    }
   }
 
   jest.resetModules();
@@ -74,7 +89,7 @@ afterAll(async () => {
 });
 
 test('DB + Redis drivers persist events and enqueue reliably', async () => {
-  if (!envReady) {
+  if (!envReady || !sharedPool) {
     console.warn('Skipping DB/Redis integration scenario; services unavailable');
     return;
   }
@@ -101,13 +116,10 @@ test('DB + Redis drivers persist events and enqueue reliably', async () => {
   const refreshedStep = await store.getStep(step.id);
   expect(refreshedStep).toBeDefined();
   expect(String(refreshedStep?.status ?? '').toLowerCase()).toBe('queued');
-  const pool = new Pool({ connectionString: DB_URL });
-  try {
-    const inbox = await pool.query<{ key: string }>('select key from nofx.inbox where key = $1', [`step-exec:${step.id}`]);
-    expect(inbox.rowCount).toBe(0);
-    const outbox = await pool.query<{ topic: string }>('select topic from nofx.outbox order by created_at desc limit 1');
-    expect(outbox.rowCount).toBeGreaterThan(0);
-  } finally {
-    await pool.end().catch(() => {});
-  }
+
+  // Reuse the shared pool instead of creating a new one
+  const inbox = await sharedPool.query<{ key: string }>('select key from nofx.inbox where key = $1', [`step-exec:${step.id}`]);
+  expect(inbox.rowCount).toBe(0);
+  const outbox = await sharedPool.query<{ topic: string }>('select topic from nofx.outbox order by created_at desc limit 1');
+  expect(outbox.rowCount).toBeGreaterThan(0);
 });

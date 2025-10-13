@@ -12,6 +12,7 @@ import startOutboxRelay from '../worker/relay';
 import { initTracing } from '../lib/tracing';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 import { performanceMiddleware, performanceMonitor } from '../lib/performance-monitor';
+import { idempotency, initializeIdempotencyCache } from '../lib/middleware/idempotency';
 // Server configuration modules
 import { setupBasicMiddleware, setupViewEngine } from './server/middleware';
 import { mountCoreRoutes, mountSaasRoutes, mountDynamicRoutes } from './server/routes';
@@ -84,9 +85,10 @@ setupFrontendRouting(app);
 app.get("/health", handleHealthCheck);
 
 // Run management endpoints
-app.post('/runs/preview', handleRunPreview);
+app.post('/runs/preview', idempotency(), handleRunPreview);
 
 app.post("/runs",
+  idempotency(),
   requireAuth,
   checkUsage('runs'),
   rateLimit(60000, 100), // 100 requests per minute max
@@ -98,7 +100,7 @@ app.get("/runs/:id", handleGetRun);
 app.get("/runs/:id/timeline", handleGetRunTimeline);
 app.get('/runs/:id/stream', handleRunStream);
 app.get('/runs', handleListRuns);
-app.post('/runs/:runId/steps/:stepId/retry', requireAuth, handleRetryStep);
+app.post('/runs/:runId/steps/:stepId/retry', idempotency(), requireAuth, handleRetryStep);
 
 // Artifact retrieval endpoint (catch-all route for paths)
 app.get('/artifacts/*', handleGetArtifact);
@@ -149,6 +151,7 @@ export function startServer() {
   return new Promise<http.Server>((resolve, reject) => {
     // Skip server startup during tests to avoid port conflicts
     if (process.env.DISABLE_SERVER_AUTOSTART === '1') {
+      // eslint-disable-next-line no-console
       console.log('⚠️ Server autostart disabled (test mode)');
       // Return a mock server object for tests
       const mockServer = app as any;
@@ -158,11 +161,13 @@ export function startServer() {
 
     try {
       server = app.listen(port, () => {
+        // eslint-disable-next-line no-console
         console.log(`🚀 NOFX API server running on port ${port}`);
 
         // Initialize services after server starts with timeout
         Promise.race([
           Promise.all([
+            initializeIdempotencyCache(),
             initAutoBackupFromSettings(),
             startOutboxRelay()
           ]),
@@ -172,14 +177,18 @@ export function startServer() {
         ]).then(() => {
           // Start performance monitoring
           performanceMonitor.start();
+          // eslint-disable-next-line no-console
           console.log('📊 Performance monitoring started');
+          // eslint-disable-next-line no-console
           console.log('✅ All services initialized successfully');
         }).catch(error => {
+          // eslint-disable-next-line no-console
           console.error('⚠️ Failed to initialize services:', {
             error: error.message,
             stack: error.stack
           });
           // Continue anyway - server should still serve requests
+          // eslint-disable-next-line no-console
           console.log('⚡ Server running in limited mode');
         });
 
@@ -221,20 +230,24 @@ if (require.main === module) {
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
+  // eslint-disable-next-line no-console
   console.log('SIGTERM received, shutting down gracefully');
   stopServer().then(() => {
     process.exit(0);
   }).catch(error => {
+    // eslint-disable-next-line no-console
     console.error('Error during shutdown:', error);
     process.exit(1);
   });
 });
 
 process.on('SIGINT', () => {
+  // eslint-disable-next-line no-console
   console.log('SIGINT received, shutting down gracefully');
   stopServer().then(() => {
     process.exit(0);
   }).catch(error => {
+    // eslint-disable-next-line no-console
     console.error('Error during shutdown:', error);
     process.exit(1);
   });

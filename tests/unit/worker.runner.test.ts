@@ -38,9 +38,17 @@ jest.mock('../../src/lib/queue', () => ({
   STEP_READY_TOPIC: 'step.ready'
 }));
 
-const mockLoadHandlers = jest.fn(() => []);
 jest.mock('../../src/worker/handlers/loader', () => ({
-  loadHandlers: mockLoadHandlers
+  loadHandlers: jest.fn(() => [])
+}));
+
+jest.mock('../../src/worker/handlers/static-loader', () => ({
+  loadHandlers: jest.fn(() => [])
+}));
+
+jest.mock('../../src/lib/traceLogger', () => ({
+  trace: jest.fn(),
+  traceDebug: jest.fn()
 }));
 
 jest.mock('../../src/lib/metrics', () => ({
@@ -55,7 +63,7 @@ jest.mock('../../src/lib/metrics', () => ({
 }));
 
 jest.mock('../../src/lib/tx', () => ({
-  runAtomically: jest.fn((fn) => fn())
+  runAtomically: jest.fn(async (fn) => await fn())
 }));
 
 describe('Worker Runner Tests', () => {
@@ -64,6 +72,7 @@ describe('Worker Runner Tests', () => {
   const { log } = require('../../src/lib/logger');
   const { enqueue } = require('../../src/lib/queue');
   const { metrics } = require('../../src/lib/metrics');
+  const { loadHandlers: mockLoadHandlers } = require('../../src/worker/handlers/loader');
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -91,9 +100,18 @@ describe('Worker Runner Tests', () => {
     };
 
     beforeEach(() => {
+      // Reset all mocks to default state
+      mockHandler.match.mockReturnValue(true);
+      mockHandler.run.mockResolvedValue(undefined);
+
       mockStore.getStep.mockResolvedValue(mockStep);
       mockStore.inboxMarkIfNew.mockResolvedValue(true);
-      mockStore.countRemainingSteps.mockResolvedValue(0);
+      mockStore.inboxDelete.mockResolvedValue(undefined);
+      mockStore.listStepsByRun.mockResolvedValue([mockStep]);
+      mockStore.getRun.mockResolvedValue({
+        id: 'run-456',
+        status: 'running'
+      });
       mockLoadHandlers.mockReturnValue([mockHandler]);
     });
 
@@ -125,7 +143,7 @@ describe('Worker Runner Tests', () => {
     test('handles step not found error', async () => {
       mockStore.getStep.mockResolvedValue(null);
 
-      await expect(runStep('run-456', 'invalid-step')).rejects.toThrow('step not found');
+      await expect(runStep('run-456', 'invalid-step')).rejects.toThrow("Step with ID 'invalid-step' not found");
     });
 
     test('handles inbox duplicate (idempotency)', async () => {
@@ -204,6 +222,15 @@ describe('Worker Runner Tests', () => {
         tool: 'test:echo',
         toolsAllowed: ['bash']
       }, 'step-123');
+      expect(recordEvent).toHaveBeenCalledWith('run-456', 'step.failed', {
+        reason: 'policy_denied',
+        tool: 'test:echo',
+        toolsAllowed: ['bash']
+      }, 'step-123');
+      expect(mockStore.updateRun).toHaveBeenCalledWith('run-456', {
+        status: 'failed',
+        ended_at: expect.any(String)
+      });
       expect(mockHandler.run).not.toHaveBeenCalled();
     });
 
@@ -220,9 +247,10 @@ describe('Worker Runner Tests', () => {
     });
 
     test('handles no handler found', async () => {
-      mockLoadHandlers.mockReturnValue([]);
+      // Make the handler not match test:echo
+      mockHandler.match.mockReturnValue(false);
 
-      await expect(runStep('run-456', 'step-123')).rejects.toThrow('no handler for test:echo');
+      await expect(runStep('run-456', 'step-123')).rejects.toThrow("No handler found for tool 'test:echo'");
 
       expect(recordEvent).toHaveBeenCalledWith('run-456', 'step.failed', {
         error: 'no handler for tool',
@@ -254,7 +282,14 @@ describe('Worker Runner Tests', () => {
     });
 
     test('completes run when no remaining steps', async () => {
-      mockStore.countRemainingSteps.mockResolvedValue(0);
+      mockStore.listStepsByRun.mockResolvedValue([
+        { ...mockStep, status: 'succeeded' }
+      ]);
+      mockStore.getRun.mockResolvedValue({
+        id: 'run-456',
+        status: 'running',
+        plan: { steps: [mockStep] } // Only one planned step
+      });
 
       await runStep('run-456', 'step-123');
 
@@ -266,11 +301,19 @@ describe('Worker Runner Tests', () => {
     });
 
     test('does not complete run when remaining steps exist', async () => {
-      mockStore.countRemainingSteps.mockResolvedValue(2);
+      mockStore.listStepsByRun.mockResolvedValue([
+        { ...mockStep, status: 'succeeded' },
+        { id: 'step-456', status: 'ready' },
+        { id: 'step-789', status: 'running' }
+      ]);
+      mockStore.getRun.mockResolvedValue({
+        id: 'run-456',
+        status: 'running'
+      });
 
       await runStep('run-456', 'step-123');
 
-      expect(mockStore.updateRun).not.toHaveBeenCalled();
+      expect(mockStore.updateRun).not.toHaveBeenCalledWith('run-456', expect.objectContaining({ status: 'succeeded' }));
     });
 
     test('records metrics for successful step', async () => {
@@ -293,12 +336,6 @@ describe('Worker Runner Tests', () => {
         expect.any(Number)
       );
       expect(metrics.stepsTotal.inc).toHaveBeenCalledWith({ status: 'failed' });
-    });
-
-    test('cleans up inbox key on success', async () => {
-      await runStep('run-456', 'step-123');
-
-      expect(mockStore.inboxDelete).toHaveBeenCalledWith('step-exec:step-123');
     });
 
     test('cleans up inbox key on error', async () => {

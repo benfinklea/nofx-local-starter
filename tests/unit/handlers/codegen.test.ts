@@ -58,7 +58,7 @@ describe('codegen handler', () => {
     jest.clearAllMocks();
     mockStore.updateStep.mockResolvedValue(undefined);
     mockRecordEvent.mockResolvedValue(undefined);
-    mockSaveArtifact.mockResolvedValue({ url: 'https://example.com/file.md' });
+    mockSaveArtifact.mockResolvedValue('https://example.com/file.md');
     mockGetSettings.mockResolvedValue({
       llm: {
         pricing: {
@@ -260,7 +260,7 @@ describe('codegen handler', () => {
       for (const testCase of testCases) {
         jest.clearAllMocks();
         mockStore.updateStep.mockResolvedValue(undefined);
-        mockSaveArtifact.mockResolvedValue({ url: 'https://example.com/file' });
+        mockSaveArtifact.mockResolvedValue('https://example.com/file');
 
         const codegenResult = {
           content: 'test content',

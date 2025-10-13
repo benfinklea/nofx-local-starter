@@ -1,0 +1,34 @@
+{
+  "database-operations": {
+    "name": "database-operations",
+    "description": "Database operation benchmarks",
+    "thresholds": {
+      "maxDuration": 50,
+      "maxMemoryMB": 5,
+      "maxCpuPercent": 30
+    },
+    "results": [
+      {
+        "name": "db-connection",
+        "duration": 130.57366699999875,
+        "memory": {
+          "used": 770920,
+          "rss": 929546240,
+          "heapUsed": 721175176,
+          "heapTotal": 761266176,
+          "external": 5156823
+        },
+        "cpu": {
+          "user": 1.568,
+          "system": 0.29
+        },
+        "timestamp": 1760310474113,
+        "metadata": {
+          "operation": "connection"
+        }
+      }
+    ],
+    "startTime": 10823.825041,
+    "endTime": 11999.61175
+  }
+}

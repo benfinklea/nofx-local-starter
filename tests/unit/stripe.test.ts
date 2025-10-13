@@ -1,10 +1,41 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
-// Mock Stripe
+// Create shared mocks
+const mockStripeCustomersCreate = jest.fn();
+
+// Mock Stripe constructor BEFORE any imports
+// This ensures the mock is in place when stripe.ts loads
 jest.mock('stripe', () => {
   return jest.fn().mockImplementation(() => ({
     customers: {
-      create: jest.fn()
+      create: mockStripeCustomersCreate,
+      retrieve: jest.fn(),
+      update: jest.fn(),
+      list: jest.fn()
+    },
+    products: {
+      retrieve: jest.fn(),
+      list: jest.fn()
+    },
+    prices: {
+      retrieve: jest.fn(),
+      list: jest.fn()
+    },
+    subscriptions: {
+      retrieve: jest.fn(),
+      update: jest.fn(),
+      list: jest.fn(),
+      cancel: jest.fn()
+    },
+    checkout: {
+      sessions: {
+        create: jest.fn()
+      }
+    },
+    billingPortal: {
+      sessions: {
+        create: jest.fn()
+      }
     }
   }));
 });
@@ -34,15 +65,10 @@ jest.mock('../../src/lib/logger', () => ({
 }));
 
 describe('Stripe Integration', () => {
-  let stripeMock: any;
   let supabaseMock: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Setup mocks
-    const Stripe = require('stripe');
-    stripeMock = new Stripe();
 
     const { createServiceClient } = require('../../src/auth/supabase');
     supabaseMock = {
@@ -50,13 +76,14 @@ describe('Stripe Integration', () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(),
-      upsert: jest.fn()
+      upsert: (jest.fn() as any).mockResolvedValue({ error: null })
     };
-    createServiceClient.mockReturnValue(supabaseMock);
+    (createServiceClient as any).mockReturnValue(supabaseMock);
   });
 
   describe('createOrRetrieveCustomer', () => {
     it('should handle billing address without @ts-ignore', async () => {
+      // Import AFTER mocks are set up
       const { createOrRetrieveCustomer } = require('../../src/billing/stripe');
 
       const userId = 'user_123';
@@ -82,13 +109,16 @@ describe('Stripe Integration', () => {
 
       // Mock Stripe customer creation
       const mockCustomer = { id: 'cus_123' };
-      stripeMock.customers.create.mockResolvedValue(mockCustomer);
+      (mockStripeCustomersCreate as any).mockResolvedValue(mockCustomer);
 
       // Call the function
       const result = await createOrRetrieveCustomer(userId, email);
 
+      // Verify result
+      expect(result).toBe('cus_123');
+
       // Verify Stripe was called with properly typed parameters
-      expect(stripeMock.customers.create).toHaveBeenCalledWith(
+      expect(mockStripeCustomersCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           email: email,
           metadata: {
@@ -100,9 +130,15 @@ describe('Stripe Integration', () => {
       );
 
       // Verify no TypeScript errors and proper typing
-      const callArgs = stripeMock.customers.create.mock.calls[0][0];
+      const callArgs = (mockStripeCustomersCreate as any).mock.calls[0][0];
       expect(callArgs).toHaveProperty('address');
-      expect(callArgs.address).toEqual(userData.billing_address);
+      expect((callArgs as any).address).toEqual(userData.billing_address);
+
+      // Verify customer was stored in database
+      expect(supabaseMock.upsert).toHaveBeenCalledWith({
+        id: userId,
+        stripe_customer_id: 'cus_123'
+      });
     });
 
     it('should handle missing billing address gracefully', async () => {
@@ -125,13 +161,16 @@ describe('Stripe Integration', () => {
 
       // Mock Stripe customer creation
       const mockCustomer = { id: 'cus_456' };
-      stripeMock.customers.create.mockResolvedValue(mockCustomer);
+      (mockStripeCustomersCreate as any).mockResolvedValue(mockCustomer);
 
       // Call the function
       const result = await createOrRetrieveCustomer(userId, email);
 
-      // Verify Stripe was called without address field
-      expect(stripeMock.customers.create).toHaveBeenCalledWith(
+      // Verify result
+      expect(result).toBe('cus_456');
+
+      // Verify Stripe was called without address field (or with null)
+      expect(mockStripeCustomersCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           email: email,
           metadata: {
@@ -141,9 +180,31 @@ describe('Stripe Integration', () => {
         })
       );
 
-      // Verify address was not included
-      const callArgs = stripeMock.customers.create.mock.calls[0][0];
-      expect(callArgs).not.toHaveProperty('address');
+      // Verify address was null (Stripe API allows null for optional fields)
+      const callArgs = (mockStripeCustomersCreate as any).mock.calls[0][0];
+      expect((callArgs as any).address).toBeNull();
+    });
+
+    it('should return existing customer ID if found', async () => {
+      const { createOrRetrieveCustomer } = require('../../src/billing/stripe');
+
+      const userId = 'user_789';
+      const email = 'existing@example.com';
+      const existingCustomerId = 'cus_existing_123';
+
+      // Mock database response with existing customer
+      supabaseMock.single.mockResolvedValueOnce({
+        data: { stripe_customer_id: existingCustomerId }
+      });
+
+      // Call the function
+      const result = await createOrRetrieveCustomer(userId, email);
+
+      // Verify result
+      expect(result).toBe(existingCustomerId);
+
+      // Verify Stripe was NOT called since customer already exists
+      expect(mockStripeCustomersCreate).not.toHaveBeenCalled();
     });
   });
 

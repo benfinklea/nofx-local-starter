@@ -161,15 +161,29 @@ export class AgentSdkAdapter {
     operation: () => Promise<T>,
     timeoutMs: number
   ): Promise<T> {
-    return Promise.race([
-      operation(),
-      new Promise<T>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`SDK execution timed out after ${timeoutMs}ms`)),
-          timeoutMs
-        )
-      ),
-    ]);
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    try {
+      return await Promise.race([
+        operation().finally(() => {
+          // Clear timeout when operation completes (success or failure)
+          if (timeoutHandle !== undefined) {
+            clearTimeout(timeoutHandle);
+          }
+        }),
+        new Promise<T>((_, reject) => {
+          timeoutHandle = setTimeout(
+            () => reject(new Error(`SDK execution timed out after ${timeoutMs}ms`)),
+            timeoutMs
+          );
+        }),
+      ]);
+    } finally {
+      // Ensure timeout is always cleared
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   /**
@@ -198,9 +212,8 @@ export class AgentSdkAdapter {
       throw new Error('Context must have a runId');
     }
     if (context.model && !this.VALID_MODELS.includes(context.model)) {
-      log.warn(
-        { model: context.model, validModels: this.VALID_MODELS },
-        'Unknown model specified, using default'
+      throw new Error(
+        `Invalid model: ${context.model}. Must be one of: ${this.VALID_MODELS.join(', ')}`
       );
     }
   }

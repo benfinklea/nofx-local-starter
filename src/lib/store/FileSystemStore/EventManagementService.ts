@@ -35,33 +35,31 @@ export class EventManagementService {
       ...(stepId && { step_id: stepId }),
     };
 
-    const eventsDir = this.fileOps.getEventsDirectory(runId, this.root);
-    this.fileOps.ensureDirSync(eventsDir);
+    // Use single events.json file (preserving original behavior)
+    const eventsFile = path.join(this.root, 'runs', runId, 'events.json');
+    const runDir = path.join(this.root, 'runs', runId);
+    this.fileOps.ensureDirSync(runDir);
 
-    const eventPath = this.fileOps.getEventPath(runId, id, this.root);
-    await this.fileOps.writeJsonFile(eventPath, event as unknown as JsonValue);
+    const existingEvents = (await this.fileOps.readJsonFile(eventsFile)) as unknown as EventRow[] | null;
+    const events = existingEvents && Array.isArray(existingEvents) ? existingEvents : [];
+    events.push(event);
+
+    await this.fileOps.writeJsonFile(eventsFile, events as unknown as JsonValue);
   }
 
   /**
    * List events for a run
    */
   async listEvents(runId: string): Promise<EventRow[]> {
-    const eventsDir = this.fileOps.getEventsDirectory(runId, this.root);
-    this.fileOps.ensureDirSync(eventsDir);
+    // Read from single events.json file (preserving original behavior)
+    const eventsFile = path.join(this.root, 'runs', runId, 'events.json');
+    const eventsData = await this.fileOps.readJsonFile(eventsFile);
 
-    const files = await this.fileOps.readDirectorySafe(eventsDir);
-    const events: EventRow[] = [];
-
-    for (const f of files) {
-      if (!f.endsWith('.json')) continue;
-
-      const eventPath = path.join(eventsDir, f);
-      const eventData = await this.fileOps.readJsonFile(eventPath);
-
-      if (eventData) {
-        events.push(eventData as unknown as EventRow);
-      }
+    if (!eventsData || !Array.isArray(eventsData)) {
+      return [];
     }
+
+    const events = eventsData as unknown as EventRow[];
 
     // Sort by created_at ascending (chronological order)
     events.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());

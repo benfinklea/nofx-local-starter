@@ -1,0 +1,1723 @@
+
+> nofx-local-starter@0.1.0 test
+> jest --coverage --forceExit --detectOpenHandles
+
+FAIL tests/cloud-migration/vercel-functions.test.ts (5.594 s)
+  ● Vercel Functions - Bulletproof Tests › Runs API Endpoint › should handle GET requests for listing runs
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      64 |     it('should handle GET requests for listing runs', async () => {
+      65 |       const response = await fetch(`${API_BASE}/runs`);
+    > 66 |       expect(response.status).toBe(200);
+         |                               ^
+      67 |
+      68 |       const data = await response.json();
+      69 |       expect(data).toHaveProperty('runs');
+
+      at Object.<anonymous> (tests/cloud-migration/vercel-functions.test.ts:66:31)
+
+  ● Vercel Functions - Bulletproof Tests › Runs API Endpoint › should handle query parameters correctly
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      73 |     it('should handle query parameters correctly', async () => {
+      74 |       const response = await fetch(`${API_BASE}/runs?limit=5`);
+    > 75 |       expect(response.status).toBe(200);
+         |                               ^
+      76 |
+      77 |       const data = await response.json();
+      78 |       expect(data.runs.length).toBeLessThanOrEqual(5);
+
+      at Object.<anonymous> (tests/cloud-migration/vercel-functions.test.ts:75:31)
+
+FAIL tests/cloud-migration/supabase-database.test.ts
+  ● Supabase Database - Bulletproof Tests › Schema Validation › should verify nofx schema exists
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Matcher error: received value must not be null nor undefined
+
+    Received has value: undefined
+
+      93 |
+      94 |         // If we can query the table, schema exists
+    > 95 |         expect(tableError?.message).not.toContain('relation "nofx.runs" does not exist');
+         |                                         ^
+      96 |       }
+      97 |     });
+      98 |
+
+      at Object.<anonymous> (tests/cloud-migration/supabase-database.test.ts:95:41)
+
+  ● Supabase Database - Bulletproof Tests › Data Operations › should handle complex queries with joins
+
+    expect(received).toBeNull()
+
+    Received: {"code": "PGRST200", "details": "Searched for a foreign key relationship between 'runs' and 'step' in the schema 'public', but no matches were found.", "hint": "Perhaps you meant 'products' instead of 'runs'.", "message": "Could not find a relationship between 'runs' and 'step' in the schema cache"}
+
+      201 |         .limit(5);
+      202 |
+    > 203 |       expect(error).toBeNull();
+          |                     ^
+      204 |       expect(Array.isArray(data)).toBe(true);
+      205 |     });
+      206 |
+
+      at Object.<anonymous> (tests/cloud-migration/supabase-database.test.ts:203:21)
+
+  ● Supabase Database - Bulletproof Tests › Security Tests › should prevent SQL injection
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Matcher error: received value must not be null nor undefined
+
+    Received has value: undefined
+
+      408 |
+      409 |       // Should handle safely without executing injection
+    > 410 |       expect(error?.message).not.toContain('DROP TABLE');
+          |                                  ^
+      411 |     });
+      412 |
+      413 |     it('should enforce Row Level Security', async () => {
+
+      at Object.<anonymous> (tests/cloud-migration/supabase-database.test.ts:410:34)
+
+FAIL tests/unit/worker.integration.test.ts
+  ● Worker Integration Tests › Error Recovery and Resilience › handles partial failures in atomic operations
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: undefined
+
+      285 |       });
+      286 |
+    > 287 |       await expect(runner.runStep('run-456', 'step-123')).rejects.toThrow('Count failed');
+          |             ^
+      288 |     });
+      289 |
+      290 |     test('handles handler loading failures', async () => {
+
+      at expect (node_modules/expect/build/index.js:2116:15)
+      at Object.<anonymous> (tests/unit/worker.integration.test.ts:287:13)
+
+FAIL tests/integration/artifact-pipeline.test.ts
+  ● Artifact Storage Pipeline › should retrieve artifact content via API endpoint
+
+    expect(received).toBe(expected) // Object.is equality
+
+    - Expected  - 3
+    + Received  + 1
+
+    - Soft threads weave
+    - Through woven comfort and warmth
+    - Sweatshirts embrace cold
+    + test
+
+      72 |
+      73 |     expect(response.body).toBeDefined();
+    > 74 |     expect(response.body.content).toBe(testContent);
+         |                                   ^
+      75 |     expect(response.body.path).toBe(artifactPath);
+      76 |     expect(response.body.size).toBe(testContent.length);
+      77 |   });
+
+      at Object.<anonymous> (tests/integration/artifact-pipeline.test.ts:74:35)
+
+  ● Artifact Storage Pipeline › should handle non-existent artifacts gracefully
+
+    Expected status 404 but received 200
+
+      62 |       this.expectations.push((res) => {
+      63 |         if (res.status !== arg) {
+    > 64 |           throw new Error(`Expected status ${arg} but received ${res.status}`);
+         |                 ^
+      65 |         }
+      66 |       });
+      67 |     } else if (typeof arg === 'function') {
+
+      at tests/helpers/mockSupertest.ts:64:17
+      at ServerResponse.<anonymous> (tests/helpers/mockSupertest.ts:151:19)
+
+FAIL tests/integration/runs.api.e2e.test.ts
+  ● Runs API with project context › creates a run using standard body and x-project-id
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 401
+
+      23 |       .set('x-project-id', projectId)
+      24 |       .send({ standard: { prompt: 'Write a small README about NOFX', quality: false, openPr: false } });
+    > 25 |     expect(res.status).toBe(201);
+         |                        ^
+      26 |     expect(res.body).toHaveProperty('id');
+      27 |     const id = res.body.id;
+      28 |     const got = await request(app).get(`/runs/${id}`);
+
+      at Object.<anonymous> (tests/integration/runs.api.e2e.test.ts:25:24)
+
+{"level":50,"time":1760281446774,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","requestId":"8e952d91-c7e7-44a0-99c4-be12256b186e","retryCount":0,"status":"error","latencyMs":1,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+{"level":50,"time":1760281446774,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","requestId":"8e952d91-c7e7-44a0-99c4-be12256b186e","retryCount":0,"status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+FAIL tests/integration/builder.api.test.ts
+  ● Builder Templates API › executes a template via Responses API and archives events
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 2
+
+      170 |       .send({ days: 5 });
+      171 |     expect(pruneRes.status).toBe(200);
+    > 172 |     expect(pruneRes.body.summary.totalRuns).toBe(1);
+          |                                             ^
+      173 |   });
+      174 | });
+      175 |
+
+      at Object.<anonymous> (tests/integration/builder.api.test.ts:172:45)
+
+FAIL tests/performance/benchmarks.test.ts
+  ● Console
+
+    console.log
+      📊 Performance monitor started
+
+      at PerformanceMonitor.log [as start] (src/lib/performance-monitor.ts:104:13)
+
+    console.log
+      
+      # Performance Benchmark Report: api-endpoints
+      
+      **Description:** API endpoint performance benchmarks
+      **Date:** 2025-10-12T15:04:07.264Z
+      **Duration:** 1.58ms
+      
+      ## Summary Statistics
+      - **Total Benchmarks:** 3
+      - **Total Duration:** 0.10ms
+      - **Average Duration:** 0.03ms
+      - **Min Duration:** 0.02ms
+      - **Max Duration:** 0.04ms
+      - **P95 Duration:** 0.04ms
+      - **Average Memory:** 637.40MB
+      - **Errors:** 0
+      
+      
+      ## ⚠️ Threshold Violations
+      - health-check: Memory 636.59MB exceeds threshold 10MB
+      - health-check: CPU 116.84% exceeds threshold 50%
+      - create-run: Memory 637.44MB exceeds threshold 10MB
+      - create-run: CPU 112.42% exceeds threshold 50%
+      - metrics-endpoint: Memory 638.18MB exceeds threshold 10MB
+      - metrics-endpoint: CPU 142.52% exceeds threshold 50%
+      
+      
+      ## Individual Results
+      
+      ### health-check
+      - **Duration:** 0.04ms
+      - **Memory:** 636.59MB
+      - **CPU:** 0.05ms
+      
+      
+      
+      ### create-run
+      - **Duration:** 0.04ms
+      - **Memory:** 637.44MB
+      - **CPU:** 0.05ms
+      
+      
+      
+      ### metrics-endpoint
+      - **Duration:** 0.02ms
+      - **Memory:** 638.18MB
+      - **CPU:** 0.03ms
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:102:17)
+
+    console.log
+      
+      # Performance Benchmark Report: database-operations
+      
+      **Description:** Database operation benchmarks
+      **Date:** 2025-10-12T15:04:07.446Z
+      **Duration:** 180.89ms
+      
+      ## Summary Statistics
+      - **Total Benchmarks:** 3
+      - **Total Duration:** 178.84ms
+      - **Average Duration:** 59.61ms
+      - **Min Duration:** 55.25ms
+      - **Max Duration:** 67.40ms
+      - **P95 Duration:** 67.40ms
+      - **Average Memory:** 640.63MB
+      - **Errors:** 0
+      
+      
+      ## ⚠️ Threshold Violations
+      - db-connection: Duration 67.40ms exceeds threshold 50ms
+      - db-connection: Memory 643.41MB exceeds threshold 5MB
+      - simple-query: Duration 56.19ms exceeds threshold 50ms
+      - simple-query: Memory 637.76MB exceeds threshold 5MB
+      - complex-query: Duration 55.25ms exceeds threshold 50ms
+      - complex-query: Memory 640.72MB exceeds threshold 5MB
+      
+      
+      ## Individual Results
+      
+      ### db-connection
+      - **Duration:** 67.40ms
+      - **Memory:** 643.41MB
+      - **CPU:** 6.79ms
+      
+      
+      
+      ### simple-query
+      - **Duration:** 56.19ms
+      - **Memory:** 637.76MB
+      - **CPU:** 8.12ms
+      
+      
+      
+      ### complex-query
+      - **Duration:** 55.25ms
+      - **Memory:** 640.72MB
+      - **CPU:** 4.45ms
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:174:17)
+
+    console.log
+      
+      # Performance Benchmark Report: resource-usage
+      
+      **Description:** Memory and CPU usage benchmarks
+      **Date:** 2025-10-12T15:04:07.494Z
+      **Duration:** 48.29ms
+      
+      ## Summary Statistics
+      - **Total Benchmarks:** 3
+      - **Total Duration:** 30.96ms
+      - **Average Duration:** 10.32ms
+      - **Min Duration:** 0.21ms
+      - **Max Duration:** 22.20ms
+      - **P95 Duration:** 22.20ms
+      - **Average Memory:** 644.06MB
+      - **Errors:** 0
+      
+      
+      ## ⚠️ Threshold Violations
+      - memory-allocation: Memory 642.84MB exceeds threshold 50MB
+      - memory-allocation: CPU 103.27% exceeds threshold 80%
+      - cpu-intensive: Memory 644.22MB exceeds threshold 50MB
+      - cpu-intensive: CPU 104.90% exceeds threshold 80%
+      - json-parsing: Memory 645.11MB exceeds threshold 50MB
+      - json-parsing: CPU 122.02% exceeds threshold 80%
+      
+      
+      ## Individual Results
+      
+      ### memory-allocation
+      - **Duration:** 0.21ms
+      - **Memory:** 642.84MB
+      - **CPU:** 0.22ms
+      
+      
+      
+      ### cpu-intensive
+      - **Duration:** 22.20ms
+      - **Memory:** 644.22MB
+      - **CPU:** 23.28ms
+      
+      
+      
+      ### json-parsing
+      - **Duration:** 8.55ms
+      - **Memory:** 645.11MB
+      - **CPU:** 10.43ms
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:274:17)
+
+    console.log
+      
+      # Performance Benchmark Report: concurrent-operations
+      
+      **Description:** Concurrent operation benchmarks
+      **Date:** 2025-10-12T15:04:07.512Z
+      **Duration:** 17.39ms
+      
+      ## Summary Statistics
+      - **Total Benchmarks:** 2
+      - **Total Duration:** 16.52ms
+      - **Average Duration:** 8.26ms
+      - **Min Duration:** 0.07ms
+      - **Max Duration:** 16.45ms
+      - **P95 Duration:** 16.45ms
+      - **Average Memory:** 643.20MB
+      - **Errors:** 0
+      
+      
+      ## ⚠️ Threshold Violations
+      - concurrent-api-calls: Memory 646.34MB exceeds threshold 100MB
+      - concurrent-api-calls: CPU 109.83% exceeds threshold 90%
+      - concurrent-promises: Memory 640.06MB exceeds threshold 100MB
+      
+      
+      ## Individual Results
+      
+      ### concurrent-api-calls
+      - **Duration:** 0.07ms
+      - **Memory:** 646.34MB
+      - **CPU:** 0.07ms
+      
+      
+      
+      ### concurrent-promises
+      - **Duration:** 16.45ms
+      - **Memory:** 640.06MB
+      - **CPU:** 9.61ms
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:361:17)
+
+    console.log
+      📊 No baseline data available, current results will be saved as baseline
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:420:17)
+
+    console.log
+      Memory usage: 641.8103103637695MB → 646.1856918334961MB (+4.38MB)
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:447:15)
+
+    console.log
+      
+      📊 Performance Test Summary
+      ============================
+      ⏱️  Uptime: 0.25s
+      🔢 Total Requests: 0
+      ❌ Total Errors: 0
+      📈 Error Rate: 0.00%
+      ⚡ Avg Response Time: 0.00ms
+      🧠 Avg Memory Usage: 0.00MB
+      🚀 Avg RPS: 0.00
+      
+      System Health: ❌ Unhealthy
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:458:15)
+
+    console.log
+      📊 Performance monitor stopped
+
+      at PerformanceMonitor.log [as stop] (src/lib/performance-monitor.ts:120:13)
+
+    console.log
+      📊 All benchmark results exported to: /Volumes/Development/nofx-local-starter/benchmarks/results/all-benchmarks-2025-10-12T15-04-07-519Z.json
+
+      at BenchmarkRunner.log [as exportResults] (src/lib/benchmarks.ts:256:15)
+
+  ● Performance Benchmarks › Performance Summary › Generate comprehensive performance report
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      473 |       expect(summary.errorRate).toBeLessThan(10); // Less than 10% error rate
+      474 |       expect(summary.avgResponseTime).toBeLessThan(1000); // Less than 1 second average
+    > 475 |       expect(performanceMonitor.isHealthy()).toBe(true);
+          |                                              ^
+      476 |     });
+      477 |   });
+      478 | });
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:475:46)
+
+FAIL src/api/routes/__tests__/auth_v2.test.ts
+  ● Auth V2 Routes - Comprehensive Tests › POST /auth/signup › should create new user with valid data
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 400
+
+       98 |         .send(validSignupData);
+       99 |
+    > 100 |       expect(response.status).toBe(201);
+          |                               ^
+      101 |       expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
+      102 |         expect.objectContaining({
+      103 |           email: validSignupData.email,
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:100:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › POST /auth/reset-password › should send reset email for valid email
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 400
+
+      259 |         .send({ email: 'test@example.com' });
+      260 |
+    > 261 |       expect(response.status).toBe(200);
+          |                               ^
+      262 |       expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+      263 |         'test@example.com',
+      264 |         expect.any(Object)
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:261:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › GET /auth/me › should return user profile for authenticated user
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      320 |         .set('Authorization', 'Bearer token');
+      321 |
+    > 322 |       expect(response.status).toBe(200);
+          |                               ^
+      323 |       expect(response.body.user).toMatchObject({
+      324 |         id: 'user-id',
+      325 |         email: 'test@example.com',
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:322:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › GET /auth/me › should handle user not found
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 404
+    Received: 500
+
+      337 |         .set('Authorization', 'Bearer token');
+      338 |
+    > 339 |       expect(response.status).toBe(404);
+          |                               ^
+      340 |     });
+      341 |   });
+      342 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:339:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › API Key Management › POST /auth/api-keys › should create API key for authenticated user
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 500
+
+      354 |           .send({ name: 'Test Key', permissions: ['read'] });
+      355 |
+    > 356 |         expect(response.status).toBe(201);
+          |                                 ^
+      357 |         expect(response.body.apiKey).toMatchObject({
+      358 |           name: 'Test Key',
+      359 |         });
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:356:33)
+
+  ● Auth V2 Routes - Comprehensive Tests › API Key Management › GET /auth/api-keys › should list user API keys
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      388 |           .set('Authorization', 'Bearer token');
+      389 |
+    > 390 |         expect(response.status).toBe(200);
+          |                                 ^
+      391 |         expect(response.body.apiKeys).toBeInstanceOf(Array);
+      392 |       });
+      393 |     });
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:390:33)
+
+  ● Auth V2 Routes - Comprehensive Tests › API Key Management › DELETE /auth/api-keys/:id › should delete API key
+
+    TypeError: Cannot read properties of undefined (reading 'mockResolvedValue')
+
+      395 |     describe('DELETE /auth/api-keys/:id', () => {
+      396 |       it('should delete API key', async () => {
+    > 397 |         mockServiceClient.from().delete.mockResolvedValue({
+          |                                        ^
+      398 |           error: null,
+      399 |         });
+      400 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:397:40)
+
+  ● Auth V2 Routes - Comprehensive Tests › Error Handling › should handle Supabase service unavailable
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 500
+    Received: 401
+
+      463 |         });
+      464 |
+    > 465 |       expect(response.status).toBe(500);
+          |                               ^
+      466 |       expect(response.body.error).toContain('service unavailable');
+      467 |     });
+      468 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:465:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › Error Handling › should not leak sensitive information in errors
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 500
+    Received: 401
+
+      479 |         });
+      480 |
+    > 481 |       expect(response.status).toBe(500);
+          |                               ^
+      482 |       expect(response.body.error).not.toContain('credentials');
+      483 |       expect(response.body.error).not.toContain('user:pass');
+      484 |     });
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:481:31)
+
+FAIL tests/unit/store.test.ts
+  ● Store Module › Integration Scenarios › should handle complete run lifecycle
+
+    step not found
+
+      177 |   async addArtifact(stepId: string, type: string, pth: string, metadata?: JsonValue): Promise<ArtifactRow> {
+      178 |     const step = await this.getStep(stepId);
+    > 179 |     if (!step) throw new Error('step not found');
+          |                      ^
+      180 |     const file = path.join(ROOT, 'runs', step.run_id, 'artifacts.json');
+      181 |     const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+      182 |     const row: ArtifactRow = {
+
+      at FileSystemStore.addArtifact (src/lib/store/FileSystemStore.ts:179:22)
+      at Object.<anonymous> (tests/unit/store.test.ts:1263:7)
+
+  ● Store Module › Integration Scenarios › should handle outbox message lifecycle
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 2
+    Received length: 0
+    Received array:  []
+
+      1294 |       // List unsent
+      1295 |       const unsent = await store.outboxListUnsent();
+    > 1296 |       expect(unsent).toHaveLength(2);
+           |                      ^
+      1297 |
+      1298 |       // Mark first as sent
+      1299 |       await store.outboxMarkSent(unsent[0].id);
+
+      at Object.<anonymous> (tests/unit/store.test.ts:1296:22)
+
+FAIL tests/unit/stripe.test.ts
+  ● Stripe Integration › createOrRetrieveCustomer › should handle billing address without @ts-ignore
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"address": {"city": "New York", "country": "US", "line1": "123 Main St", "postal_code": "10001", "state": "NY"}, "email": "test@example.com", "metadata": {"supabase_user_id": "user_123"}, "name": "John Doe"}
+
+    Number of calls: 0
+
+      89 |
+      90 |       // Verify Stripe was called with properly typed parameters
+    > 91 |       expect(stripeMock.customers.create).toHaveBeenCalledWith(
+         |                                           ^
+      92 |         expect.objectContaining({
+      93 |           email: email,
+      94 |           metadata: {
+
+      at Object.<anonymous> (tests/unit/stripe.test.ts:91:43)
+
+  ● Stripe Integration › createOrRetrieveCustomer › should handle missing billing address gracefully
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"email": "test2@example.com", "metadata": {"supabase_user_id": "user_456"}, "name": "Jane Doe"}
+
+    Number of calls: 0
+
+      132 |
+      133 |       // Verify Stripe was called without address field
+    > 134 |       expect(stripeMock.customers.create).toHaveBeenCalledWith(
+          |                                           ^
+      135 |         expect.objectContaining({
+      136 |           email: email,
+      137 |           metadata: {
+
+      at Object.<anonymous> (tests/unit/stripe.test.ts:134:43)
+
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/integration/runs.api.e2e.test.ts.
+
+
+
+      at getContext (src/lib/logger.ts:886:30)
+      at mixin (src/lib/logger.ts:913:31)
+      at Pino.write (node_modules/pino/lib/proto.js:210:35)
+      at Pino.LOG [as error] (node_modules/pino/lib/tools.js:77:21)
+      at error (src/lib/db.ts:101:9)
+      at ensureSettingsSchema (src/lib/settings.ts:107:5)
+      at getSettings (src/lib/settings.ts:116:5)
+      at loadFromSettings (src/lib/traceConfig.ts:36:22)
+{"level":50,"time":1760281451445,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":5001,"err":{"type":"Error","message":"timeout exceeded when trying to connect","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281451448,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281451448,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+PASS src/lib/email/__tests__/resend-client.test.ts (13.089 s)
+PASS tests/cloud-migration/health-monitoring.test.ts (10.219 s)
+PASS tests/chaos/run-detail-chaos.test.ts (5.568 s)
+PASS src/api/routes/__tests__/teams.integration.test.ts (5.415 s)
+  ● Console
+
+    console.error
+      Failed to create activity log: {
+        code: '23503',
+        details: 'Key (user_id)=(bc59afd7-ce33-4326-abdb-9640a0526800) is not present in table "users".',
+        hint: null,
+        message: 'insert or update on table "team_activity_logs" violates foreign key constraint "team_activity_logs_user_id_fkey"'
+      }
+
+      684 |
+      685 |       if (logError || !log) {
+    > 686 |         console.error('Failed to create activity log:', logError);
+          |                 ^
+      687 |         return;
+      688 |       }
+      689 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/teams.integration.test.ts:686:17)
+
+PASS tests/unit/git_ops.handler.test.ts
+PASS tests/unit/workspaces.test.ts
+PASS tests/unit/bulletproof.test.ts
+PASS tests/cloud-migration/deployment-validation.test.ts
+PASS src/api/routes/__tests__/teams.test.ts
+{"level":50,"time":1760281491689,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","topic":"step.ready","jobId":3,"status":"failed","err":{"type":"Error","message":"fail","stack":"Error: fail\n    at /Volumes/Development/nofx-local-starter/src/reliability.unit.test.ts:40:15\n    at /Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:84:11"},"msg":"memq.failed"}
+PASS src/reliability.unit.test.ts
+PASS tests/integration/haiku-generation.test.ts
+  ● Console
+
+    console.log
+      ℹ Retrieved content differs from expected (expected 86 chars, got 4 chars)
+
+      at Object.<anonymous> (tests/integration/haiku-generation.test.ts:149:17)
+
+    console.log
+      This is expected if Supabase has cached data from previous test runs
+
+      at Object.<anonymous> (tests/integration/haiku-generation.test.ts:150:17)
+
+PASS tests/unit/worker.queue.adapters.test.ts
+PASS src/api/routes/__tests__/webhooks.test.ts
+PASS src/api/routes/__tests__/responses.test.ts
+PASS tests/integration/api.test.ts
+PASS tests/integration/standard.preview.test.ts
+  ● Console
+
+    console.log
+      ⚠️ [WARNING] Slow response time: 101.67ms
+
+      at PerformanceMonitor.log [as emitAlert] (src/lib/performance-monitor.ts:272:13)
+
+PASS src/security_paths.unit.test.ts
+PASS src/worker/handlers/__tests__/git_ops.test.ts
+PASS tests/unit/responses.ui.mui.test.ts
+PASS tests/integration/builder.ui.test.ts
+PASS tests/integration/projects.api.test.ts
+PASS tests/unit/standard.create.unit.test.ts
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/unit/standard.create.unit.test.ts.
+
+
+
+      at getContext (src/lib/logger.ts:886:30)
+      at mixin (src/lib/logger.ts:913:31)
+      at Pino.write (node_modules/pino/lib/proto.js:210:35)
+      at Pino.LOG [as error] (node_modules/pino/lib/tools.js:77:21)
+      at error (src/api/server/handlers/runs.ts:182:11)
+      at handleCreateRun (src/api/server/handlers/runs.ts:118:5)
+{"level":50,"time":1760281497332,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","error":{},"runId":"54e6346d-d8c2-4548-9eda-542999869bc8","stepName":"write readme","msg":"Failed to process step"}
+{"level":50,"time":1760281497333,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","error":{},"runId":"54e6346d-d8c2-4548-9eda-542999869bc8","stepName":"typecheck","msg":"Failed to process step"}
+{"level":50,"time":1760281497334,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","error":{},"runId":"54e6346d-d8c2-4548-9eda-542999869bc8","stepName":"lint","msg":"Failed to process step"}
+{"level":50,"time":1760281497337,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","error":{},"runId":"54e6346d-d8c2-4548-9eda-542999869bc8","stepName":"unit","msg":"Failed to process step"}
+PASS tests/integration/workspace-write.integration.test.ts
+PASS tests/api/all-endpoints.test.ts
+PASS tests/unit/models.test.ts
+PASS tests/unit/handlers/gate.test.ts
+PASS tests/unit/email.teamDeletion.test.ts
+PASS tests/unit/handlers/git_ops.test.ts
+PASS src/api/__tests__/main.test.ts
+  ● Console
+
+    console.error
+      Unhandled error: {
+        error: "Expected property name or '}' in JSON at position 2 (line 1 column 3)",
+        stack: "SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)\n" +
+          '    at JSON.parse (<anonymous>)\n' +
+          '    at parse (/Volumes/Development/nofx-local-starter/node_modules/body-parser/lib/types/json.js:92:19)\n' +
+          '    at /Volumes/Development/nofx-local-starter/node_modules/body-parser/lib/read.js:128:18\n' +
+          '    at AsyncResource.runInAsyncScope (node:async_hooks:214:14)\n' +
+          '    at invokeCallback (/Volumes/Development/nofx-local-starter/node_modules/raw-body/index.js:238:16)\n' +
+          '    at done (/Volumes/Development/nofx-local-starter/node_modules/raw-body/index.js:227:7)\n' +
+          '    at IncomingMessage.onEnd (/Volumes/Development/nofx-local-starter/node_modules/raw-body/index.js:287:7)\n' +
+          '    at IncomingMessage.emit (node:events:518:28)\n' +
+          '    at endReadableNT (node:internal/streams/readable:1698:12)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:90:21)',
+        correlationId: 'err-1760281498497-wpm8ekyt7',
+        url: '/runs',
+        method: 'POST',
+        userAgent: undefined
+      }
+
+      113 |   const correlationId = req.headers['x-correlation-id'] || `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      114 |
+    > 115 |   console.error('Unhandled error:', {
+          |           ^
+      116 |     error: error.message,
+      117 |     stack: error.stack,
+      118 |     correlationId,
+
+      at error (src/api/main.ts:115:11)
+      at Layer.handle_error (node_modules/express/lib/router/layer.js:71:5)
+      at trim_prefix (node_modules/express/lib/router/index.js:326:13)
+      at node_modules/express/lib/router/index.js:286:9
+      at Function.process_params (node_modules/express/lib/router/index.js:346:12)
+      at next (node_modules/express/lib/router/index.js:280:10)
+      at Layer.handle_error (node_modules/express/lib/router/layer.js:67:12)
+      at trim_prefix (node_modules/express/lib/router/index.js:326:13)
+      at node_modules/express/lib/router/index.js:286:9
+      at Function.process_params (node_modules/express/lib/router/index.js:346:12)
+      at next (node_modules/express/lib/router/index.js:280:10)
+      at Layer.handle_error (node_modules/express/lib/router/layer.js:67:12)
+      at trim_prefix (node_modules/express/lib/router/index.js:326:13)
+      at node_modules/express/lib/router/index.js:286:9
+      at Function.process_params (node_modules/express/lib/router/index.js:346:12)
+      at next (node_modules/express/lib/router/index.js:280:10)
+      at Layer.handle_error (node_modules/express/lib/router/layer.js:67:12)
+      at trim_prefix (node_modules/express/lib/router/index.js:326:13)
+      at node_modules/express/lib/router/index.js:286:9
+      at Function.process_params (node_modules/express/lib/router/index.js:346:12)
+      at next (node_modules/express/lib/router/index.js:280:10)
+      at Layer.handle_error (node_modules/express/lib/router/layer.js:67:12)
+      at trim_prefix (node_modules/express/lib/router/index.js:326:13)
+      at node_modules/express/lib/router/index.js:286:9
+      at Function.process_params (node_modules/express/lib/router/index.js:346:12)
+      at next (node_modules/express/lib/router/index.js:280:10)
+      at Layer.handle_error (node_modules/express/lib/router/layer.js:67:12)
+      at trim_prefix (node_modules/express/lib/router/index.js:326:13)
+      at node_modules/express/lib/router/index.js:286:9
+      at Function.process_params (node_modules/express/lib/router/index.js:346:12)
+      at next (node_modules/express/lib/router/index.js:280:10)
+      at node_modules/body-parser/lib/read.js:130:7
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+PASS tests/unit/handlers/project_init.test.ts
+PASS tests/unit/correlationId.test.ts
+PASS src/shared/responses/__tests__/archive.test.ts
+PASS tests/integration/preview.test.ts
+PASS tests/api/health.test.ts
+PASS tests/unit/handlers/bash.test.ts
+PASS tests/unit/runStep.completion.test.ts
+{"level":50,"time":1760281499248,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+{"level":50,"time":1760281499249,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+PASS tests/unit/policy.enforcement.test.ts
+{"level":50,"time":1760281499373,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+{"level":50,"time":1760281499373,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+PASS tests/unit/runner.nohandler.uses.store.test.ts
+{"level":50,"time":1760281499499,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+{"level":50,"time":1760281499500,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+PASS tests/contract/run-detail-schema.contract.test.ts
+PASS tests/api/runs.test.ts
+{"level":50,"time":1760281499690,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","error":{},"runId":"run-123","stepName":"test","msg":"Failed to process step"}
+{"level":50,"time":1760281499692,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","error":{},"runId":"run-123","stepName":"test","msg":"Failed to process step"}
+{"level":50,"time":1760281499750,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+{"level":50,"time":1760281499750,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":"Error: Cannot use a pool after calling end on the pool\n    at /Volumes/Development/nofx-local-starter/node_modules/pg-pool/index.js:45:11\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"},"msg":"db.query.error"}
+PASS tests/unit/teams-routes-simple.test.ts
+PASS tests/unit/registry.store.test.ts
+PASS tests/unit/idempotency.middleware.test.ts
+{"level":50,"time":1760281499910,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","err":{"type":"Error","message":"relation \"nofx.agent_registry\" does not exist","stack":"Error: relation \"nofx.agent_registry\" does not exist\n    at /Volumes/Development/nofx-local-starter/tests/unit/registry.store.test.ts:518:13\n    at /Volumes/Development/nofx-local-starter/node_modules/jest-environment-node/node_modules/jest-mock/build/index.js:397:39\n    at /Volumes/Development/nofx-local-starter/node_modules/jest-environment-node/node_modules/jest-mock/build/index.js:404:13\n    at mockConstructor (/Volumes/Development/nofx-local-starter/node_modules/jest-environment-node/node_modules/jest-mock/build/index.js:148:19)\n    at ensureSchema (/Volumes/Development/nofx-local-starter/src/lib/registry.ts:32:16)\n    at Object.ensureSchema [as listAgents] (/Volumes/Development/nofx-local-starter/src/lib/registry.ts:326:9)\n    at Object.<anonymous> (/Volumes/Development/nofx-local-starter/tests/unit/registry.store.test.ts:521:27)\n    at Promise.finally.completed (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at runNextTicks (node:internal/process/task_queues:65:5)\n    at processImmediate (node:internal/timers:453:9)\n    at process.callbackTrampoline (node:internal/async_hooks:130:17)\n    at _runTest (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-runner/build/index.js:275:16)\n    at runTest (/Volumes/Development/nofx-local-starter/node_modules/jest-config/node_modules/jest-runner/build/index.js:343:7)"},"msg":"registry.ensureSchema.missing"}
+PASS src/services/responses/__tests__/runCoordinator.test.ts
+PASS src/lib/queue/__tests__/RedisAdapter.test.ts
+PASS tests/unit/auth.test.ts
+PASS tests/unit/worker.main.test.ts
+PASS tests/unit/validation.test.ts
+PASS src/services/responses/__tests__/runtime.test.ts
+PASS src/billing/__tests__/stripe.test.ts
+PASS tests/unit/codegen.handler.success.test.ts
+PASS tests/integration/reliability.db.integration.test.ts
+  ● Console
+
+    console.log
+      ✓ PostgreSQL and Redis are available - running integration test
+
+      at Object.<anonymous> (tests/integration/reliability.db.integration.test.ts:72:13)
+
+    console.log
+      ✓ Integration test passed - database and queue services are operational
+
+      at Object.<anonymous> (tests/integration/reliability.db.integration.test.ts:78:13)
+
+PASS src/auth/__tests__/middleware.test.ts
+PASS src/services/responses/__tests__/archiveStore.test.ts
+PASS tests/api/responses.test.ts
+PASS tests/unit/worker.runner.test.ts
+PASS tests/unit/apiResponse.test.ts
+PASS tests/integration/agent-sdk.test.ts
+PASS src/lib/store/__tests__/FileSystemStore.test.ts
+PASS src/api/routes/__tests__/auth_v2.simple.test.ts
+PASS tests/unit/main.test.ts
+PASS src/services/responses/__tests__/streamBuffer.test.ts
+PASS tests/unit/handlers/git_pr.test.ts
+PASS tests/api/settings.test.ts
+PASS tests/unit/handlers/db_write.test.ts
+PASS tests/unit/navigation.test.ts
+PASS tests/unit/worker.test.ts
+PASS tests/unit/worker.relay.test.ts
+PASS tests/unit/builder.manager.test.ts
+PASS tests/api/gates.test.ts
+PASS tests/unit/queue-fixed.test.ts
+PASS tests/integration/run-detail-api.integration.test.ts
+PASS tests/api/models.test.ts
+PASS tests/security/vulnerabilities.test.ts
+  ● Console
+
+    console.warn
+      [security tests] API at http://localhost:3000 is unavailable (unknown error); skipping network-dependent checks.
+
+      22 |       if (!apiUnavailable) {
+      23 |         const message = error instanceof Error ? [error.message, (error as any)?.cause?.message].filter(Boolean).join(' ') : 'unknown error';
+    > 24 |         console.warn(`[security tests] API at ${API_URL} is unavailable (${message || 'fetch failed'}); skipping network-dependent checks.`);
+         |                 ^
+      25 |       }
+      26 |
+      27 |       apiUnavailable = true;
+
+      at safeFetch (tests/security/vulnerabilities.test.ts:24:17)
+      at Object.<anonymous> (tests/security/vulnerabilities.test.ts:39:24)
+
+PASS tests/unit/logger.test.ts
+PASS tests/api/projects.test.ts
+PASS src/retry_backoff.unit.test.ts
+PASS tests/unit/builder.store.test.ts
+{"level":50,"time":1760281501745,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","topic":"test.backoff.1760281501745","jobId":1,"status":"failed","err":{"type":"Error","message":"boom","stack":"Error: boom\n    at /Volumes/Development/nofx-local-starter/src/retry_backoff.unit.test.ts:28:24\n    at handler (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:84:17)\n    at MemoryQueueAdapter.drain (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:121:8)\n    at drain (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:50:27)\n    at callTimer (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:744:24)\n    at doTickInner (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:1312:29)\n    at doTick (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:1393:20)\n    at Immediate.<anonymous> (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:1413:29)\n    at processImmediate (node:internal/timers:485:21)\n    at process.callbackTrampoline (node:internal/async_hooks:130:17)"},"msg":"memq.failed"}
+{"level":50,"time":1760281503745,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","topic":"test.backoff.1760281501745","jobId":2,"status":"failed","err":{"type":"Error","message":"boom","stack":"Error: boom\n    at /Volumes/Development/nofx-local-starter/src/retry_backoff.unit.test.ts:28:24\n    at handler (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:84:17)\n    at MemoryQueueAdapter.drain (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:121:8)\n    at drain (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:50:27)\n    at callTimer (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:744:24)\n    at doTickInner (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:1312:29)\n    at doTick (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:1393:20)\n    at Immediate.<anonymous> (/Volumes/Development/nofx-local-starter/node_modules/@sinonjs/fake-timers/src/fake-timers-src.js:1413:29)\n    at processImmediate (node:internal/timers:485:21)\n    at process.callbackTrampoline (node:internal/async_hooks:130:17)"},"msg":"memq.failed"}
+PASS tests/unit/registry.api.test.ts
+PASS tests/api/backups.test.ts
+PASS src/observability.unit.test.ts
+PASS tests/unit/settings.test.ts
+PASS tests/unit/responses.runtime.summary.test.ts
+PASS tests/integration/api.integration.test.ts
+PASS tests/api/stream.test.ts
+PASS tests/unit/handlers/codegen.test.ts
+PASS tests/unit/responses.runCoordinator.test.ts
+PASS tests/unit/responses.archive.test.ts
+PASS tests/unit/orchestration.test.ts
+PASS tests/unit/memoryqueue.dlq.test.ts
+PASS tests/unit/artifacts.hash.test.ts
+PASS tests/unit/api.test.ts
+PASS tests/unit/store.idempotency.test.ts
+{"level":50,"time":1760281502252,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","topic":"step.ready","jobId":1,"status":"failed","err":{"type":"Error","message":"boom","stack":"Error: boom\n    at /Volumes/Development/nofx-local-starter/tests/unit/memoryqueue.dlq.test.ts:25:51\n    at handler (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:84:17)\n    at MemoryQueueAdapter.drain (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:121:8)\n    at Timeout.drain [as _onTimeout] (/Volumes/Development/nofx-local-starter/src/lib/queue/MemoryAdapter.ts:50:27)\n    at listOnTimeout (node:internal/timers:588:17)\n    at processTimers (node:internal/timers:523:7)"},"msg":"memq.failed"}
+PASS tests/unit/package-scripts-recursion.test.ts
+PASS tests/unit/responses.runService.test.ts
+PASS tests/unit/dbWrite.security.test.ts
+PASS tests/unit/responses.contract.test.ts
+PASS tests/unit/responses.eventRouter.test.ts
+PASS tests/unit/handlers/types.test.ts
+PASS tests/unit/openai.provider.test.ts
+PASS tests/perf/responses.load.test.ts
+PASS tests/unit/errorHandling.test.ts
+PASS tests/unit/planBuilder.test.ts
+PASS tests/unit/openai.responses.client.test.ts
+PASS tests/performance/registry.performance.test.ts
+PASS src/store_inbox.unit.test.ts
+PASS src/api/routes/__tests__/teams.simple.test.ts
+PASS tests/unit/store.completedAt.fallback.test.ts
+PASS tests/unit/responses.archive.fs.test.ts
+PASS tests/unit/handlers/test_echo.test.ts
+PASS tests/unit/traceLogger.test.ts
+PASS tests/unit/toolRegistry.test.ts
+PASS tests/unit/logging.test.ts
+PASS tests/unit/devRestart.test.ts
+PASS tests/unit/builder.compiler.test.ts
+PASS tests/unit/handlers/test_fail.test.ts
+PASS tests/unit/streamBuffer.test.ts
+PASS tests/unit/responses.archive.rollback.test.ts
+PASS tests/unit/registry.integration.service.test.ts
+PASS tests/unit/delegationTracker.test.ts
+PASS tests/unit/rateLimitTracker.test.ts
+PASS tests/unit/historyPlanner.test.ts
+PASS tests/unit/conversationStateManager.test.ts
+PASS tests/unit/incidentLog.test.ts
+PASS src/logger_redaction.unit.test.ts
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/unit/runStep.completion.test.ts.
+
+
+
+      at getContext (src/lib/logger.ts:886:30)
+      at mixin (src/lib/logger.ts:913:31)
+      at Pino.write (node_modules/pino/lib/proto.js:210:35)
+      at Pino.LOG [as error] (node_modules/pino/lib/tools.js:77:21)
+      at error (src/lib/db.ts:101:9)
+      at ensureSettingsSchema (src/lib/settings.ts:107:5)
+      at getSettings (src/lib/settings.ts:116:5)
+      at loadFromSettings (src/lib/traceConfig.ts:36:22)
+{"level":50,"time":1760281504204,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":5000,"err":{"type":"Error","message":"timeout exceeded when trying to connect","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504205,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504206,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/unit/policy.enforcement.test.ts.
+
+
+
+      at getContext (src/lib/logger.ts:886:30)
+      at mixin (src/lib/logger.ts:913:31)
+      at Pino.write (node_modules/pino/lib/proto.js:210:35)
+      at Pino.LOG [as error] (node_modules/pino/lib/tools.js:77:21)
+      at error (src/lib/db.ts:101:9)
+      at ensureSettingsSchema (src/lib/settings.ts:107:5)
+      at getSettings (src/lib/settings.ts:116:5)
+      at loadFromSettings (src/lib/traceConfig.ts:36:22)
+{"level":50,"time":1760281504335,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":5001,"err":{"type":"Error","message":"timeout exceeded when trying to connect","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504337,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504337,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/unit/runner.nohandler.uses.store.test.ts.
+
+
+
+      at getContext (src/lib/logger.ts:886:30)
+      at mixin (src/lib/logger.ts:913:31)
+      at Pino.write (node_modules/pino/lib/proto.js:210:35)
+      at Pino.LOG [as error] (node_modules/pino/lib/tools.js:77:21)
+      at error (src/lib/db.ts:101:9)
+      at ensureSettingsSchema (src/lib/settings.ts:107:5)
+      at getSettings (src/lib/settings.ts:116:5)
+      at loadFromSettings (src/lib/traceConfig.ts:36:22)
+{"level":50,"time":1760281504458,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":5003,"err":{"type":"Error","message":"timeout exceeded when trying to connect","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504460,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504460,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/api/runs.test.ts.
+
+
+
+      at getContext (src/lib/logger.ts:886:30)
+      at mixin (src/lib/logger.ts:913:31)
+      at Pino.write (node_modules/pino/lib/proto.js:210:35)
+      at Pino.LOG [as error] (node_modules/pino/lib/tools.js:77:21)
+      at error (src/lib/db.ts:101:9)
+      at ensureSettingsSchema (src/lib/settings.ts:107:5)
+      at getSettings (src/lib/settings.ts:116:5)
+      at loadFromSettings (src/lib/traceConfig.ts:36:22)
+{"level":50,"time":1760281504686,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":5002,"err":{"type":"Error","message":"timeout exceeded when trying to connect","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504687,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+{"level":50,"time":1760281504687,"pid":17457,"hostname":"Bens-MacBook-Pro-M4.local","status":"error","latencyMs":0,"err":{"type":"Error","message":"Cannot use a pool after calling end on the pool","stack":""},"msg":"db.query.error"}
+-------------------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------------------
+File                                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                     
+-------------------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------------------
+All files                            |   59.49 |     46.1 |   60.98 |   61.26 |                                                                                       
+ src                                 |       0 |        0 |       0 |       0 |                                                                                       
+  simple.ts                          |       0 |        0 |       0 |       0 | 1-17                                                                                  
+ src/api                             |   72.36 |    64.28 |   35.48 |   73.48 |                                                                                       
+  loader.ts                          |   93.33 |    55.55 |     100 |     100 | 9,16-17                                                                               
+  main.ts                            |      52 |     40.9 |    9.09 |   52.52 | 54-60,65,149-191,196-209,216-218,224-229,234-239                                      
+  planBuilder.ts                     |   92.85 |    73.13 |     100 |   98.57 | 139                                                                                   
+ src/api/navigation                  |       0 |        0 |       0 |       0 |                                                                                       
+  manifest.ts                        |       0 |        0 |       0 |       0 | 2-80                                                                                  
+ src/api/routes                      |   40.18 |     25.2 |   34.78 |   43.17 |                                                                                       
+  auth.ts                            |   26.92 |        0 |   16.66 |      28 | 7-8,11-16,19-20,23-24,30-36                                                           
+  auth_v2.ts                         |     100 |      100 |     100 |     100 |                                                                                       
+  backups.ts                         |   23.07 |        0 |      25 |   35.29 | 7-9,12-16,19-21                                                                       
+  billing.ts                         |   11.53 |        0 |   11.11 |   11.53 | 17-35,43-75,83-108,116-132,140-190,198-236,244-278                                    
+  builder.ts                         |      60 |    29.46 |    90.9 |    69.6 | 58-59,71,100-103,117,120,135-141,156-162,172-175,190-196,228-234                      
+  dev-admin.ts                       |   33.33 |       50 |       0 |      36 | 18-30,41-55,66                                                                        
+  dev.ts                             |   13.54 |        0 |       4 |   18.26 | 10-38,44-54,59-66,71-78,84-90,93-100,103-109,114-115,118-121,125-128,136-149,152-166  
+  docs.ts                            |   73.68 |       50 |   33.33 |   73.68 | 34-35,39,44-47                                                                        
+  gates.ts                           |   12.69 |        0 |   14.28 |   14.81 | 9-11,16-20,25-49,54-75                                                                
+  metrics.ts                         |   33.33 |        0 |      50 |   33.33 | 6-12                                                                                  
+  models.ts                          |   11.82 |        0 |    7.14 |   13.92 | 9-11,14-20,24-35,39-78,83-115,119-121                                                 
+  performance.ts                     |   22.53 |        0 |       0 |   22.53 | 20-28,40-50,62-72,84-94,106-114,126-134,146-162,174-193,205-214,226-234,246-264       
+  projects.ts                        |    67.3 |     47.5 |   66.66 |   78.04 | 55-57,60-63,66-67                                                                     
+  public-performance.ts              |   25.49 |        0 |       0 |   25.49 | 18-19,31-50,58-67,75-86,94-105,113-122,130-148,156-177,185                            
+  queue.ts                           |   23.07 |        0 |   16.66 |   23.07 | 7-12,16-24,28-38,44-48,52-57                                                          
+  responses.ts                       |   99.25 |    80.61 |     100 |   99.17 | 152                                                                                   
+  settings.ts                        |   26.47 |        0 |   16.66 |   33.33 | 11-18,22-41                                                                           
+  super-admin.ts                     |   25.42 |        0 |       0 |   25.42 | 20-29,40-54,65-84,95-111,122-143,154-165,176-208,219-231                              
+  teams.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+  traceLog.ts                        |   29.26 |        0 |   16.66 |      30 | 8-12,19-20,24-31,47-51,55-66                                                          
+  ui.ts                              |   54.12 |    38.88 |    64.7 |   60.21 | 19-20,27,33-41,48-51,54-55,62,67,88-102,110-146,175-187                               
+  ui_projects.ts                     |   26.31 |        0 |   33.33 |   26.31 | 8-16,25-39                                                                            
+  webhooks.ts                        |   98.11 |       90 |     100 |   98.11 | 118                                                                                   
+ src/api/routes/auth_v2              |   72.62 |    46.03 |    87.5 |   72.79 |                                                                                       
+  ApiKeyService.ts                   |   38.46 |     7.69 |      75 |   37.25 | 15,29,52-82,108-187                                                                   
+  AuthService.ts                     |   80.64 |    63.63 |    92.3 |   81.52 | 23,90,111-117,136,190,202,211-213,226-227,254-259                                     
+  handlers.ts                        |   77.47 |       50 |      90 |   77.47 | 27,68,89,111-114,121,125,137,154,170,174,182-202                                      
+  index.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+  types.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+ src/api/routes/teams                |   39.41 |    20.51 |   33.33 |   39.93 |                                                                                       
+  InviteService.ts                   |    6.94 |        0 |       0 |    6.94 | 13-250                                                                                
+  MemberService.ts                   |    4.54 |        0 |       0 |    4.54 | 11-271                                                                                
+  TeamService.ts                     |    4.41 |        0 |       0 |    4.61 | 11-229                                                                                
+  handlers.ts                        |   90.26 |    53.33 |     100 |   92.66 | 67-68,116,133-134,203-206                                                             
+  index.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+  types.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+ src/api/routes/webhooks             |   91.77 |    76.62 |     100 |   95.36 |                                                                                       
+  CustomerEventService.ts            |     100 |    83.33 |     100 |     100 | 28                                                                                    
+  EmailNotificationService.ts        |   88.88 |      100 |     100 |   88.88 | 39                                                                                    
+  InvoiceEventService.ts             |   93.33 |    78.26 |     100 |   97.61 | 135                                                                                   
+  ProductEventService.ts             |   85.71 |       75 |     100 |   85.71 | 30,49                                                                                 
+  SubscriptionEventService.ts        |   88.13 |    72.22 |     100 |   94.54 | 69,155-156                                                                            
+  WebhookValidationService.ts        |     100 |      100 |     100 |     100 |                                                                                       
+ src/api/server                      |   89.83 |    33.33 |      70 |   89.83 |                                                                                       
+  frontend.ts                        |      60 |    33.33 |      40 |      60 | 19-20,31-35                                                                           
+  middleware.ts                      |     100 |      100 |     100 |     100 |                                                                                       
+  routes.ts                          |     100 |      100 |     100 |     100 |                                                                                       
+ src/api/server/handlers             |   50.44 |    38.05 |      50 |   51.36 |                                                                                       
+  artifactHandlers.ts                |   34.78 |    27.58 |      50 |   36.36 | 22,42-61,77-102                                                                       
+  health.ts                          |   85.71 |       50 |     100 |   85.71 | 22,37                                                                                 
+  index.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+  runs.ts                            |   50.93 |    40.77 |   46.15 |   51.57 | 30,46-47,63,86-87,121-123,148-217,233-234,245,256-257,262-295,323-325,330-344         
+ src/auth                            |   39.61 |    19.35 |      55 |   42.06 |                                                                                       
+  middleware.ts                      |   87.87 |    33.33 |      80 |   87.87 | 42-43,92,106                                                                          
+  supabase.ts                        |   26.44 |    18.88 |      30 |   28.57 | 16,25,42,65,87-90,102-141,149-173,181-211,224-241,249-291,306-321                     
+ src/auth/middleware                 |   69.31 |    61.45 |   81.25 |   69.31 |                                                                                       
+  AuthenticationService.ts           |   89.13 |    81.25 |     100 |   89.13 | 97,114,120,126-128                                                                    
+  AuthorizationService.ts            |   56.89 |    57.14 |    62.5 |   56.89 | 37-55,65,70,96-119,130,164-167                                                        
+  OwnershipValidationService.ts      |   16.66 |        0 |   33.33 |   16.66 | 17-45                                                                                 
+  RateLimitingService.ts             |   91.66 |    74.07 |     100 |   91.66 | 112-114                                                                               
+  UsageTrackingService.ts            |   66.66 |       60 |   83.33 |   66.66 | 16,41,52-61                                                                           
+ src/billing                         |     100 |    83.33 |     100 |     100 |                                                                                       
+  stripe.ts                          |     100 |    83.33 |     100 |     100 | 17                                                                                    
+ src/billing/stripe                  |    19.7 |     4.28 |   22.22 |   21.09 |                                                                                       
+  CustomerManagementService.ts       |   82.35 |       50 |     100 |    87.5 | 29,57                                                                                 
+  DateUtilityService.ts              |    12.5 |        0 |       0 |   14.28 | 11-22                                                                                 
+  PriceManagementService.ts          |    9.52 |        0 |       0 |   10.52 | 14-63                                                                                 
+  ProductManagementService.ts        |    9.52 |        0 |       0 |   10.52 | 14-58                                                                                 
+  SessionManagementService.ts        |   15.38 |        0 |   33.33 |      16 | 25-89                                                                                 
+  SubscriptionManagementService.ts   |    9.09 |        0 |   14.28 |    9.52 | 10-11,25-144                                                                          
+ src/config                          |   45.23 |    57.44 |   42.85 |   51.35 |                                                                                       
+  app.ts                             |      65 |    81.81 |      75 |      65 | 12,17,22,31,40,45,76                                                                  
+  email.ts                           |   15.78 |        0 |       0 |   21.42 | 147-155,162-168                                                                       
+  index.ts                           |     100 |      100 |       0 |     100 |                                                                                       
+ src/lib                             |   51.83 |     39.7 |   48.06 |   54.23 |                                                                                       
+  apiResponse.ts                     |     100 |    86.36 |     100 |     100 | 83,143-158                                                                            
+  artifacts.ts                       |   57.14 |    47.05 |   33.33 |   58.53 | 9,16-22,30-31,35-36,42-43,50-52                                                       
+  auth.ts                            |   97.05 |    86.95 |     100 |     100 | 11-22,36                                                                              
+  autobackup.ts                      |    23.8 |        0 |       0 |   27.77 | 7-12,18-26                                                                            
+  backup.ts                          |    7.89 |        0 |       0 |    9.37 | 25,28-42,45-104,108-188                                                               
+  benchmarks.ts                      |   79.83 |    60.29 |      80 |   83.33 | 58,100-101,146,246-250,308-316,350-359                                                
+  cache.ts                           |   88.88 |       50 |      80 |   88.63 | 39,50-53                                                                              
+  correlation.ts                     |       0 |        0 |       0 |       0 | 7-118                                                                                 
+  db.ts                              |   62.12 |       50 |    62.5 |    61.9 | 34-35,60-63,85,107-130                                                                
+  devRestart.ts                      |     100 |      100 |     100 |     100 |                                                                                       
+  events.ts                          |    87.5 |    57.14 |     100 |    87.5 | 18,27                                                                                 
+  json.ts                            |   52.54 |    52.27 |   71.42 |   54.16 | 18-21,24,27,41,45-51,63-64,70,76-84                                                   
+  logger.ts                          |   66.66 |       50 |     100 |   66.66 | 38-49,53                                                                              
+  metrics.ts                         |   96.77 |      100 |   33.33 |   96.77 | 36                                                                                    
+  migrations.ts                      |       0 |        0 |       0 |       0 | 11-271                                                                                
+  modelImporters.ts                  |    6.75 |        0 |       0 |    9.25 | 4-30,34-56,60-75,79-94                                                                
+  models.ts                          |   41.66 |        0 |       0 |   41.66 | 20-21,24-25,28-35,38                                                                  
+  observability.ts                   |   93.44 |       75 |     100 |   96.49 | 29,115                                                                                
+  orchestration.ts                   |   42.85 |    31.57 |   36.17 |   44.19 | 33-89,96-134,166-167,223,254,301-302,392-410,421-510,516-555,578-618,636-645,649-664  
+  performance-monitor.ts             |   58.82 |    40.32 |   47.82 |    62.5 | 100,132,137,177-250,303-342                                                           
+  performance.ts                     |       0 |        0 |       0 |       0 | 11-288                                                                                
+  projects.ts                        |   55.38 |    27.02 |   61.53 |   63.63 | 31-32,37-38,42-45,54-56,61,64-65,69-73                                                
+  queue.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+  registry.ts                        |   77.56 |    58.89 |   77.08 |   82.08 | 79-88,311-321,339-340,343-345,439-446,450-461,499-500,507-509,514-522,549,551,652,696 
+  runRecovery.ts                     |   83.87 |    56.25 |      60 |    86.2 | 16,22,29,34                                                                           
+  secrets.ts                         |   11.11 |        0 |       0 |   13.79 | 12-31,35-43,47-54                                                                     
+  settings.ts                        |   57.69 |    27.27 |   66.66 |   61.22 | 92,97,102,161-203,210-217                                                             
+  store.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+  supabase.ts                        |       0 |        0 |       0 |       0 | 1-19                                                                                  
+  tenant-auth.ts                     |       0 |        0 |       0 |       0 | 7-92                                                                                  
+  traceConfig.ts                     |   67.79 |    67.85 |   63.63 |   66.66 | 29-30,56-58,75-77,89-91,95-96,100-104,109-110                                         
+  traceLogger.ts                     |     100 |       80 |      80 |     100 | 24,30                                                                                 
+  tracing.ts                         |    23.4 |    16.66 |    8.33 |   30.55 | 12,16-47,52-58,62                                                                     
+  tx.ts                              |   83.33 |       50 |     100 |   83.33 | 6                                                                                     
+  uiFlags.ts                         |   94.44 |      100 |      75 |   93.75 | 44                                                                                    
+  validateEnv.ts                     |       0 |        0 |       0 |       0 | 19-114                                                                                
+  workspaces.ts                      |    61.6 |    53.33 |      75 |   61.29 | 65-71,77,118-119,127-197,209-210,262-273,303,326                                      
+ src/lib/agentSdk                    |   77.35 |    63.04 |      70 |   76.92 |                                                                                       
+  adapter.ts                         |   77.35 |    63.04 |      70 |   76.92 | 184-191,202,206,210,222-254                                                           
+ src/lib/email                       |   99.04 |    90.62 |     100 |      99 |                                                                                       
+  resend-client.ts                   |   99.04 |    90.62 |     100 |      99 | 289                                                                                   
+ src/lib/middleware                  |      96 |    73.21 |     100 |   95.95 |                                                                                       
+  idempotency.ts                     |      96 |    73.21 |     100 |   95.95 | 64-68,354-362                                                                         
+ src/lib/queue                       |   64.43 |    51.74 |   52.54 |   64.82 |                                                                                       
+  MemoryAdapter.ts                   |   99.22 |    85.71 |     100 |     100 | 78-95,103,109,117,138-148                                                             
+  PostgresAdapter.ts                 |    4.47 |        0 |       0 |    4.54 | 31-246                                                                                
+  RedisAdapter.ts                    |   48.95 |    47.61 |      35 |   56.62 | 39-45,63-89,108-127                                                                   
+  constants.ts                       |     100 |      100 |     100 |     100 |                                                                                       
+  index.ts                           |    90.9 |    52.94 |      80 |      88 | 24,54,60                                                                              
+  jobMap.ts                          |     100 |      100 |     100 |     100 |                                                                                       
+ src/lib/store                       |   82.25 |    67.88 |    82.9 |   83.45 |                                                                                       
+  DatabaseStore.ts                   |   82.22 |    70.58 |      75 |    81.6 | 102-112,143-149,170-183,196-197,224                                                   
+  FileSystemStore.ts                 |   92.91 |    72.22 |   85.71 |   99.02 | 136                                                                                   
+  StoreFactory.ts                    |   93.33 |    88.88 |     100 |   93.33 | 31                                                                                    
+  correlationHelper.ts               |       0 |        0 |       0 |       0 | 5-85                                                                                  
+  index.ts                           |     100 |    57.14 |     100 |     100 | 60-68                                                                                 
+ src/lib/store/FileSystemStore       |   84.23 |    70.76 |   89.18 |   85.84 |                                                                                       
+  ArtifactManagementService.ts       |    14.7 |        0 |      25 |   15.15 | 27-93                                                                                 
+  EventManagementService.ts          |   96.15 |    57.14 |     100 |     100 | 23,56-61                                                                              
+  FileOperationService.ts            |   97.87 |      100 |   92.85 |   97.87 | 81                                                                                    
+  RunManagementService.ts            |   97.91 |       75 |     100 |   97.82 | 90                                                                                    
+  StepManagementService.ts           |   95.52 |       75 |     100 |     100 | 70,100,126-157                                                                        
+ src/middleware                      |       0 |        0 |       0 |       0 |                                                                                       
+  errorHandler.ts                    |       0 |        0 |       0 |       0 | 5-302                                                                                 
+  security.ts                        |       0 |        0 |       0 |       0 | 4-289                                                                                 
+ src/models                          |    7.64 |        0 |       0 |    8.63 |                                                                                       
+  router.ts                          |    7.64 |        0 |       0 |    8.63 | 25-283                                                                                
+ src/models/providers                |    44.1 |    26.97 |      50 |   47.56 |                                                                                       
+  anthropic.ts                       |   11.53 |        0 |       0 |   13.04 | 12-53                                                                                 
+  gemini.ts                          |   10.71 |        0 |       0 |      12 | 9-53                                                                                  
+  http.ts                            |    6.06 |        0 |       0 |     7.4 | 10-55                                                                                 
+  openai.ts                          |   76.53 |     54.9 |     100 |   82.71 | 73-74,78,118,159-161,180,188-196                                                      
+  types.ts                           |      30 |    16.66 |      50 |    37.5 | 48-53                                                                                 
+ src/policy                          |   55.55 |     12.5 |     100 |   57.14 |                                                                                       
+  dbWritePolicy.ts                   |   55.55 |     12.5 |     100 |   57.14 | 6-8                                                                                   
+ src/services                        |   94.28 |    66.66 |     100 |   93.33 |                                                                                       
+  registryIntegration.ts             |   94.28 |    66.66 |     100 |   93.33 | 42,78                                                                                 
+ src/services/builder                |   90.21 |     64.8 |   93.47 |   92.89 |                                                                                       
+  builderCompiler.ts                 |   76.47 |    43.33 |     100 |   76.47 | 11,57-76                                                                              
+  builderManager.ts                  |   89.47 |    69.23 |   81.81 |   97.05 | 31                                                                                    
+  builderStore.ts                    |   93.75 |    71.79 |   96.29 |   96.51 | 108,140,163                                                                           
+  templateCatalog.ts                 |     100 |       75 |     100 |     100 | 65                                                                                    
+ src/services/email                  |   19.77 |     8.21 |   11.76 |   20.85 |                                                                                       
+  emailService.ts                    |   13.18 |        0 |       0 |   13.79 | 22-78,97-145,162-209,226-281,291-314                                                  
+  teamEmails.ts                      |   26.74 |    16.21 |      25 |   28.94 | 27-53,69-104,119-154,166-230,296-297                                                  
+ src/services/navigation             |       0 |        0 |       0 |       0 |                                                                                       
+  navigationService.ts               |       0 |        0 |       0 |       0 | 1-455                                                                                 
+ src/services/responses              |   89.02 |    73.65 |   92.48 |    92.4 |                                                                                       
+  archiveStore.ts                    |   87.23 |    88.88 |   79.16 |     100 | 62                                                                                    
+  conversationStateManager.ts        |   95.65 |      100 |   88.88 |   95.23 | 66                                                                                    
+  delegationTracker.ts               |   73.01 |    48.14 |     100 |   75.86 | 54-56,96-106,120-121,126-129,137-140                                                  
+  historyPlanner.ts                  |   90.47 |    82.35 |     100 |   90.47 | 46-47                                                                                 
+  incidentLog.ts                     |   70.49 |    39.02 |    87.5 |   76.92 | 62,105-111,153-162                                                                    
+  openaiClient.ts                    |     100 |      100 |     100 |     100 |                                                                                       
+  rateLimitTracker.ts                |   89.47 |    78.04 |     100 |   90.62 | 64-65,97                                                                              
+  runCoordinator.ts                  |     100 |    95.83 |     100 |     100 | 148                                                                                   
+  runService.ts                      |   92.42 |     85.5 |    90.9 |   93.65 | 133,160,166,192                                                                       
+  runtime.ts                         |   95.65 |    86.95 |   93.33 |   95.65 | 117-118,196                                                                           
+  sanitize.ts                        |   83.33 |       76 |     100 |   96.66 | 26                                                                                    
+  streamBuffer.ts                    |     100 |     77.5 |     100 |     100 | 39-69,84-89                                                                           
+  toolRegistry.ts                    |    91.3 |       75 |     100 |   95.23 | 35                                                                                    
+ src/services/responses/archiveStore |   58.09 |    42.59 |   58.92 |   62.03 |                                                                                       
+  DelegationManagementService.ts     |    9.67 |        0 |      20 |   11.53 | 17-61                                                                                 
+  EventManagementService.ts          |      50 |       50 |      40 |      60 | 24,52-67                                                                              
+  ExportService.ts                   |   67.85 |    66.66 |      50 |   69.23 | 30-39                                                                                 
+  FileManagerService.ts              |   81.48 |       50 |     100 |      88 | 23-24,62                                                                              
+  RunManagementService.ts            |   82.22 |    69.23 |   77.77 |   82.92 | 29-31,55,98-99,109                                                                    
+  SafetyManagementService.ts         |      50 |       25 |   66.66 |   54.54 | 24-25,37-53                                                                           
+  SerializationService.ts            |   57.89 |       50 |   42.85 |   52.94 | 37-59,72,82,92,102                                                                    
+ src/services/responses/coordinator  |   88.23 |    72.66 |   96.87 |   90.07 |                                                                                       
+  BufferService.ts                   |   80.24 |    60.81 |     100 |      84 | 65,68,109-116,136-138,159-160,166-167,173                                             
+  EventProcessingService.ts          |     100 |    83.87 |     100 |     100 | 45,47-52                                                                              
+  RequestPreparationService.ts       |     100 |    82.14 |     100 |     100 | 47,69-74                                                                              
+  TracingService.ts                  |    91.3 |    88.23 |   83.33 |   90.47 | 54-55                                                                                 
+ src/services/responses/runtime      |   70.54 |    53.09 |      75 |   69.71 |                                                                                       
+  RuntimeDataService.ts              |   22.22 |    14.28 |   33.33 |   22.22 | 28-85                                                                                 
+  RuntimeIncidentService.ts          |     100 |       40 |     100 |     100 | 33-71                                                                                 
+  RuntimeRetryService.ts             |   92.85 |    68.75 |     100 |   92.85 | 34                                                                                    
+  RuntimeSummaryService.ts           |   95.77 |    75.92 |   88.23 |   95.52 | 135,240,255                                                                           
+  RuntimeUtilityService.ts           |   38.88 |       20 |      50 |   38.88 | 23,30,36-66                                                                           
+ src/services/responses/streamBuffer |   96.58 |     91.3 |     100 |     100 |                                                                                       
+  AudioProcessingService.ts          |   95.55 |     87.5 |     100 |     100 | 62,77-78                                                                              
+  EventTypeGuards.ts                 |     100 |      100 |     100 |     100 |                                                                                       
+  ImageArtifactService.ts            |   96.29 |     90.9 |     100 |     100 | 18,44                                                                                 
+  ReasoningCollectionService.ts      |     100 |      100 |     100 |     100 |                                                                                       
+  TextMessageService.ts              |   95.83 |    83.33 |     100 |     100 | 32-39,47                                                                              
+ src/shared                          |     100 |      100 |     100 |     100 |                                                                                       
+  types.ts                           |     100 |      100 |     100 |     100 |                                                                                       
+ src/shared/openai                   |     100 |      100 |     100 |     100 |                                                                                       
+  responsesSchemas.ts                |     100 |      100 |     100 |     100 |                                                                                       
+ src/shared/responses                |   94.64 |    76.47 |      95 |   94.44 |                                                                                       
+  archive.ts                         |     100 |      100 |     100 |     100 |                                                                                       
+  eventRouter.ts                     |   88.88 |    76.47 |      75 |   88.46 | 73,80-81                                                                              
+ src/shared/responses/archive        |   97.02 |     82.6 |   97.22 |    99.3 |                                                                                       
+  DelegationManagementService.ts     |    93.1 |    79.16 |   85.71 |     100 | 14,28-29,36,39                                                                        
+  EventManagementService.ts          |     100 |    93.75 |     100 |     100 | 51                                                                                    
+  RollbackService.ts                 |      95 |    79.62 |     100 |   98.03 | 97                                                                                    
+  RunManagementService.ts            |     100 |    91.66 |     100 |     100 | 82-88                                                                                 
+  SafetyManagementService.ts         |     100 |       75 |     100 |     100 | 19,24-31,52-53                                                                        
+ src/testing                         |   69.56 |       50 |      75 |   72.72 |                                                                                       
+  factories.ts                       |   69.56 |       50 |      75 |   72.72 | 44-49,66                                                                              
+ src/tools                           |   21.42 |        0 |       0 |   23.07 |                                                                                       
+  codegen.ts                         |   21.42 |        0 |       0 |   23.07 | 6-16                                                                                  
+ src/types                           |       0 |      100 |     100 |       0 |                                                                                       
+  navigation-manifest.ts             |       0 |      100 |     100 |       0 | 1-108                                                                                 
+ src/validation                      |       0 |        0 |       0 |       0 |                                                                                       
+  schemas.ts                         |       0 |        0 |       0 |       0 | 4-286                                                                                 
+ src/worker                          |   69.23 |    68.54 |   54.38 |    68.4 |                                                                                       
+  health.ts                          |       0 |        0 |       0 |       0 | 1-295                                                                                 
+  main.ts                            |    98.8 |    76.92 |   76.92 |   98.61 | 81                                                                                    
+  relay.ts                           |     100 |    96.15 |     100 |     100 | 15                                                                                    
+  runner.ts                          |   90.34 |    80.19 |   94.44 |   90.58 | 45-63,90,105,173-174,207-208                                                          
+ src/worker/handlers                 |   74.06 |    54.92 |   72.85 |   74.17 |                                                                                       
+  bash.ts                            |   72.54 |       55 |   77.77 |   72.54 | 24-27,33-37,59-64,92-93,106-107                                                       
+  codegen.ts                         |   67.12 |    33.33 |      75 |   66.66 | 19-20,32-81,117-119                                                                   
+  codegen_v2.ts                      |   25.92 |        0 |       0 |   25.92 | 23-145                                                                                
+  db_write.ts                        |    90.9 |    79.66 |   78.57 |   92.68 | 52-54,58,68,111                                                                       
+  gate.ts                            |   72.86 |    55.55 |   33.33 |   76.03 | 15-18,35-43,135,144-156,163-169,179-182,188-191                                       
+  git_ops.ts                         |     100 |    71.42 |     100 |     100 | 33,66                                                                                 
+  git_pr.ts                          |   96.18 |    85.52 |     100 |   99.08 | 133                                                                                   
+  loader.ts                          |     100 |      100 |     100 |     100 |                                                                                       
+  manual.ts                          |   20.68 |        0 |       0 |   20.68 | 9-42                                                                                  
+  project_init.ts                    |     100 |    89.28 |     100 |     100 | 63,75,93                                                                              
+  static-loader.ts                   |   92.85 |      100 |       0 |   92.85 | 26                                                                                    
+  test_echo.ts                       |     100 |       50 |     100 |     100 | 11                                                                                    
+  test_fail.ts                       |     100 |      100 |     100 |     100 |                                                                                       
+  workspace_write.ts                 |   12.34 |        0 |       0 |   12.65 | 19-167                                                                                
+ src/worker/handlers/git_ops         |   89.13 |    79.06 |      92 |   89.13 |                                                                                       
+  AdvancedModeService.ts             |     100 |      100 |     100 |     100 |                                                                                       
+  BasicModeService.ts                |   95.83 |    82.14 |     100 |   95.83 | 131-132                                                                               
+  GitValidationService.ts            |   31.57 |    23.52 |   33.33 |   31.57 | 39-67                                                                                 
+  HiddenModeService.ts               |     100 |      100 |     100 |     100 |                                                                                       
+  WorkspaceManagementService.ts      |     100 |      100 |     100 |     100 |                                                                                       
+-------------------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------------------
+
+Summary of all failing tests
+FAIL tests/cloud-migration/vercel-functions.test.ts (5.594 s)
+  ● Vercel Functions - Bulletproof Tests › Runs API Endpoint › should handle GET requests for listing runs
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      64 |     it('should handle GET requests for listing runs', async () => {
+      65 |       const response = await fetch(`${API_BASE}/runs`);
+    > 66 |       expect(response.status).toBe(200);
+         |                               ^
+      67 |
+      68 |       const data = await response.json();
+      69 |       expect(data).toHaveProperty('runs');
+
+      at Object.<anonymous> (tests/cloud-migration/vercel-functions.test.ts:66:31)
+
+  ● Vercel Functions - Bulletproof Tests › Runs API Endpoint › should handle query parameters correctly
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      73 |     it('should handle query parameters correctly', async () => {
+      74 |       const response = await fetch(`${API_BASE}/runs?limit=5`);
+    > 75 |       expect(response.status).toBe(200);
+         |                               ^
+      76 |
+      77 |       const data = await response.json();
+      78 |       expect(data.runs.length).toBeLessThanOrEqual(5);
+
+      at Object.<anonymous> (tests/cloud-migration/vercel-functions.test.ts:75:31)
+
+FAIL tests/cloud-migration/supabase-database.test.ts
+  ● Supabase Database - Bulletproof Tests › Schema Validation › should verify nofx schema exists
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Matcher error: received value must not be null nor undefined
+
+    Received has value: undefined
+
+      93 |
+      94 |         // If we can query the table, schema exists
+    > 95 |         expect(tableError?.message).not.toContain('relation "nofx.runs" does not exist');
+         |                                         ^
+      96 |       }
+      97 |     });
+      98 |
+
+      at Object.<anonymous> (tests/cloud-migration/supabase-database.test.ts:95:41)
+
+  ● Supabase Database - Bulletproof Tests › Data Operations › should handle complex queries with joins
+
+    expect(received).toBeNull()
+
+    Received: {"code": "PGRST200", "details": "Searched for a foreign key relationship between 'runs' and 'step' in the schema 'public', but no matches were found.", "hint": "Perhaps you meant 'products' instead of 'runs'.", "message": "Could not find a relationship between 'runs' and 'step' in the schema cache"}
+
+      201 |         .limit(5);
+      202 |
+    > 203 |       expect(error).toBeNull();
+          |                     ^
+      204 |       expect(Array.isArray(data)).toBe(true);
+      205 |     });
+      206 |
+
+      at Object.<anonymous> (tests/cloud-migration/supabase-database.test.ts:203:21)
+
+  ● Supabase Database - Bulletproof Tests › Security Tests › should prevent SQL injection
+
+    expect(received).not.toContain(expected) // indexOf
+
+    Matcher error: received value must not be null nor undefined
+
+    Received has value: undefined
+
+      408 |
+      409 |       // Should handle safely without executing injection
+    > 410 |       expect(error?.message).not.toContain('DROP TABLE');
+          |                                  ^
+      411 |     });
+      412 |
+      413 |     it('should enforce Row Level Security', async () => {
+
+      at Object.<anonymous> (tests/cloud-migration/supabase-database.test.ts:410:34)
+
+FAIL tests/unit/worker.integration.test.ts
+  ● Worker Integration Tests › Error Recovery and Resilience › handles partial failures in atomic operations
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: undefined
+
+      285 |       });
+      286 |
+    > 287 |       await expect(runner.runStep('run-456', 'step-123')).rejects.toThrow('Count failed');
+          |             ^
+      288 |     });
+      289 |
+      290 |     test('handles handler loading failures', async () => {
+
+      at expect (node_modules/expect/build/index.js:2116:15)
+      at Object.<anonymous> (tests/unit/worker.integration.test.ts:287:13)
+
+FAIL tests/integration/artifact-pipeline.test.ts
+  ● Artifact Storage Pipeline › should retrieve artifact content via API endpoint
+
+    expect(received).toBe(expected) // Object.is equality
+
+    - Expected  - 3
+    + Received  + 1
+
+    - Soft threads weave
+    - Through woven comfort and warmth
+    - Sweatshirts embrace cold
+    + test
+
+      72 |
+      73 |     expect(response.body).toBeDefined();
+    > 74 |     expect(response.body.content).toBe(testContent);
+         |                                   ^
+      75 |     expect(response.body.path).toBe(artifactPath);
+      76 |     expect(response.body.size).toBe(testContent.length);
+      77 |   });
+
+      at Object.<anonymous> (tests/integration/artifact-pipeline.test.ts:74:35)
+
+  ● Artifact Storage Pipeline › should handle non-existent artifacts gracefully
+
+    Expected status 404 but received 200
+
+      62 |       this.expectations.push((res) => {
+      63 |         if (res.status !== arg) {
+    > 64 |           throw new Error(`Expected status ${arg} but received ${res.status}`);
+         |                 ^
+      65 |         }
+      66 |       });
+      67 |     } else if (typeof arg === 'function') {
+
+      at tests/helpers/mockSupertest.ts:64:17
+      at ServerResponse.<anonymous> (tests/helpers/mockSupertest.ts:151:19)
+
+FAIL tests/integration/runs.api.e2e.test.ts
+  ● Runs API with project context › creates a run using standard body and x-project-id
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 401
+
+      23 |       .set('x-project-id', projectId)
+      24 |       .send({ standard: { prompt: 'Write a small README about NOFX', quality: false, openPr: false } });
+    > 25 |     expect(res.status).toBe(201);
+         |                        ^
+      26 |     expect(res.body).toHaveProperty('id');
+      27 |     const id = res.body.id;
+      28 |     const got = await request(app).get(`/runs/${id}`);
+
+      at Object.<anonymous> (tests/integration/runs.api.e2e.test.ts:25:24)
+
+FAIL tests/integration/builder.api.test.ts
+  ● Builder Templates API › executes a template via Responses API and archives events
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 2
+
+      170 |       .send({ days: 5 });
+      171 |     expect(pruneRes.status).toBe(200);
+    > 172 |     expect(pruneRes.body.summary.totalRuns).toBe(1);
+          |                                             ^
+      173 |   });
+      174 | });
+      175 |
+
+      at Object.<anonymous> (tests/integration/builder.api.test.ts:172:45)
+
+FAIL tests/performance/benchmarks.test.ts
+  ● Performance Benchmarks › Performance Summary › Generate comprehensive performance report
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      473 |       expect(summary.errorRate).toBeLessThan(10); // Less than 10% error rate
+      474 |       expect(summary.avgResponseTime).toBeLessThan(1000); // Less than 1 second average
+    > 475 |       expect(performanceMonitor.isHealthy()).toBe(true);
+          |                                              ^
+      476 |     });
+      477 |   });
+      478 | });
+
+      at Object.<anonymous> (tests/performance/benchmarks.test.ts:475:46)
+
+FAIL src/api/routes/__tests__/auth_v2.test.ts
+  ● Auth V2 Routes - Comprehensive Tests › POST /auth/signup › should create new user with valid data
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 400
+
+       98 |         .send(validSignupData);
+       99 |
+    > 100 |       expect(response.status).toBe(201);
+          |                               ^
+      101 |       expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
+      102 |         expect.objectContaining({
+      103 |           email: validSignupData.email,
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:100:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › POST /auth/reset-password › should send reset email for valid email
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 400
+
+      259 |         .send({ email: 'test@example.com' });
+      260 |
+    > 261 |       expect(response.status).toBe(200);
+          |                               ^
+      262 |       expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+      263 |         'test@example.com',
+      264 |         expect.any(Object)
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:261:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › GET /auth/me › should return user profile for authenticated user
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      320 |         .set('Authorization', 'Bearer token');
+      321 |
+    > 322 |       expect(response.status).toBe(200);
+          |                               ^
+      323 |       expect(response.body.user).toMatchObject({
+      324 |         id: 'user-id',
+      325 |         email: 'test@example.com',
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:322:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › GET /auth/me › should handle user not found
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 404
+    Received: 500
+
+      337 |         .set('Authorization', 'Bearer token');
+      338 |
+    > 339 |       expect(response.status).toBe(404);
+          |                               ^
+      340 |     });
+      341 |   });
+      342 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:339:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › API Key Management › POST /auth/api-keys › should create API key for authenticated user
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 500
+
+      354 |           .send({ name: 'Test Key', permissions: ['read'] });
+      355 |
+    > 356 |         expect(response.status).toBe(201);
+          |                                 ^
+      357 |         expect(response.body.apiKey).toMatchObject({
+      358 |           name: 'Test Key',
+      359 |         });
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:356:33)
+
+  ● Auth V2 Routes - Comprehensive Tests › API Key Management › GET /auth/api-keys › should list user API keys
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      388 |           .set('Authorization', 'Bearer token');
+      389 |
+    > 390 |         expect(response.status).toBe(200);
+          |                                 ^
+      391 |         expect(response.body.apiKeys).toBeInstanceOf(Array);
+      392 |       });
+      393 |     });
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:390:33)
+
+  ● Auth V2 Routes - Comprehensive Tests › API Key Management › DELETE /auth/api-keys/:id › should delete API key
+
+    TypeError: Cannot read properties of undefined (reading 'mockResolvedValue')
+
+      395 |     describe('DELETE /auth/api-keys/:id', () => {
+      396 |       it('should delete API key', async () => {
+    > 397 |         mockServiceClient.from().delete.mockResolvedValue({
+          |                                        ^
+      398 |           error: null,
+      399 |         });
+      400 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:397:40)
+
+  ● Auth V2 Routes - Comprehensive Tests › Error Handling › should handle Supabase service unavailable
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 500
+    Received: 401
+
+      463 |         });
+      464 |
+    > 465 |       expect(response.status).toBe(500);
+          |                               ^
+      466 |       expect(response.body.error).toContain('service unavailable');
+      467 |     });
+      468 |
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:465:31)
+
+  ● Auth V2 Routes - Comprehensive Tests › Error Handling › should not leak sensitive information in errors
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 500
+    Received: 401
+
+      479 |         });
+      480 |
+    > 481 |       expect(response.status).toBe(500);
+          |                               ^
+      482 |       expect(response.body.error).not.toContain('credentials');
+      483 |       expect(response.body.error).not.toContain('user:pass');
+      484 |     });
+
+      at Object.<anonymous> (src/api/routes/__tests__/auth_v2.test.ts:481:31)
+
+FAIL tests/unit/store.test.ts
+  ● Store Module › Integration Scenarios › should handle complete run lifecycle
+
+    step not found
+
+      177 |   async addArtifact(stepId: string, type: string, pth: string, metadata?: JsonValue): Promise<ArtifactRow> {
+      178 |     const step = await this.getStep(stepId);
+    > 179 |     if (!step) throw new Error('step not found');
+          |                      ^
+      180 |     const file = path.join(ROOT, 'runs', step.run_id, 'artifacts.json');
+      181 |     const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+      182 |     const row: ArtifactRow = {
+
+      at FileSystemStore.addArtifact (src/lib/store/FileSystemStore.ts:179:22)
+      at Object.<anonymous> (tests/unit/store.test.ts:1263:7)
+
+  ● Store Module › Integration Scenarios › should handle outbox message lifecycle
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 2
+    Received length: 0
+    Received array:  []
+
+      1294 |       // List unsent
+      1295 |       const unsent = await store.outboxListUnsent();
+    > 1296 |       expect(unsent).toHaveLength(2);
+           |                      ^
+      1297 |
+      1298 |       // Mark first as sent
+      1299 |       await store.outboxMarkSent(unsent[0].id);
+
+      at Object.<anonymous> (tests/unit/store.test.ts:1296:22)
+
+FAIL tests/unit/stripe.test.ts
+  ● Stripe Integration › createOrRetrieveCustomer › should handle billing address without @ts-ignore
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"address": {"city": "New York", "country": "US", "line1": "123 Main St", "postal_code": "10001", "state": "NY"}, "email": "test@example.com", "metadata": {"supabase_user_id": "user_123"}, "name": "John Doe"}
+
+    Number of calls: 0
+
+      89 |
+      90 |       // Verify Stripe was called with properly typed parameters
+    > 91 |       expect(stripeMock.customers.create).toHaveBeenCalledWith(
+         |                                           ^
+      92 |         expect.objectContaining({
+      93 |           email: email,
+      94 |           metadata: {
+
+      at Object.<anonymous> (tests/unit/stripe.test.ts:91:43)
+
+  ● Stripe Integration › createOrRetrieveCustomer › should handle missing billing address gracefully
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"email": "test2@example.com", "metadata": {"supabase_user_id": "user_456"}, "name": "Jane Doe"}
+
+    Number of calls: 0
+
+      132 |
+      133 |       // Verify Stripe was called without address field
+    > 134 |       expect(stripeMock.customers.create).toHaveBeenCalledWith(
+          |                                           ^
+      135 |         expect.objectContaining({
+      136 |           email: email,
+      137 |           metadata: {
+
+      at Object.<anonymous> (tests/unit/stripe.test.ts:134:43)
+
+
+Test Suites: 10 failed, 5 skipped, 125 passed, 135 of 140 total
+Tests:       24 failed, 115 skipped, 2013 passed, 2152 total
+Snapshots:   0 total
+Time:        68.445 s
+Ran all test suites.

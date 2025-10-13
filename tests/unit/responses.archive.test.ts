@@ -13,7 +13,7 @@ describe('InMemoryResponsesArchive', () => {
     expect(run.status).toBe('queued');
 
     expect(() => archive.startRun({ runId: 'run-1', request: canonicalTextRun })).toThrow(
-      'run run-1 already exists',
+      "Cannot start run 'run-1': run already exists. Use updateStatus() to modify existing runs or choose a different runId.",
     );
   });
 
@@ -25,7 +25,7 @@ describe('InMemoryResponsesArchive', () => {
     expect(second.sequence).toBe(2);
 
     expect(() => archive.recordEvent('run-2', { sequence: 2, type: 'dup', payload: {} })).toThrow(
-      'sequence 2 already recorded for run run-2',
+      "Duplicate sequence number 2 for run 'run-2'",
     );
   });
 

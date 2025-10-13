@@ -35,8 +35,11 @@ describe('POST /runs/preview', () => {
     const rsp = await request(app).post('/runs/preview').send({ standard: { prompt: 'Write README and open a PR', quality: true, openPr: false } });
     expect(rsp.status).toBe(200);
     const tools = rsp.body.steps.map((s:any)=>s.tool);
-    expect(tools.slice(0,3)).toEqual(['gate:typecheck','gate:lint','gate:unit']);
-    expect(tools).toContain('codegen');
+    // Codegen comes first, then gates
+    expect(tools[0]).toBe('codegen');
+    expect(tools).toContain('gate:typecheck');
+    expect(tools).toContain('gate:lint');
+    expect(tools).toContain('gate:unit');
     const pr = rsp.body.steps.find((s:any)=>s.tool==='git_pr');
     expect(pr).toBeTruthy();
     expect(pr.inputs.reason).toBe('Prompt');

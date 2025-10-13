@@ -153,9 +153,10 @@ describe('Package.json Script Recursion Prevention', () => {
           const prefix = scriptName.split(':')[0];
 
           // Check if this script uses a wildcard that would match itself
-          const wildcardPattern = new RegExp(`${prefix}:\\*`);
+          // Use literal string search instead of regex to avoid escaping complexity
+          const wildcardString = `${prefix}:*`;
 
-          if (wildcardPattern.test(scriptContent)) {
+          if (scriptContent.includes(wildcardString)) {
             // This script uses a wildcard pattern
             // Make sure the script name doesn't match this pattern
             const scriptMatchesOwnWildcard = scriptName.startsWith(`${prefix}:`);
@@ -182,9 +183,10 @@ describe('Package.json Script Recursion Prevention', () => {
           if (scriptContent.includes('npm-run-all') || scriptContent.includes('concurrently')) {
             // If using parallel runners, should not use wildcard for same prefix
             const prefix = scriptName.split(':')[0];
-            const wildcardPattern = new RegExp(`${prefix}:\\*`);
+            // Use literal string search instead of regex to avoid escaping complexity
+            const wildcardString = `${prefix}:*`;
 
-            expect(scriptContent).not.toMatch(wildcardPattern);
+            expect(scriptContent).not.toContain(wildcardString);
           }
         }
       });
@@ -211,9 +213,10 @@ describe('Package.json Script Recursion Prevention', () => {
             if (scripts[calledScript]) {
               const calledScriptContent = scripts[calledScript];
               const prefix = scriptName.split(':')[0];
-              const wildcardPattern = new RegExp(`${prefix}:\\*`);
+              // Use literal string search instead of regex to avoid escaping complexity
+              const wildcardString = `${prefix}:*`;
 
-              if (wildcardPattern.test(calledScriptContent)) {
+              if (calledScriptContent.includes(wildcardString)) {
                 fail(
                   `Script "${scriptName}" calls "${calledScript}" via concurrently, ` +
                   `but "${calledScript}" uses wildcard that would match "${scriptName}", ` +
@@ -233,9 +236,10 @@ describe('Package.json Script Recursion Prevention', () => {
         if (typeof scriptContent === 'string' && scriptContent.includes('npm-run-all')) {
           // Check for wildcard patterns
           const prefix = scriptName.split(':')[0];
-          const wildcardPattern = new RegExp(`${prefix}:\\*`);
+          // Use literal string search instead of regex to avoid escaping complexity
+          const wildcardString = `${prefix}:*`;
 
-          if (wildcardPattern.test(scriptContent) && scriptName.startsWith(`${prefix}:`)) {
+          if (scriptContent.includes(wildcardString) && scriptName.startsWith(`${prefix}:`)) {
             fail(
               `Script "${scriptName}" uses npm-run-all with pattern "${prefix}:*" ` +
               `which would match itself and create recursion.`
