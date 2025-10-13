@@ -355,7 +355,7 @@ describe('WorkspaceManager Enhanced Features', () => {
 
         const status = await manager.getStatus(project);
 
-        expect(status.hasChanges).toBe(true);
+        expect(status).toHaveProperty('hasChanges', true);
       });
     });
 
@@ -384,7 +384,8 @@ describe('WorkspaceManager Enhanced Features', () => {
         expect(status).toHaveProperty('current', 'feature-branch');
         expect(status).toHaveProperty('ahead', 2);
         expect(status).toHaveProperty('behind', 1);
-        expect(status.files).toHaveLength(2);
+        expect(status).toHaveProperty('files');
+        expect((status as { files: unknown[] }).files).toHaveLength(2);
       });
     });
   });

@@ -68,7 +68,6 @@ describe('ArtifactStorage', () => {
     const { store } = require('../../../src/lib/store');
     store.createArtifact.mockResolvedValue({
       id: 'artifact_123',
-      run_id: testRunId,
       step_id: testStepId,
       path: testFilename,
       type: testMimeType,
@@ -145,7 +144,6 @@ describe('ArtifactStorage', () => {
 
         expect(store.createArtifact).toHaveBeenCalledWith(
           expect.objectContaining({
-            run_id: testRunId,
             step_id: testStepId,
             path: expect.stringContaining(testFilename),
             type: testMimeType,
@@ -208,7 +206,6 @@ describe('ArtifactStorage', () => {
         const { store } = require('../../../src/lib/store');
         store.getArtifact.mockResolvedValue({
           id: 'artifact_123',
-          run_id: testRunId,
           step_id: testStepId,
           path: `runs/${testRunId}/steps/${testStepId}/${testFilename}`,
           type: testMimeType,
@@ -248,12 +245,12 @@ describe('ArtifactStorage', () => {
         const mockArtifacts = [
           {
             id: 'artifact_1',
-            run_id: testRunId,
             step_id: testStepId,
             path: 'file1.txt',
             type: 'text/plain',
             metadata: { size: 100 },
             created_at: new Date().toISOString(),
+            step_name: 'Test Step',
           },
         ];
         store.listArtifactsByRun.mockResolvedValue(mockArtifacts);
@@ -269,7 +266,6 @@ describe('ArtifactStorage', () => {
         const mockArtifacts = [
           {
             id: 'artifact_1',
-            run_id: testRunId,
             step_id: testStepId,
             path: 'file1.txt',
             type: 'text/plain',
@@ -293,7 +289,6 @@ describe('ArtifactStorage', () => {
         const { store } = require('../../../src/lib/store');
         store.getArtifact.mockResolvedValue({
           id: 'artifact_123',
-          run_id: testRunId,
           step_id: testStepId,
           path: `runs/${testRunId}/steps/${testStepId}/${testFilename}`,
           type: testMimeType,

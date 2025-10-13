@@ -336,6 +336,51 @@ export interface StoreDriver {
    */
   listArtifactsByRun(runId: string): Promise<ArtifactWithStepName[]>;
 
+  /**
+   * Create a new artifact record
+   * @param artifact - Artifact data without id and created_at
+   * @returns The created artifact record
+   */
+  createArtifact(artifact: Omit<ArtifactRow, 'id' | 'created_at'>): Promise<ArtifactRow>;
+
+  /**
+   * Get an artifact by run, step, and filename
+   * @param runId - The parent run identifier
+   * @param stepId - The parent step identifier
+   * @param filename - The artifact filename/path
+   * @returns The artifact record or null if not found
+   */
+  getArtifact(runId: string, stepId: string, filename: string): Promise<ArtifactRow | null>;
+
+  /**
+   * List all artifacts for a specific step
+   * @param runId - The parent run identifier
+   * @param stepId - The parent step identifier
+   * @returns Array of artifact records
+   */
+  listArtifactsByStep(runId: string, stepId: string): Promise<ArtifactRow[]>;
+
+  /**
+   * Delete a single artifact
+   * @param runId - The parent run identifier
+   * @param stepId - The parent step identifier
+   * @param filename - The artifact filename/path
+   */
+  deleteArtifact(runId: string, stepId: string, filename: string): Promise<void>;
+
+  /**
+   * Delete all artifacts for a run
+   * @param runId - The parent run identifier
+   */
+  deleteArtifactsByRun?(runId: string): Promise<void>;
+
+  /**
+   * Delete all artifacts for a step
+   * @param runId - The parent run identifier
+   * @param stepId - The parent step identifier
+   */
+  deleteArtifactsByStep?(runId: string, stepId: string): Promise<void>;
+
   // ============================================================================
   // Inbox Pattern (Idempotent Message Processing)
   // ============================================================================
