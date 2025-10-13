@@ -6,10 +6,10 @@ export default function mount(app: Express){
     try {
       const body = await metrics.render();
       res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
-      return res.status(200).send(body);
+      res.status(200).send(body);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'metrics unavailable';
-      return res.status(500).send(`# metrics error\n# ${message}\n`);
+      res.status(500).send(`# metrics error\n# ${message}\n`);
     }
   });
 }

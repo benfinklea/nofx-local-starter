@@ -14,20 +14,22 @@ if (process.env.NODE_ENV !== 'production') {
   /**
    * Development settings page (no auth required for testing)
    */
-  router.get('/settings', async (req: Request, res: Response): Promise<void> => {
+  router.get('/settings', async (_req: Request, res: Response): Promise<void> => {
     try {
       const { getSettings } = require('../../lib/settings');
       const { listModels } = require('../../lib/models');
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let settings: any = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let models: any[] = [];
 
       try { settings = await getSettings(); } catch {}
       try { models = await listModels(); } catch {}
 
-      return res.render('settings', { preloaded: { settings, models } });
+      res.render('settings', { preloaded: { settings, models } });
     } catch (error) {
-      return res.status(500).json({
+      res.status(500).json({
         error: 'Failed to load settings page',
         message: (error as Error).message
       });
@@ -37,13 +39,13 @@ if (process.env.NODE_ENV !== 'production') {
   /**
    * Development super admin dashboard (no auth required for testing)
    */
-  router.get('/super-admin', (req: Request, res: Response): Promise<void> => {
+  router.get('/super-admin', (_req: Request, res: Response): void => {
     try {
       const summary = performanceMonitor.getSummary();
       const isHealthy = performanceMonitor.isHealthy();
       const suites = benchmarkRunner.listSuites();
 
-      return res.render('super-admin-dashboard', {
+      res.render('super-admin-dashboard', {
         title: 'NOFX Super Admin Dashboard (DEV)',
         summary,
         isHealthy,
@@ -52,7 +54,7 @@ if (process.env.NODE_ENV !== 'production') {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      return res.status(500).json({
+      res.status(500).json({
         error: 'Failed to load admin dashboard',
         message: (error as Error).message
       });
@@ -62,8 +64,8 @@ if (process.env.NODE_ENV !== 'production') {
   /**
    * Development info route
    */
-  router.get('/info', (req: Request, res: Response): Promise<void> => {
-    return res.json({
+  router.get('/info', (_req: Request, res: Response): void => {
+    res.json({
       message: 'Development admin routes active',
       environment: 'development',
       routes: [

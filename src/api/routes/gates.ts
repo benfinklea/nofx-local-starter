@@ -8,21 +8,27 @@ export default function mount(app: Express){
   app.get('/runs/:id/gates', async (req, res): Promise<void> => {
     const runId = req.params.id;
     const rows = await store.listGatesByRun(runId);
-    return res.json(rows);
+    res.json(rows);
   });
 
   // Create a gate explicitly (optional; manual handler also auto-creates)
   app.post('/gates', async (req, res): Promise<void> => {
     const { run_id, step_id, gate_type } = req.body || {};
-    if (!run_id || !gate_type) return res.status(400).json({ error: 'run_id and gate_type required' });
+    if (!run_id || !gate_type) {
+      res.status(400).json({ error: 'run_id and gate_type required' });
+      return;
+    }
     const g = await store.createOrGetGate(run_id, step_id || '', gate_type as string);
     await recordEvent(run_id, 'gate.created', { gate: g }, step_id || undefined);
-    return res.status(201).json(g);
+    res.status(201).json(g);
   });
 
   // Approve a gate
   app.post('/gates/:id/approve', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     const id = req.params.id;
     const approvedBy = req.body?.approved_by || 'local-user';
     const reason = typeof req.body?.reason === 'string' ? String(req.body.reason).slice(0,500) : undefined;
@@ -41,17 +47,26 @@ export default function mount(app: Express){
         break;
       }
     }
-    if (!found) return res.status(404).json({ error: 'not found' });
+    if (!found) {
+      res.status(404).json({ error: 'not found' });
+      return;
+    }
     await store.updateGate(id, { status: 'passed', run_id: found.run_id, approved_by: approvedBy });
     const gate = { id, run_id: found.run_id, status: 'passed' } as { id: string; run_id: string; status: string };
-    if (!gate) return res.status(404).json({ error: 'not found' });
+    if (!gate) {
+      res.status(404).json({ error: 'not found' });
+      return;
+    }
     await recordEvent(gate.run_id, 'gate.approved', { gateId: gate.id, approvedBy, reason });
-    return res.json(gate);
+    res.json(gate);
   });
 
   // Waive a gate
   app.post('/gates/:id/waive', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     const id = req.params.id;
     const approvedBy = req.body?.approved_by || 'local-user';
     const reason = typeof req.body?.reason === 'string' ? String(req.body.reason).slice(0,500) : undefined;
@@ -67,11 +82,17 @@ export default function mount(app: Express){
         break;
       }
     }
-    if (!found) return res.status(404).json({ error: 'not found' });
+    if (!found) {
+      res.status(404).json({ error: 'not found' });
+      return;
+    }
     await store.updateGate(id, { status: 'waived', run_id: found.run_id, approved_by: approvedBy });
     const gate = { id, run_id: found.run_id, status: 'waived' } as { id: string; run_id: string; status: string };
-    if (!gate) return res.status(404).json({ error: 'not found' });
+    if (!gate) {
+      res.status(404).json({ error: 'not found' });
+      return;
+    }
     await recordEvent(gate.run_id, 'gate.waived', { gateId: gate.id, approvedBy, reason });
-    return res.json(gate);
+    res.json(gate);
   });
 }

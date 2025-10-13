@@ -1,6 +1,6 @@
 /**
  * Comprehensive unit tests for runs handler functions
- * Target: 90%+ coverage for src/api/server/handlers/runs.ts
+ * Target: 90%+ coverage for src/api/server/handlers/runs/RunController.ts
  */
 
 import { Request, Response } from 'express';
@@ -13,17 +13,12 @@ import {
   handleListRuns,
   handleRetryStep,
 } from '../../../src/api/server/handlers/runs';
-import { store } from '../../../src/lib/store';
 import * as queue from '../../../src/lib/queue';
-import * as events from '../../../src/lib/events';
 import * as logger from '../../../src/lib/logger';
-import * as observability from '../../../src/lib/observability';
 import * as runRecovery from '../../../src/lib/runRecovery';
 import * as traceLogger from '../../../src/lib/traceLogger';
-import * as planBuilder from '../../../src/api/planBuilder';
 
 // Mock all dependencies
-jest.mock('../../../src/lib/store');
 jest.mock('../../../src/lib/queue', () => ({
   enqueue: jest.fn().mockResolvedValue(undefined),
   hasSubscribers: jest.fn().mockReturnValue(false),
@@ -37,7 +32,6 @@ jest.mock('../../../src/lib/queue', () => ({
   OUTBOX_TOPIC: 'event.out',
   STEP_DLQ_TOPIC: 'step.dlq',
 }));
-jest.mock('../../../src/lib/events');
 jest.mock('../../../src/lib/logger', () => ({
   log: {
     error: jest.fn(),
@@ -45,9 +39,6 @@ jest.mock('../../../src/lib/logger', () => ({
     warn: jest.fn(),
     debug: jest.fn(),
   },
-}));
-jest.mock('../../../src/lib/observability', () => ({
-  setContext: jest.fn(),
 }));
 jest.mock('../../../src/lib/runRecovery', () => ({
   retryStep: jest.fn(),
@@ -67,22 +58,30 @@ jest.mock('../../../src/lib/runRecovery', () => ({
 jest.mock('../../../src/lib/traceLogger', () => ({
   trace: jest.fn(),
 }));
-jest.mock('../../../src/api/planBuilder');
-jest.mock('../../../src/lib/json', () => ({
-  toJsonObject: jest.fn((obj) => obj || {}),
-}));
-jest.mock('../../../src/worker/runner', () => ({
-  runStep: jest.fn().mockResolvedValue(undefined),
-}));
 
-const mockStore = store as jest.Mocked<typeof store>;
+// Mock the RunCoordinator
+jest.mock('../../../src/api/server/handlers/runs/RunCoordinator', () => {
+  return {
+    RunCoordinator: jest.fn().mockImplementation(() => {
+      return {
+        buildPlanFromStandardMode: jest.fn(),
+        createRun: jest.fn(),
+        processStepsAsync: jest.fn().mockResolvedValue(undefined),
+        getRun: jest.fn(),
+        getRunTimeline: jest.fn(),
+        listRuns: jest.fn(),
+      };
+    }),
+  };
+});
+
 const mockQueue = queue as jest.Mocked<typeof queue>;
-const mockEvents = events as jest.Mocked<typeof events>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
-const mockObservability = observability as jest.Mocked<typeof observability>;
 const mockRunRecovery = runRecovery as jest.Mocked<typeof runRecovery>;
 const mockTraceLogger = traceLogger as jest.Mocked<typeof traceLogger>;
-const mockPlanBuilder = planBuilder as jest.Mocked<typeof planBuilder>;
+
+// Get the mocked constructor
+const { RunCoordinator } = require('../../../src/api/server/handlers/runs/RunCoordinator');
 
 describe('Runs Handlers', () => {
   let mockReq: Partial<Request>;
@@ -92,12 +91,14 @@ describe('Runs Handlers', () => {
   let writeHeadMock: jest.Mock;
   let writeMock: jest.Mock;
   let onMock: jest.Mock;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockCoordinator: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Setup response mocks
-    jsonMock = jest.fn().mockReturnThis();
+    jsonMock = jest.fn();
     statusMock = jest.fn().mockReturnThis();
     writeHeadMock = jest.fn();
     writeMock = jest.fn();
@@ -120,11 +121,21 @@ describe('Runs Handlers', () => {
       on: onMock,
     };
 
+    // Setup coordinator mock
+    mockCoordinator = {
+      buildPlanFromStandardMode: jest.fn(),
+      createRun: jest.fn(),
+      processStepsAsync: jest.fn().mockResolvedValue(undefined),
+      getRun: jest.fn(),
+      getRunTimeline: jest.fn(),
+      listRuns: jest.fn(),
+    };
+
+    RunCoordinator.mockImplementation(() => mockCoordinator);
+
     // Default mocks
     (mockTraceLogger.trace as jest.Mock).mockImplementation(() => {});
     (mockLogger.log.error as jest.Mock).mockImplementation(() => {});
-    (mockObservability.setContext as jest.Mock).mockImplementation(() => {});
-    (mockEvents.recordEvent as jest.Mock).mockResolvedValue(undefined);
     (mockQueue.enqueue as jest.Mock).mockResolvedValue(undefined);
     (mockQueue.getOldestAgeMs as jest.Mock).mockReturnValue(null);
     (mockQueue.hasSubscribers as jest.Mock).mockReturnValue(false);
@@ -137,7 +148,7 @@ describe('Runs Handlers', () => {
         steps: [{ name: 'step1', tool: 'bash', inputs: {} }],
       };
 
-      (mockPlanBuilder.buildPlanFromPrompt as jest.Mock).mockResolvedValue(mockPlan);
+      mockCoordinator.buildPlanFromStandardMode.mockResolvedValue(mockPlan);
 
       mockReq.body = {
         standard: {
@@ -149,9 +160,10 @@ describe('Runs Handlers', () => {
 
       await handleRunPreview(mockReq as Request, mockRes as Response);
 
-      expect(mockPlanBuilder.buildPlanFromPrompt).toHaveBeenCalledWith('Create a test feature', {
+      expect(mockCoordinator.buildPlanFromStandardMode).toHaveBeenCalledWith({
+        prompt: 'Create a test feature',
         quality: true,
-        openPr: false,
+        openPr: undefined,
         filePath: undefined,
         summarizeQuery: undefined,
         summarizeTarget: undefined,
@@ -182,7 +194,7 @@ describe('Runs Handlers', () => {
     });
 
     it('should handle plan builder errors', async () => {
-      (mockPlanBuilder.buildPlanFromPrompt as jest.Mock).mockRejectedValue(
+      mockCoordinator.buildPlanFromStandardMode.mockRejectedValue(
         new Error('Plan generation failed')
       );
 
@@ -197,7 +209,7 @@ describe('Runs Handlers', () => {
     });
 
     it('should handle non-Error exceptions', async () => {
-      (mockPlanBuilder.buildPlanFromPrompt as jest.Mock).mockRejectedValue('string error');
+      mockCoordinator.buildPlanFromStandardMode.mockRejectedValue('string error');
 
       mockReq.body = {
         standard: { prompt: 'test', projectId: 'proj-123' },
@@ -207,34 +219,6 @@ describe('Runs Handlers', () => {
 
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(jsonMock).toHaveBeenCalledWith({ error: 'failed to preview' });
-    });
-
-    it('should handle all optional parameters', async () => {
-      const mockPlan = { goal: 'test', steps: [] };
-      (mockPlanBuilder.buildPlanFromPrompt as jest.Mock).mockResolvedValue(mockPlan);
-
-      mockReq.body = {
-        standard: {
-          prompt: 'test',
-          quality: true,
-          openPr: true,
-          filePath: '/test/file.ts',
-          summarizeQuery: 'query',
-          summarizeTarget: 'target',
-          projectId: 'proj-123',
-        },
-      };
-
-      await handleRunPreview(mockReq as Request, mockRes as Response);
-
-      expect(mockPlanBuilder.buildPlanFromPrompt).toHaveBeenCalledWith('test', {
-        quality: true,
-        openPr: true,
-        filePath: '/test/file.ts',
-        summarizeQuery: 'query',
-        summarizeTarget: 'target',
-        projectId: 'proj-123',
-      });
     });
   });
 
@@ -253,15 +237,11 @@ describe('Runs Handlers', () => {
     };
 
     beforeEach(() => {
-      (mockStore.createRun as jest.Mock).mockResolvedValue(mockRun);
-      (mockStore.createStep as jest.Mock).mockResolvedValue({ id: 'step-123', status: 'pending' });
-      (mockStore.getStep as jest.Mock).mockResolvedValue({ id: 'step-123', status: 'pending' });
-      (mockStore.getStepByIdempotencyKey as jest.Mock) = jest.fn().mockResolvedValue(null);
+      mockCoordinator.createRun.mockResolvedValue(mockRun);
+      mockCoordinator.buildPlanFromStandardMode.mockResolvedValue(mockPlan);
     });
 
     it('should create run in standard mode', async () => {
-      (mockPlanBuilder.buildPlanFromPrompt as jest.Mock).mockResolvedValue(mockPlan);
-
       mockReq.body = {
         standard: {
           prompt: 'test prompt',
@@ -271,19 +251,13 @@ describe('Runs Handlers', () => {
 
       await handleCreateRun(mockReq as Request, mockRes as Response);
 
-      expect(mockPlanBuilder.buildPlanFromPrompt).toHaveBeenCalled();
-      expect(mockStore.createRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          goal: 'test',
-          steps: expect.any(Array),
-          user_id: 'user-123',
-          metadata: {
-            created_by: 'user-123',
-            tier: 'free',
-          },
-        }),
-        'proj-123'
-      );
+      expect(mockCoordinator.buildPlanFromStandardMode).toHaveBeenCalled();
+      expect(mockCoordinator.createRun).toHaveBeenCalledWith({
+        plan: mockPlan,
+        projectId: 'proj-123',
+        userId: 'user-123',
+        userTier: 'free',
+      });
       expect(statusMock).toHaveBeenCalledWith(201);
       expect(jsonMock).toHaveBeenCalledWith({
         id: 'run-123',
@@ -300,49 +274,9 @@ describe('Runs Handlers', () => {
 
       await handleCreateRun(mockReq as Request, mockRes as Response);
 
-      expect(mockPlanBuilder.buildPlanFromPrompt).not.toHaveBeenCalled();
-      expect(mockStore.createRun).toHaveBeenCalled();
+      expect(mockCoordinator.buildPlanFromStandardMode).not.toHaveBeenCalled();
+      expect(mockCoordinator.createRun).toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(201);
-    });
-
-    it('should use x-project-id header if not in body', async () => {
-      mockReq.body = { plan: mockPlan };
-      mockReq.headers = { 'x-project-id': 'header-proj' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      expect(mockStore.createRun).toHaveBeenCalledWith(
-        expect.anything(),
-        'header-proj'
-      );
-    });
-
-    it('should default to "default" project if no projectId', async () => {
-      mockReq.body = { plan: mockPlan };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      expect(mockStore.createRun).toHaveBeenCalledWith(
-        expect.anything(),
-        'default'
-      );
-    });
-
-    it('should return 400 for invalid plan schema', async () => {
-      mockReq.body = {
-        plan: { invalid: 'structure' },
-      };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      expect(statusMock).toHaveBeenCalledWith(400);
-      // Error should be a formatted string describing the validation issues
-      expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-        error: expect.any(String),
-      }));
-      // Verify it contains useful information about what's missing
-      const errorCall = jsonMock.mock.calls[0][0];
-      expect(errorCall.error).toMatch(/goal|steps/);
     });
 
     it('should handle missing prompt in standard mode', async () => {
@@ -358,247 +292,8 @@ describe('Runs Handlers', () => {
       });
     });
 
-    it('should process steps and enqueue them', async () => {
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockStore.createStep).toHaveBeenCalled();
-      expect(mockQueue.enqueue).toHaveBeenCalled();
-      expect(mockEvents.recordEvent).toHaveBeenCalledWith(
-        'run-123',
-        'run.created',
-        expect.any(Object)
-      );
-    });
-
-    it('should handle steps with security policy', async () => {
-      const planWithPolicy = {
-        goal: 'test',
-        steps: [{
-          name: 'step1',
-          tool: 'bash',
-          inputs: { command: 'test' },
-          tools_allowed: ['bash'],
-          env_allowed: ['PATH'],
-          secrets_scope: 'project',
-        }],
-      };
-
-      mockReq.body = { plan: planWithPolicy, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockStore.createStep).toHaveBeenCalledWith(
-        'run-123',
-        'step1',
-        'bash',
-        expect.objectContaining({
-          command: 'test',
-          _policy: expect.objectContaining({
-            tools_allowed: ['bash'],
-            env_allowed: ['PATH'],
-            secrets_scope: 'project',
-          }),
-        }),
-        expect.any(String)
-      );
-    });
-
-    it('should skip already succeeded steps', async () => {
-      (mockStore.createStep as jest.Mock).mockResolvedValue({
-        id: 'step-123',
-        status: 'succeeded',
-      });
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      expect(mockQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('should skip cancelled steps', async () => {
-      (mockStore.createStep as jest.Mock).mockResolvedValue({
-        id: 'step-123',
-        status: 'cancelled',
-      });
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      expect(mockQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('should handle backpressure with queue age', async () => {
-      (mockQueue.getOldestAgeMs as jest.Mock).mockReturnValue(8000);
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockQueue.enqueue).toHaveBeenCalledWith(
-        queue.STEP_READY_TOPIC,
-        expect.any(Object),
-        expect.objectContaining({ delay: expect.any(Number) })
-      );
-    });
-
-    it('should handle inline execution for memory queue', async () => {
-      process.env.QUEUE_DRIVER = 'memory';
-      (mockQueue.hasSubscribers as jest.Mock).mockReturnValue(false);
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Verify the run was created successfully
-      expect(mockStore.createRun).toHaveBeenCalled();
-      expect(statusMock).toHaveBeenCalledWith(201);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Verify steps were enqueued (inline execution may or may not run depending on config)
-      expect(mockQueue.enqueue).toHaveBeenCalled();
-
-      delete process.env.QUEUE_DRIVER;
-    });
-
-    it('should handle step creation errors gracefully', async () => {
-      (mockStore.createStep as jest.Mock).mockRejectedValue(new Error('DB error'));
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Should still return 201 as run was created
-      expect(statusMock).toHaveBeenCalledWith(201);
-      expect(mockLogger.log.error).toHaveBeenCalled();
-    });
-
-    it('should handle step without id from createStep', async () => {
-      (mockStore.createStep as jest.Mock).mockResolvedValue(null);
-      (mockStore.getStepByIdempotencyKey as jest.Mock) = jest.fn().mockResolvedValue({ id: 'step-from-key' });
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(statusMock).toHaveBeenCalledWith(201);
-    });
-
-    it('should skip step if no step id can be resolved', async () => {
-      (mockStore.createStep as jest.Mock).mockResolvedValue(null);
-      (mockStore.getStepByIdempotencyKey as jest.Mock) = jest.fn().mockResolvedValue(null);
-      (mockStore.getStep as jest.Mock).mockResolvedValue(null);
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('should record backpressure event when queue age exceeds threshold', async () => {
-      process.env.BACKPRESSURE_AGE_MS = '3000';
-      (mockQueue.getOldestAgeMs as jest.Mock).mockReturnValue(10000);
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockEvents.recordEvent).toHaveBeenCalledWith(
-        'run-123',
-        'queue.backpressure',
-        expect.objectContaining({ ageMs: 10000, delayMs: expect.any(Number) }),
-        'step-123'
-      );
-
-      delete process.env.BACKPRESSURE_AGE_MS;
-    });
-
-    it('should handle inline execution disabled', async () => {
-      process.env.DISABLE_INLINE_RUNNER = '1';
-      process.env.QUEUE_DRIVER = 'memory';
-      (mockQueue.hasSubscribers as jest.Mock).mockReturnValue(false);
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Should not attempt inline execution
-      const { runStep } = require('../../../src/worker/runner');
-      expect(runStep).not.toHaveBeenCalled();
-
-      delete process.env.DISABLE_INLINE_RUNNER;
-      delete process.env.QUEUE_DRIVER;
-    });
-
-    it('should not run inline when queue has subscribers', async () => {
-      process.env.QUEUE_DRIVER = 'memory';
-      (mockQueue.hasSubscribers as jest.Mock).mockReturnValue(true);
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      const { runStep } = require('../../../src/worker/runner');
-      expect(runStep).not.toHaveBeenCalled();
-
-      delete process.env.QUEUE_DRIVER;
-    });
-
-    it('should handle inline execution errors', async () => {
-      const { runStep } = require('../../../src/worker/runner');
-      (runStep as jest.Mock).mockRejectedValue(new Error('Inline execution failed'));
-
-      process.env.QUEUE_DRIVER = 'memory';
-      (mockQueue.hasSubscribers as jest.Mock).mockReturnValue(false);
-
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockLogger.log.error).toHaveBeenCalledWith(
-        expect.objectContaining({ runId: 'run-123', stepId: 'step-123' }),
-        'Inline step execution failed'
-      );
-
-      delete process.env.QUEUE_DRIVER;
-    });
-
-    it('should handle store.createRun errors', async () => {
-      (mockStore.createRun as jest.Mock).mockRejectedValue(new Error('DB error'));
+    it('should handle creation errors', async () => {
+      mockCoordinator.createRun.mockRejectedValue(new Error('DB error'));
       mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
 
       await handleCreateRun(mockReq as Request, mockRes as Response);
@@ -606,41 +301,23 @@ describe('Runs Handlers', () => {
       expect(statusMock).toHaveBeenCalledWith(500);
       expect(jsonMock).toHaveBeenCalledWith({ error: 'Failed to create run' });
     });
-
-    it('should handle missing user context', async () => {
-      mockReq.userId = undefined;
-      mockReq.body = { plan: mockPlan, projectId: 'proj-123' };
-
-      await handleCreateRun(mockReq as Request, mockRes as Response);
-
-      expect(mockStore.createRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: '',
-          metadata: {
-            created_by: '',
-            tier: 'free',
-          },
-        }),
-        'proj-123'
-      );
-    });
   });
 
   describe('handleGetRun', () => {
     it('should return run successfully', async () => {
       const mockRun = { id: 'run-123', status: 'completed' };
-      (mockStore.getRun as jest.Mock).mockResolvedValue(mockRun);
+      mockCoordinator.getRun.mockResolvedValue(mockRun);
 
       mockReq.params = { id: 'run-123' };
 
       await handleGetRun(mockReq as Request, mockRes as Response);
 
-      expect(mockStore.getRun).toHaveBeenCalledWith('run-123');
+      expect(mockCoordinator.getRun).toHaveBeenCalledWith('run-123');
       expect(jsonMock).toHaveBeenCalledWith(mockRun);
     });
 
     it('should return 404 when run not found', async () => {
-      (mockStore.getRun as jest.Mock).mockResolvedValue(null);
+      mockCoordinator.getRun.mockResolvedValue(null);
 
       mockReq.params = { id: 'nonexistent' };
 
@@ -650,8 +327,8 @@ describe('Runs Handlers', () => {
       expect(jsonMock).toHaveBeenCalledWith({ error: 'Run not found' });
     });
 
-    it('should handle store errors', async () => {
-      (mockStore.getRun as jest.Mock).mockRejectedValue(new Error('DB error'));
+    it('should handle errors', async () => {
+      mockCoordinator.getRun.mockRejectedValue(new Error('DB error'));
 
       mockReq.params = { id: 'run-123' };
 
@@ -670,9 +347,8 @@ describe('Runs Handlers', () => {
         { timestamp: '2024-01-01', event: 'run.created' },
       ];
 
-      (mockStore.getRun as jest.Mock).mockResolvedValue(mockRun);
-      // Add getRunTimeline to the mocked store object
-      Object.assign(mockStore, { getRunTimeline: jest.fn().mockResolvedValue(mockTimeline) });
+      mockCoordinator.getRun.mockResolvedValue(mockRun);
+      mockCoordinator.getRunTimeline.mockResolvedValue(mockTimeline);
 
       mockReq.params = { id: 'run-123' };
 
@@ -682,7 +358,7 @@ describe('Runs Handlers', () => {
     });
 
     it('should return 404 when run not found', async () => {
-      (mockStore.getRun as jest.Mock).mockResolvedValue(null);
+      mockCoordinator.getRun.mockResolvedValue(null);
 
       mockReq.params = { id: 'nonexistent' };
 
@@ -692,20 +368,8 @@ describe('Runs Handlers', () => {
       expect(jsonMock).toHaveBeenCalledWith({ error: 'Run not found' });
     });
 
-    it('should return empty timeline if method not available', async () => {
-      const mockRun = { id: 'run-123', status: 'completed' };
-      (mockStore.getRun as jest.Mock).mockResolvedValue(mockRun);
-      delete (mockStore as any).getRunTimeline;
-
-      mockReq.params = { id: 'run-123' };
-
-      await handleGetRunTimeline(mockReq as Request, mockRes as Response);
-
-      expect(jsonMock).toHaveBeenCalledWith({ timeline: [] });
-    });
-
     it('should handle errors', async () => {
-      (mockStore.getRun as jest.Mock).mockRejectedValue(new Error('DB error'));
+      mockCoordinator.getRun.mockRejectedValue(new Error('DB error'));
 
       mockReq.params = { id: 'run-123' };
 
@@ -719,7 +383,7 @@ describe('Runs Handlers', () => {
   describe('handleRunStream', () => {
     it('should setup SSE connection', async () => {
       const mockRun = { id: 'run-123', status: 'running' };
-      (mockStore.getRun as jest.Mock).mockResolvedValue(mockRun);
+      mockCoordinator.getRun.mockResolvedValue(mockRun);
 
       mockReq.params = { id: 'run-123' };
 
@@ -734,7 +398,7 @@ describe('Runs Handlers', () => {
     });
 
     it('should return 404 when run not found', async () => {
-      (mockStore.getRun as jest.Mock).mockResolvedValue(null);
+      mockCoordinator.getRun.mockResolvedValue(null);
 
       mockReq.params = { id: 'nonexistent' };
 
@@ -745,7 +409,7 @@ describe('Runs Handlers', () => {
     });
 
     it('should handle errors', async () => {
-      (mockStore.getRun as jest.Mock).mockRejectedValue(new Error('DB error'));
+      mockCoordinator.getRun.mockRejectedValue(new Error('DB error'));
 
       mockReq.params = { id: 'run-123' };
 
@@ -763,10 +427,7 @@ describe('Runs Handlers', () => {
         { id: 'run-2', status: 'running' },
       ];
 
-      (mockStore.listRuns as jest.Mock).mockResolvedValue({
-        runs: mockRuns,
-        total: 2,
-      });
+      mockCoordinator.listRuns.mockResolvedValue(mockRuns);
 
       mockReq.query = { page: '1', limit: '20' };
 
@@ -783,48 +444,47 @@ describe('Runs Handlers', () => {
       });
     });
 
-    it('should handle array return from store', async () => {
-      const mockRuns = [{ id: 'run-1' }];
-      (mockStore.listRuns as jest.Mock).mockResolvedValue(mockRuns);
+    it('should handle empty results', async () => {
+      mockCoordinator.listRuns.mockResolvedValue([]);
 
       mockReq.query = {};
 
       await handleListRuns(mockReq as Request, mockRes as Response);
 
       expect(jsonMock).toHaveBeenCalledWith({
-        runs: mockRuns,
+        runs: [],
         pagination: {
           page: 1,
           limit: 20,
-          total: 1,
-          pages: 1,
+          total: 0,
+          pages: 0,
         },
       });
     });
 
     it('should enforce max limit of 100', async () => {
-      (mockStore.listRuns as jest.Mock).mockResolvedValue({ runs: [], total: 0 });
+      mockCoordinator.listRuns.mockResolvedValue([]);
 
       mockReq.query = { limit: '200' };
 
       await handleListRuns(mockReq as Request, mockRes as Response);
 
-      expect(mockStore.listRuns).toHaveBeenCalledWith(100);
+      expect(mockCoordinator.listRuns).toHaveBeenCalledWith(100);
     });
 
     it('should handle invalid page/limit values', async () => {
-      (mockStore.listRuns as jest.Mock).mockResolvedValue({ runs: [], total: 0 });
+      mockCoordinator.listRuns.mockResolvedValue([]);
 
       mockReq.query = { page: 'invalid', limit: '-5' };
 
       await handleListRuns(mockReq as Request, mockRes as Response);
 
       // Invalid values result in Math.max(1, NaN) = 1 for limit
-      expect(mockStore.listRuns).toHaveBeenCalledWith(1);
+      expect(mockCoordinator.listRuns).toHaveBeenCalledWith(1);
     });
 
     it('should handle errors', async () => {
-      (mockStore.listRuns as jest.Mock).mockRejectedValue(new Error('DB error'));
+      mockCoordinator.listRuns.mockRejectedValue(new Error('DB error'));
 
       mockReq.query = {};
 

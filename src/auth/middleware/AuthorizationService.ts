@@ -61,31 +61,35 @@ export class AuthorizationService {
    * Require team access with optional role requirements
    */
   requireTeamAccess(requiredRole?: 'owner' | 'admin' | 'member' | 'viewer') {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const teamId = req.params.teamId || req.body.teamId;
       if (!teamId) {
-        return res.status(400).json({ error: 'Team ID required' });
+        res.status(400).json({ error: 'Team ID required' });
+        return;
       }
 
       try {
         const memberRole = await this.getTeamMemberRole(req.userId, teamId);
         if (!memberRole) {
-          return res.status(403).json({
+          res.status(403).json({
             error: 'Access denied',
             message: 'You are not a member of this team'
           });
+          return;
         }
 
         // Check role hierarchy if required role specified
         if (requiredRole && !this.hasRequiredTeamRole(memberRole, requiredRole)) {
-          return res.status(403).json({
+          res.status(403).json({
             error: 'Insufficient permissions',
             message: `This action requires ${requiredRole} role or higher`
           });
+          return;
         }
 
         // Add team info to request

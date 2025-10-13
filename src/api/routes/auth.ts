@@ -1,5 +1,6 @@
 import type { Express } from 'express';
 import { issueAdminCookie } from '../../lib/auth';
+import { authRateLimit } from '../../lib/middleware/rateLimiting';
 
 export default function mount(app: Express){
   app.get('/ui/login', (req, res): void => {
@@ -7,7 +8,7 @@ export default function mount(app: Express){
     const next = (req.query.next as string) || '/ui/app/#/runs';
     res.redirect(`/api/login?next=${encodeURIComponent(next)}`);
   });
-  app.post('/login', (req, res): void => {
+  app.post('/login', authRateLimit, (req, res): void => {
     const pwd = (req.body && (req.body.password || req.body.pwd)) || '';
     const expected = process.env.ADMIN_PASSWORD || 'admin';
     if (pwd !== expected) { res.status(401).render('login', { error: 'Invalid password' }); return; }

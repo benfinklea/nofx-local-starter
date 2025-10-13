@@ -12,9 +12,10 @@ export class RateLimitingService {
    * Rate limiting middleware based on user tier
    */
   rateLimit(windowMs: number = 60000, maxRequests?: number) {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.userId) {
-        return next(); // Skip rate limiting for unauthenticated requests
+        next(); // Skip rate limiting for unauthenticated requests
+        return;
       }
 
       const limit = this.getTierLimit(req.userTier, maxRequests);
@@ -57,7 +58,8 @@ export class RateLimitingService {
     };
 
     const tier = userTier || 'free';
-    return tierLimits[tier] || tierLimits.free;
+    const limit = tierLimits[tier];
+    return limit !== undefined ? limit : tierLimits.free;
   }
 
   /**

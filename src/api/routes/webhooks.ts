@@ -7,6 +7,7 @@ import { Express, Request, Response } from 'express';
 import express from 'express';
 import Stripe from 'stripe';
 import { log } from '../../lib/logger';
+import { webhookRateLimit } from '../../lib/middleware/rateLimiting';
 
 // Import extracted services
 import { WebhookValidationService } from './webhooks/WebhookValidationService';
@@ -35,6 +36,7 @@ export default function mount(app: Express) {
    */
   app.post(
     '/webhooks/stripe',
+    webhookRateLimit,
     express.raw({ type: 'application/json' }),
     async (req: Request, res: Response): Promise<void> => {
       // Validate webhook signature

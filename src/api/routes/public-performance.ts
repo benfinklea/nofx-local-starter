@@ -7,8 +7,7 @@ import { Router, Request, Response } from 'express';
 import { performanceMonitor } from '../../lib/performance-monitor';
 import {
   benchmarkRunner,
-  getBenchmarkStats,
-  generateBenchmarkReport
+  getBenchmarkStats
 } from '../../lib/benchmarks';
 
 const router = Router();
@@ -128,7 +127,7 @@ router.get('/benchmarks/suites', (req: Request, res: Response) => {
  */
 router.get('/benchmarks/stats/:suiteName', (req: Request, res: Response) => {
   try {
-    const { suiteName } = req.params;
+    const suiteName = req.params.suiteName || '';
     const stats = getBenchmarkStats(suiteName);
 
     if (!stats) {

@@ -44,7 +44,7 @@ export default function mount(app: Express){
   /**
    * List all projects
    */
-  app.get('/projects', requireAuth, async (req, res): Promise<void> => {
+  app.get('/projects', requireAuth, async (_req, res): Promise<void> => {
     try {
       const rows = await listProjects();
       ApiResponse.success(res, { projects: rows });
@@ -67,7 +67,8 @@ export default function mount(app: Express){
           code: err.code
         }));
         const apiError = createApiError.validationMultiple('Invalid project data', errors);
-        return ApiResponse.fromApiError(res, apiError);
+        ApiResponse.fromApiError(res, apiError);
+        return;
       }
       const row = await createProject(normalizeProjectInput(parsed.data));
       ApiResponse.success(res, row, 201);
@@ -82,14 +83,17 @@ export default function mount(app: Express){
    */
   app.get('/projects/:id', requireAuth, async (req, res): Promise<void> => {
     try {
-      const row = await getProject(req.params.id);
+      const id = req.params.id || '';
+      const row = await getProject(id);
       if (!row) {
-        const apiError = createApiError.notFound('Project', req.params.id);
-        return ApiResponse.fromApiError(res, apiError);
+        const apiError = createApiError.notFound('Project', id);
+        ApiResponse.fromApiError(res, apiError);
+        return;
       }
       ApiResponse.success(res, row);
     } catch (error) {
-      const apiError = createApiError.internal('Failed to get project', error, { projectId: req.params.id });
+      const id = req.params.id || '';
+      const apiError = createApiError.internal('Failed to get project', error, { projectId: id });
       ApiResponse.fromApiError(res, apiError);
     }
   });
@@ -107,12 +111,15 @@ export default function mount(app: Express){
           code: err.code
         }));
         const apiError = createApiError.validationMultiple('Invalid project data', errors);
-        return ApiResponse.fromApiError(res, apiError);
+        ApiResponse.fromApiError(res, apiError);
+        return;
       }
-      const row = await updateProject(req.params.id, normalizeProjectInput(parsed.data));
+      const id = req.params.id || '';
+      const row = await updateProject(id, normalizeProjectInput(parsed.data));
       ApiResponse.success(res, row);
     } catch (error) {
-      const apiError = createApiError.internal('Failed to update project', error, { projectId: req.params.id });
+      const id = req.params.id || '';
+      const apiError = createApiError.internal('Failed to update project', error, { projectId: id });
       ApiResponse.fromApiError(res, apiError);
     }
   });
@@ -122,10 +129,12 @@ export default function mount(app: Express){
    */
   app.delete('/projects/:id', requireAuth, async (req, res): Promise<void> => {
     try {
-      await deleteProject(req.params.id);
+      const id = req.params.id || '';
+      await deleteProject(id);
       ApiResponse.success(res, { message: 'Project deleted successfully' });
     } catch (error) {
-      const apiError = createApiError.internal('Failed to delete project', error, { projectId: req.params.id });
+      const id = req.params.id || '';
+      const apiError = createApiError.internal('Failed to delete project', error, { projectId: id });
       ApiResponse.fromApiError(res, apiError);
     }
   });

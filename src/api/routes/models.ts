@@ -6,22 +6,31 @@ import { getSettings, updateSettings } from '../../lib/settings';
 
 export default function mount(app: Express){
   app.get('/models', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     const rows = await listModels();
-    return res.json({ models: rows });
+    res.json({ models: rows });
   });
   app.post('/models', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     try {
       const m = await upsertModel(req.body || {});
-      return res.status(201).json(m);
+      res.status(201).json(m);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      return res.status(400).json({ error: msg });
+      res.status(400).json({ error: msg });
     }
   });
   app.post('/models/preview/openai', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     try {
       const filterRaw = (req.body && (req.body.filter || req.body.includes)) || '';
       const excludeRaw = (req.body && (req.body.exclude || req.body.excludes)) || '';
@@ -29,14 +38,17 @@ export default function mount(app: Express){
       const exclude = Array.isArray(excludeRaw) ? excludeRaw : String(excludeRaw).split(',').map((s:string)=>s.trim()).filter(Boolean);
       const recommendedOnly = filter.length === 0 ? !!(req.body && (req.body.recommendedOnly ?? true)) : false;
       const candidates = await listOpenAIModels({ filter, exclude, recommendedOnly });
-      return res.json({ candidates, count: candidates.length });
+      res.json({ candidates, count: candidates.length });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      return res.status(400).json({ error: msg });
+      res.status(400).json({ error: msg });
     }
   });
   app.post('/models/import/:vendor', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     const v = (req.params.vendor || '').toLowerCase();
     try {
       const namesRaw = req.body && (req.body.names || req.body.list);
@@ -49,7 +61,8 @@ export default function mount(app: Express){
           await upsertModel({ provider: v, name: n, kind: v, display_name: n });
           count++;
         }
-        return res.json({ imported: count, via: 'custom-list' });
+        res.json({ imported: count, via: 'custom-list' });
+        return;
       }
       if (v === 'openai') {
         // If explicit names are provided, upsert just those.
@@ -59,7 +72,8 @@ export default function mount(app: Express){
             await upsertModel({ provider: 'openai', name: n, kind: 'openai', display_name: n });
             count++;
           }
-          return res.json({ imported: count, via: 'explicit-list' });
+          res.json({ imported: count, via: 'explicit-list' });
+          return;
         }
         const filterRaw = (req.body && (req.body.filter || req.body.includes)) || '';
         const excludeRaw = (req.body && (req.body.exclude || req.body.excludes)) || '';
@@ -68,19 +82,29 @@ export default function mount(app: Express){
         // If user provided filters, don't restrict to recommended only.
         const recommendedOnly = filter.length === 0 ? !!(req.body && (req.body.recommendedOnly ?? true)) : false;
         const r = await importOpenAIModels({ filter, exclude, recommendedOnly });
-        return res.json(r);
+        res.json(r);
+        return;
       }
-      if (v === 'anthropic') return res.json(await seedAnthropicModels());
-      if (v === 'gemini') return res.json(await seedGeminiModels());
-      return res.status(400).json({ error: 'unknown vendor' });
+      if (v === 'anthropic') {
+        res.json(await seedAnthropicModels());
+        return;
+      }
+      if (v === 'gemini') {
+        res.json(await seedGeminiModels());
+        return;
+      }
+      res.status(400).json({ error: 'unknown vendor' });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      return res.status(400).json({ error: msg });
+      res.status(400).json({ error: msg });
     }
   });
 
   app.post('/models/promote/gemini', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     try {
       const from = 'gemini-1.5-pro';
       const to = 'gemini-2.5-pro';
@@ -109,15 +133,18 @@ export default function mount(app: Express){
         }
       } as const;
       await updateSettings(next);
-      return res.json({ ok: true, updatedModel: to });
+      res.json({ ok: true, updatedModel: to });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      return res.status(400).json({ error: msg });
+      res.status(400).json({ error: msg });
     }
   });
   app.delete('/models/:id', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     await deleteModel(req.params.id);
-    return res.json({ ok: true });
+    res.json({ ok: true });
   });
 }

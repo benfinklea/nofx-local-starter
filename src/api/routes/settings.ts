@@ -8,18 +8,24 @@ import { configureAutoBackup } from '../../lib/autobackup';
 
 export default function mount(app: Express){
   app.get('/settings', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     const settings = await getSettings();
     type RuleRow = { table_name: string; allowed_ops: string[]; constraints: Record<string, unknown> };
     const rules = await query<RuleRow>(`select table_name, allowed_ops, constraints from nofx.db_write_rule where tenant_id='local' order by table_name`)
       .catch(()=>({ rows: [] as RuleRow[] }));
     let models: ModelRow[] = [];
     try { models = await listModels(); } catch { models = []; }
-    return res.json({ settings, db_write_rules: rules.rows, models });
+    res.json({ settings, db_write_rules: rules.rows, models });
   });
 
   app.post('/settings', async (req, res): Promise<void> => {
-    if (!isAdmin(req)) return res.status(401).json({ error: 'auth required', login: '/ui/login' });
+    if (!isAdmin(req)) {
+      res.status(401).json({ error: 'auth required', login: '/ui/login' });
+      return;
+    }
     const body = req.body || {};
     const next = await updateSettings(body.settings || {});
     if (Array.isArray(body.db_write_rules)) {
@@ -38,6 +44,6 @@ export default function mount(app: Express){
     try { await configureAutoBackup(next.ops?.backupIntervalMin); } catch {}
     // Invalidate LLM caches on settings change (model routing/pricing might change)
     try { await invalidateNamespace('llm'); } catch {}
-    return res.json({ ok: true, settings: next });
+    res.json({ ok: true, settings: next });
   });
 }

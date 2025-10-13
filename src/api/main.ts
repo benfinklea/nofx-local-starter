@@ -6,13 +6,14 @@
 import express from "express";
 import dotenv from "dotenv";
 import http from 'node:http';
-import { requireAuth, checkUsage, rateLimit, trackApiUsage } from '../auth/middleware';
+import { requireAuth, checkUsage, trackApiUsage } from '../auth/middleware';
 import { initAutoBackupFromSettings } from '../lib/autobackup';
 import startOutboxRelay from '../worker/relay';
 import { initTracing } from '../lib/tracing';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 import { performanceMiddleware, performanceMonitor } from '../lib/performance-monitor';
 import { idempotency, initializeIdempotencyCache } from '../lib/middleware/idempotency';
+import { generalRateLimit, expensiveOperationRateLimit, adminRateLimit } from '../lib/middleware/rateLimiting';
 // Server configuration modules
 import { setupBasicMiddleware, setupViewEngine } from './server/middleware';
 import { mountCoreRoutes, mountSaasRoutes, mountDynamicRoutes } from './server/routes';
@@ -52,7 +53,7 @@ app.use('/api/public/performance', publicPerformanceRoutes);
 
 // Development admin routes (no auth required, dev only)
 import devAdminRoutes from './routes/dev-admin';
-app.use('/dev', devAdminRoutes);
+app.use('/dev', adminRateLimit, devAdminRoutes);
 
 // Development login route (must be before auth middleware)
 import { issueAdminCookie, isAdmin } from '../lib/auth';
@@ -81,6 +82,9 @@ app.get('/dev/admin-check', (req, res) => {
 setupBasicMiddleware(app);
 setupViewEngine(app);
 
+// Apply general rate limiting globally (after basic middleware, before routes)
+app.use(generalRateLimit);
+
 // Performance monitoring middleware
 app.use(performanceMiddleware());
 
@@ -96,7 +100,7 @@ app.post("/runs",
   idempotency(),
   requireAuth,
   checkUsage('runs'),
-  rateLimit(60000, 100), // 100 requests per minute max
+  expensiveOperationRateLimit, // Expensive operation rate limiting
   trackApiUsage('runs', 1),
   handleCreateRun
 );
@@ -175,6 +179,7 @@ export function startServer() {
       // eslint-disable-next-line no-console
       console.log('⚠️ Server autostart disabled (test mode)');
       // Return a mock server object for tests
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockServer = app as any;
       resolve(mockServer);
       return;

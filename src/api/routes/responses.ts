@@ -68,6 +68,7 @@ function serializeModeratorNote(note: ModeratorNote) {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function serializeIncident(incident: any) {
   return {
     ...incident,
@@ -81,9 +82,9 @@ export default function mount(app: Express) {
     if (!ensureAdmin(req, res)) return;
     try {
       const summary = getResponsesOperationsSummary();
-      return res.json(summary);
+      res.json(summary);
     } catch (err: unknown) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to build summary' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to build summary' }); return;
     }
   });
 
@@ -92,9 +93,9 @@ export default function mount(app: Express) {
     try {
       const status = typeof req.query.status === 'string' ? (req.query.status as 'open' | 'resolved') : 'open';
       const incidents = listResponseIncidents(status);
-      return res.json({ incidents });
+      res.json({ incidents });
     } catch (err: unknown) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list incidents' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list incidents' }); return;
     }
   });
 
@@ -116,12 +117,13 @@ export default function mount(app: Express) {
         disposition: parsed.disposition,
         linkedRunId: parsed.linkedRunId,
       });
-      return res.json({ incident: serializeIncident(incident) });
+      res.json({ incident: serializeIncident(incident) });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to resolve incident' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to resolve incident' }); return;
     }
   });
 
@@ -133,12 +135,13 @@ export default function mount(app: Express) {
         days: typeof req.body?.days !== 'undefined' ? Number(req.body.days) : Number(req.query?.days ?? 0),
       });
       pruneResponsesOlderThanDays(parsed.days);
-      return res.json({ ok: true, summary: getResponsesOperationsSummary() });
+      res.json({ ok: true, summary: getResponsesOperationsSummary() });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'prune failed' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'prune failed' }); return;
     }
   });
 
@@ -152,12 +155,13 @@ export default function mount(app: Express) {
       });
       const payload = schema.parse(req.body ?? {});
       log.info({ event: 'responses.ui_event', ...payload }, 'Responses UI interaction');
-      return res.json({ ok: true });
+      res.json({ ok: true });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to log ui event' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to log ui event' }); return;
     }
   });
 
@@ -172,7 +176,7 @@ export default function mount(app: Express) {
       });
       const parsed = schema.parse(req.body ?? {});
       const result = await retryResponsesRun(id, parsed);
-      return res.status(201).json({
+      res.status(201).json({
         runId: result.runId,
         bufferedMessages: result.bufferedMessages,
         reasoning: result.reasoningSummaries,
@@ -187,12 +191,13 @@ export default function mount(app: Express) {
       });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
       if (err instanceof Error && err.message === 'run not found') {
-        return res.status(404).json({ error: 'not found' });
+        res.status(404).json({ error: 'not found' }); return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'retry failed' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'retry failed' }); return;
     }
   });
 
@@ -211,14 +216,15 @@ export default function mount(app: Express) {
         note: parsed.note,
         disposition: parsed.disposition,
       });
-      return res.status(201).json({
+      res.status(201).json({
         note: serializeModeratorNote(note),
       });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to record note' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to record note' }); return;
     }
   });
 
@@ -236,15 +242,16 @@ export default function mount(app: Express) {
       });
       const parsed = schema.parse(req.body ?? {});
       const snapshot = await rollbackResponsesRun(id, parsed);
-      return res.json(snapshot);
+      res.json(snapshot);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
       if (err instanceof Error && err.message.includes('not found')) {
-        return res.status(404).json({ error: err.message });
+        res.status(404).json({ error: err.message }); return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'rollback failed' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'rollback failed' }); return;
     }
   });
 
@@ -253,9 +260,9 @@ export default function mount(app: Express) {
     const { id } = req.params;
     try {
       const location = await exportResponsesRun(id);
-      return res.json({ ok: true, path: location });
+      res.json({ ok: true, path: location });
     } catch (err: unknown) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'export failed' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'export failed' }); return;
     }
   });
 
@@ -264,9 +271,9 @@ export default function mount(app: Express) {
     try {
       const runtime = getResponsesRuntime();
       const runs = runtime.archive.listRuns().map(serializeRun);
-      return res.json({ runs });
+      res.json({ runs });
     } catch (err: unknown) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list runs' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list runs' }); return;
     }
   });
 
@@ -276,11 +283,14 @@ export default function mount(app: Express) {
     try {
       const runtime = getResponsesRuntime();
       const timeline = runtime.archive.getTimeline(id);
-      if (!timeline) return res.status(404).json({ error: 'not found' });
+      if (!timeline) {
+        res.status(404).json({ error: 'not found' });
+        return;
+      }
 
       const incidents = getRunIncidents(id);
 
-      return res.json({
+      res.json({
         run: serializeRun(timeline.run),
         events: timeline.events.map(serializeEvent),
         bufferedMessages: runtime.coordinator.getBufferedMessages(id),
@@ -294,7 +304,7 @@ export default function mount(app: Express) {
         incidents,
       });
     } catch (err: unknown) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch run' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch run' }); return;
     }
   });
 }

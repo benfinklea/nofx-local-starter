@@ -7,9 +7,9 @@ export function mount(app: Express) {
     try {
       const counts = await getCounts(STEP_READY_TOPIC);
       const oldestAgeMs = getOldestAgeMs(STEP_READY_TOPIC);
-      return res.json({ topic: STEP_READY_TOPIC, counts, oldestAgeMs });
+      res.json({ topic: STEP_READY_TOPIC, counts, oldestAgeMs });
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'failed to get counts' });
+      res.status(500).json({ error: e instanceof Error ? e.message : 'failed to get counts' });
     }
   });
   app.get('/dev/redis', async (_req, res): Promise<void> => {
@@ -17,9 +17,9 @@ export function mount(app: Express) {
     const r = new IORedis(url, { maxRetriesPerRequest: null });
     try {
       const pong = await r.ping();
-      return res.json({ url, ok: pong === 'PONG' });
+      res.json({ url, ok: pong === 'PONG' });
     } catch (e) {
-      return res.status(500).json({ url, ok: false, error: e instanceof Error ? e.message : 'redis error' });
+      res.status(500).json({ url, ok: false, error: e instanceof Error ? e.message : 'redis error' });
     } finally {
       r.disconnect();
     }
@@ -31,9 +31,9 @@ export function mount(app: Express) {
       const ts = await r.get('nofx:worker:heartbeat');
       const last = ts ? Number(ts) : 0;
       const ageMs = last ? Date.now() - last : null;
-      return res.json({ last, ageMs, healthy: !!last && ageMs! < 12000 });
+      res.json({ last, ageMs, healthy: !!last && ageMs! < 12000 });
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'redis error' });
+      res.status(500).json({ error: e instanceof Error ? e.message : 'redis error' });
     } finally {
       r.disconnect();
     }
@@ -43,18 +43,18 @@ export function mount(app: Express) {
   app.get('/dev/dlq', async (_req, res): Promise<void> => {
     try {
       const items = await listDlq(STEP_DLQ_TOPIC);
-      return res.json({ topic: STEP_DLQ_TOPIC, count: items.length, items });
+      res.json({ topic: STEP_DLQ_TOPIC, count: items.length, items });
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'failed to list dlq' });
+      res.status(500).json({ error: e instanceof Error ? e.message : 'failed to list dlq' });
     }
   });
   app.post('/dev/dlq/rehydrate', async (req, res): Promise<void> => {
     const max = Number((req.body?.max ?? 50));
     try {
       const n = await rehydrateDlq(STEP_DLQ_TOPIC, Math.max(0, Math.min(max, 500)));
-      return res.json({ topic: STEP_DLQ_TOPIC, rehydrated: n });
+      res.json({ topic: STEP_DLQ_TOPIC, rehydrated: n });
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'failed to rehydrate dlq' });
+      res.status(500).json({ error: e instanceof Error ? e.message : 'failed to rehydrate dlq' });
     }
   });
 }

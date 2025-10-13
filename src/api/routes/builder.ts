@@ -66,9 +66,9 @@ export default function mount(app: Express) {
     if (!ensureAdmin(req, res)) return;
     try {
       const templates = await manager.listTemplates();
-      return res.json({ templates });
+      res.json({ templates });
     } catch (err: unknown) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list templates' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to list templates' });
     }
   });
 
@@ -95,12 +95,13 @@ export default function mount(app: Express) {
         conversationPolicy: payload.conversationPolicy,
       };
       const created = await manager.createTemplate(input);
-      return res.status(201).json(created);
+      res.status(201).json(created);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to create template' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to create template' });
     }
   });
 
@@ -130,15 +131,17 @@ export default function mount(app: Express) {
       if (parsed.historyPlan !== undefined) patch.historyPlan = parsed.historyPlan;
       if (parsed.conversationPolicy !== undefined) patch.conversationPolicy = parsed.conversationPolicy;
       const updated = await manager.updateTemplate(req.params.id, patch);
-      return res.json(updated);
+      res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
       if (err instanceof Error && err.message === 'template not found') {
-        return res.status(404).json({ error: 'not found' });
+        res.status(404).json({ error: 'not found' });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update template' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update template' });
     }
   });
 
@@ -151,15 +154,17 @@ export default function mount(app: Express) {
         channel: payload.channel,
         enabled: payload.enabled,
       });
-      return res.json(updated);
+      res.json(updated);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
       if (err instanceof Error && err.message === 'template not found') {
-        return res.status(404).json({ error: 'not found' });
+        res.status(404).json({ error: 'not found' });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update deployment' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to update deployment' });
     }
   });
 
@@ -167,12 +172,13 @@ export default function mount(app: Express) {
     if (!ensureAdmin(req, res)) return;
     try {
       const history = await manager.getHistory(req.params.id);
-      return res.json({ history });
+      res.json({ history });
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'template not found') {
-        return res.status(404).json({ error: 'not found' });
+        res.status(404).json({ error: 'not found' });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch history' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to fetch history' });
     }
   });
 
@@ -185,15 +191,17 @@ export default function mount(app: Express) {
         variables: payload.variables,
         metadata: payload.metadata,
       });
-      return res.json(compiled);
+      res.json(compiled);
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
       if (err instanceof Error && err.message === 'template not found') {
-        return res.status(404).json({ error: 'not found' });
+        res.status(404).json({ error: 'not found' });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to compile template' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to compile template' });
     }
   });
 
@@ -217,7 +225,7 @@ export default function mount(app: Express) {
         background: payload.background ?? false,
       });
 
-      return res.status(201).json({
+      res.status(201).json({
         runId: result.runId,
         bufferedMessages: result.bufferedMessages,
         reasoning: result.reasoningSummaries,
@@ -226,12 +234,14 @@ export default function mount(app: Express) {
       });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ error: err.flatten() });
+        res.status(400).json({ error: err.flatten() });
+        return;
       }
       if (err instanceof Error && err.message === 'template not found') {
-        return res.status(404).json({ error: 'not found' });
+        res.status(404).json({ error: 'not found' });
+        return;
       }
-      return res.status(500).json({ error: err instanceof Error ? err.message : 'failed to execute template' });
+      res.status(500).json({ error: err instanceof Error ? err.message : 'failed to execute template' });
     }
   });
 }

@@ -8,6 +8,7 @@ import { requireAuth } from '../../auth/middleware';
 import { createCheckoutSession, createPortalSession, cancelSubscription, resumeSubscription } from '../../billing/stripe';
 import { createServiceClient, getUserTier, trackUsage } from '../../auth/supabase';
 import { log } from '../../lib/logger';
+import { expensiveOperationRateLimit } from '../../lib/middleware/rateLimiting';
 
 export default function mount(app: Express) {
   /**
@@ -17,7 +18,8 @@ export default function mount(app: Express) {
     try {
       const supabase = createServiceClient();
       if (!supabase) {
-        return res.status(500).json({ error: 'Service unavailable' });
+        res.status(500).json({ error: 'Service unavailable' });
+        return;
       }
 
       const { data: products } = await supabase
@@ -29,10 +31,10 @@ export default function mount(app: Express) {
         .eq('active', true)
         .order('metadata->sort_order');
 
-      return res.json({ plans: products || [] });
+      res.json({ plans: products || [] });
     } catch (error) {
       log.error({ error }, 'Error fetching plans');
-      return res.status(500).json({ error: 'Failed to fetch plans' });
+      res.status(500).json({ error: 'Failed to fetch plans' });
     }
   });
 
@@ -42,12 +44,14 @@ export default function mount(app: Express) {
   app.get('/billing/subscription', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const supabase = createServiceClient();
       if (!supabase) {
-        return res.status(500).json({ error: 'Service unavailable' });
+        res.status(500).json({ error: 'Service unavailable' });
+        return;
       }
 
       const { data: subscription } = await supabase
@@ -65,29 +69,31 @@ export default function mount(app: Express) {
 
       const tier = await getUserTier(req.userId);
 
-      return res.json({
+      res.json({
         subscription: subscription || null,
         tier,
         hasActiveSubscription: !!subscription
       });
     } catch (error) {
       log.error({ error }, 'Error fetching subscription');
-      return res.status(500).json({ error: 'Failed to fetch subscription' });
+      res.status(500).json({ error: 'Failed to fetch subscription' });
     }
   });
 
   /**
    * Create Stripe Checkout session
    */
-  app.post('/billing/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  app.post('/billing/checkout', expensiveOperationRateLimit, requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const { priceId } = req.body;
       if (!priceId) {
-        return res.status(400).json({ error: 'Price ID required' });
+        res.status(400).json({ error: 'Price ID required' });
+        return;
       }
 
       const successUrl = `${process.env.APP_URL || 'http://localhost:3000'}/billing/success?session_id={CHECKOUT_SESSION_ID}`;
@@ -96,26 +102,28 @@ export default function mount(app: Express) {
       const checkoutUrl = await createCheckoutSession(req.userId, priceId, successUrl, cancelUrl);
 
       if (!checkoutUrl) {
-        return res.status(500).json({ error: 'Failed to create checkout session' });
+        res.status(500).json({ error: 'Failed to create checkout session' });
+        return;
       }
 
       // Track checkout initiation
       await trackUsage(req.userId, 'checkout_initiated', 1, { priceId });
 
-      return res.json({ url: checkoutUrl });
+      res.json({ url: checkoutUrl });
     } catch (error) {
       log.error({ error }, 'Error creating checkout session');
-      return res.status(500).json({ error: 'Failed to create checkout session' });
+      res.status(500).json({ error: 'Failed to create checkout session' });
     }
   });
 
   /**
    * Create Stripe Customer Portal session
    */
-  app.post('/billing/portal', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  app.post('/billing/portal', expensiveOperationRateLimit, requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const returnUrl = `${process.env.APP_URL || 'http://localhost:3000'}/billing`;
@@ -123,13 +131,14 @@ export default function mount(app: Express) {
       const portalUrl = await createPortalSession(req.userId, returnUrl);
 
       if (!portalUrl) {
-        return res.status(500).json({ error: 'Failed to create portal session' });
+        res.status(500).json({ error: 'Failed to create portal session' });
+        return;
       }
 
-      return res.json({ url: portalUrl });
+      res.json({ url: portalUrl });
     } catch (error) {
       log.error({ error }, 'Error creating portal session');
-      return res.status(500).json({ error: 'Failed to create portal session' });
+      res.status(500).json({ error: 'Failed to create portal session' });
     }
   });
 
@@ -139,12 +148,14 @@ export default function mount(app: Express) {
   app.get('/billing/usage', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const supabase = createServiceClient();
       if (!supabase) {
-        return res.status(500).json({ error: 'Service unavailable' });
+        res.status(500).json({ error: 'Service unavailable' });
+        return;
       }
 
       // Get current month's start
@@ -172,7 +183,7 @@ export default function mount(app: Express) {
         .eq('tier', tier)
         .single();
 
-      return res.json({
+      res.json({
         usage: aggregated,
         limits: {
           runs: tierData?.max_runs_per_month || 0,
@@ -187,7 +198,7 @@ export default function mount(app: Express) {
       });
     } catch (error) {
       log.error({ error }, 'Error fetching usage');
-      return res.status(500).json({ error: 'Failed to fetch usage' });
+      res.status(500).json({ error: 'Failed to fetch usage' });
     }
   });
 
@@ -197,14 +208,16 @@ export default function mount(app: Express) {
   app.post('/billing/cancel', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const { immediately = false } = req.body;
 
       const supabase = createServiceClient();
       if (!supabase) {
-        return res.status(500).json({ error: 'Service unavailable' });
+        res.status(500).json({ error: 'Service unavailable' });
+        return;
       }
 
       // Get active subscription
@@ -216,16 +229,18 @@ export default function mount(app: Express) {
         .single();
 
       if (!subscription) {
-        return res.status(404).json({ error: 'No active subscription found' });
+        res.status(404).json({ error: 'No active subscription found' });
+        return;
       }
 
       const success = await cancelSubscription(subscription.id, immediately);
 
       if (!success) {
-        return res.status(500).json({ error: 'Failed to cancel subscription' });
+        res.status(500).json({ error: 'Failed to cancel subscription' });
+        return;
       }
 
-      return res.json({
+      res.json({
         success: true,
         message: immediately
           ? 'Subscription cancelled immediately'
@@ -233,7 +248,7 @@ export default function mount(app: Express) {
       });
     } catch (error) {
       log.error({ error }, 'Error cancelling subscription');
-      return res.status(500).json({ error: 'Failed to cancel subscription' });
+      res.status(500).json({ error: 'Failed to cancel subscription' });
     }
   });
 
@@ -243,12 +258,14 @@ export default function mount(app: Express) {
   app.post('/billing/resume', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const supabase = createServiceClient();
       if (!supabase) {
-        return res.status(500).json({ error: 'Service unavailable' });
+        res.status(500).json({ error: 'Service unavailable' });
+        return;
       }
 
       // Get cancelled subscription
@@ -260,22 +277,24 @@ export default function mount(app: Express) {
         .single();
 
       if (!subscription) {
-        return res.status(404).json({ error: 'No cancelled subscription found' });
+        res.status(404).json({ error: 'No cancelled subscription found' });
+        return;
       }
 
       const success = await resumeSubscription(subscription.id);
 
       if (!success) {
-        return res.status(500).json({ error: 'Failed to resume subscription' });
+        res.status(500).json({ error: 'Failed to resume subscription' });
+        return;
       }
 
-      return res.json({
+      res.json({
         success: true,
         message: 'Subscription resumed successfully'
       });
     } catch (error) {
       log.error({ error }, 'Error resuming subscription');
-      return res.status(500).json({ error: 'Failed to resume subscription' });
+      res.status(500).json({ error: 'Failed to resume subscription' });
     }
   });
 }

@@ -3,15 +3,17 @@ import { isAdmin } from '../../../src/lib/auth';
 import { store } from '../../../src/lib/store';
 import { withCors } from '../../_lib/cors';
 
-export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   // Check authentication
   const isDev = process.env.NODE_ENV === 'development' || process.env.ENABLE_ADMIN === 'true';
   if (!isDev && !isAdmin(req)) {
-    return res.status(401).json({ error: 'Authentication required' });
+    res.status(401).json({ error: 'Authentication required' });
+    return;
   }
 
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   const runId = req.query.id as string;
