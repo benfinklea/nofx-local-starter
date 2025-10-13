@@ -12,19 +12,9 @@ import path from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { log } from '../logger';
 import { store } from '../store';
+import type { ArtifactRow } from '../store/types';
 
-export interface Artifact {
-  id: string;
-  run_id: string;
-  step_id: string;
-  path: string;
-  type: string;
-  metadata: {
-    size: number;
-    [key: string]: unknown;
-  };
-  created_at: string;
-}
+export type Artifact = ArtifactRow;
 
 export interface ArtifactWithContent {
   content: Buffer;
@@ -162,7 +152,6 @@ export class ArtifactStorage {
 
       // Store metadata in database
       const artifact = await store.createArtifact({
-        run_id: runId,
         step_id: stepId,
         path: storagePath,
         type,

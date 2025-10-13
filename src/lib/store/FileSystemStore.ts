@@ -200,6 +200,63 @@ export class FileSystemStore implements StoreDriver {
     return rows.map((r) => ({ ...r, step_name: names.get(r.step_id) ?? null }));
   }
 
+  async createArtifact(artifact: Omit<ArtifactRow, 'id' | 'created_at'>): Promise<ArtifactRow> {
+    // Extract run_id from step
+    const step = await this.getStep(artifact.step_id);
+    if (!step) throw new Error(`Step ${artifact.step_id} not found`);
+
+    const file = path.join(ROOT, 'runs', step.run_id, 'artifacts.json');
+    const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+
+    const row: ArtifactRow = {
+      id: randomUUID(),
+      ...artifact,
+      created_at: new Date().toISOString(),
+    };
+
+    rows.push(row);
+    await fsp.writeFile(file, JSON.stringify(rows, null, 2));
+    return row;
+  }
+
+  async getArtifact(runId: string, stepId: string, filename: string): Promise<ArtifactRow | null> {
+    const file = path.join(ROOT, 'runs', runId, 'artifacts.json');
+    const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+
+    // Find artifact matching stepId and filename
+    const artifact = rows.find(r => r.step_id === stepId && r.path.endsWith(filename));
+    return artifact || null;
+  }
+
+  async listArtifactsByStep(runId: string, stepId: string): Promise<ArtifactRow[]> {
+    const file = path.join(ROOT, 'runs', runId, 'artifacts.json');
+    const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+    return rows.filter(r => r.step_id === stepId);
+  }
+
+  async deleteArtifact(runId: string, stepId: string, filename: string): Promise<void> {
+    const file = path.join(ROOT, 'runs', runId, 'artifacts.json');
+    const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+
+    // Filter out the artifact
+    const filtered = rows.filter(r => !(r.step_id === stepId && r.path.endsWith(filename)));
+    await fsp.writeFile(file, JSON.stringify(filtered, null, 2));
+  }
+
+  async deleteArtifactsByRun(runId: string): Promise<void> {
+    const file = path.join(ROOT, 'runs', runId, 'artifacts.json');
+    await fsp.writeFile(file, JSON.stringify([], null, 2)).catch(() => {});
+  }
+
+  async deleteArtifactsByStep(runId: string, stepId: string): Promise<void> {
+    const file = path.join(ROOT, 'runs', runId, 'artifacts.json');
+    const rows: ArtifactRow[] = JSON.parse(await fsp.readFile(file, 'utf8').catch(()=> '[]'));
+
+    // Filter out artifacts for this step
+    const filtered = rows.filter(r => r.step_id !== stepId);
+    await fsp.writeFile(file, JSON.stringify(filtered, null, 2));
+  }
+
   async inboxMarkIfNew(key: string): Promise<boolean> {
     if (FS_INBOX_KEYS.has(key)) return false;
     FS_INBOX_KEYS.add(key);
@@ -251,7 +308,7 @@ export class FileSystemStore implements StoreDriver {
     return this.listRuns();
   }
 
-  async createRunWithUser(plan: any, projectId: string): Promise<RunRow> {
+  async createRunWithUser(plan: JsonValue, projectId: string): Promise<RunRow> {
     return this.createRun(plan, projectId);
   }
 }
