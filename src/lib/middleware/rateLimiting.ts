@@ -125,7 +125,7 @@ export const webhookRateLimit = rateLimit({
     return `webhook:${ip}:${source}`;
   },
   handler: rateLimitHandler,
-  skip: (req: Request) => process.env.NODE_ENV === 'test'
+  skip: (_req: Request) => process.env.NODE_ENV === 'test'
 });
 
 /**
@@ -158,7 +158,7 @@ export const createTieredRateLimit = (
     legacyHeaders: false,
     keyGenerator,
     handler: rateLimitHandler,
-    skip: (req: Request) => process.env.NODE_ENV === 'test'
+    skip: (_req: Request) => process.env.NODE_ENV === 'test'
   });
 };
 
@@ -177,6 +177,6 @@ export const createCustomRateLimit = (options: {
     legacyHeaders: false,
     keyGenerator,
     handler: rateLimitHandler,
-    skip: (req: Request) => process.env.NODE_ENV === 'test'
+    skip: (_req: Request) => process.env.NODE_ENV === 'test'
   });
 };
