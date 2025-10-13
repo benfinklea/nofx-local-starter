@@ -12,6 +12,29 @@ import { runsReactEnabled, builderReactEnabled, settingsReactEnabled, responsesR
 const builderManager = new BuilderTemplateManager();
 
 export default function mount(app: Express){
+  // Login page - redirects to dev login in dev/test, otherwise shows login form
+  app.get('/ui/login', async (req, res) => {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      // In dev/test mode, redirect to auto-login
+      const next = (req.query.next as string) || '/ui/settings';
+      return res.redirect(`/dev/login?next=${encodeURIComponent(next)}`);
+    }
+    // In production, render login page (you'd need to create this template)
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Login</title></head>
+      <body>
+        <h1>Login</h1>
+        <form method="GET" action="/dev/login">
+          <input type="password" name="password" placeholder="Password" required />
+          <input type="submit" value="Login" />
+        </form>
+      </body>
+      </html>
+    `);
+  });
+
   app.get('/ui/runs', async (_req, res) => {
     if (runsReactEnabled) {
       return res.redirect('/ui/app/#/runs');

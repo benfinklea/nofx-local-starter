@@ -9,6 +9,9 @@ import { store } from '../store';
 import * as dbModule from '../db';
 
 // Mock dependencies
+// Create mock function that can be reassigned
+const mockWithTransaction = jest.fn().mockImplementation(async (fn: any) => fn());
+
 jest.mock('../store', () => ({
   store: {
     driver: 'db',
@@ -17,7 +20,9 @@ jest.mock('../store', () => ({
   }
 }));
 jest.mock('../db', () => ({
-  withTransaction: jest.fn().mockImplementation(async (fn: any) => fn())
+  get withTransaction() {
+    return mockWithTransaction;
+  }
 }));
 
 const mockedStore = store as any;
@@ -30,7 +35,7 @@ describe('Events Module', () => {
     // Reset mock implementations
     mockedStore.recordEvent = jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void);
     mockedStore.outboxAdd = jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void);
-    mockedDb.withTransaction = jest.fn().mockImplementation(async (fn: any) => {
+    mockWithTransaction.mockReset().mockImplementation(async (fn: any) => {
       return await fn();
     });
   });
@@ -52,7 +57,7 @@ describe('Events Module', () => {
 
       await recordEvent(runId, type, payload, stepId);
 
-      expect(mockedDb.withTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWithTransaction).toHaveBeenCalledTimes(1);
       expect(mockedStore.recordEvent).toHaveBeenCalledWith(
         runId,
         type,
@@ -60,7 +65,7 @@ describe('Events Module', () => {
         stepId
       );
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           runId,
           stepId,
@@ -84,7 +89,7 @@ describe('Events Module', () => {
         undefined
       );
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           runId,
           stepId: null,
@@ -107,7 +112,7 @@ describe('Events Module', () => {
         undefined
       );
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           payload: {}
         })
@@ -150,7 +155,7 @@ describe('Events Module', () => {
         outboxAddCalled = true;
       });
 
-      mockedDb.withTransaction.mockImplementation(async (fn) => {
+      mockWithTransaction.mockImplementation(async (fn: () => Promise<any>) => {
         await fn();
         expect(recordEventCalled).toBe(true);
         expect(outboxAddCalled).toBe(true);
@@ -158,7 +163,7 @@ describe('Events Module', () => {
 
       await recordEvent(runId, type, payload);
 
-      expect(mockedDb.withTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWithTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('propagates errors from recordEvent', async () => {
@@ -181,7 +186,7 @@ describe('Events Module', () => {
     it('rolls back transaction on error', async () => {
       let transactionFailed = false;
 
-      mockedDb.withTransaction.mockImplementation(async (fn) => {
+      mockWithTransaction.mockImplementation(async (fn: () => Promise<any>) => {
         try {
           await fn();
         } catch (error) {
@@ -211,7 +216,7 @@ describe('Events Module', () => {
 
       await recordEvent(runId, type, payload);
 
-      expect(mockedDb.withTransaction).not.toHaveBeenCalled();
+      expect(mockWithTransaction).not.toHaveBeenCalled();
       expect(mockedStore.recordEvent).toHaveBeenCalledWith(
         runId,
         type,
@@ -249,7 +254,7 @@ describe('Events Module', () => {
         stepId
       );
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           runId,
           stepId,
@@ -303,10 +308,11 @@ describe('Events Module', () => {
 
       await recordEvent(runId, type, undefined);
 
+      // When undefined is passed, the default parameter value {} is used
       expect(mockedStore.recordEvent).toHaveBeenCalledWith(
         runId,
         type,
-        undefined,
+        {},
         undefined
       );
     });
@@ -407,7 +413,7 @@ describe('Events Module', () => {
       await recordEvent(runId, type, payload, stepId);
 
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           stepId: 'step-123'
         })
@@ -422,7 +428,7 @@ describe('Events Module', () => {
       await recordEvent(runId, type, payload);
 
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           stepId: null
         })
@@ -438,7 +444,7 @@ describe('Events Module', () => {
       await recordEvent(runId, type, payload, stepId);
 
       expect(mockedStore.outboxAdd).toHaveBeenCalledWith(
-        'outbox',
+        'event.out',
         expect.objectContaining({
           stepId: ''
         })
@@ -467,21 +473,21 @@ describe('Events Module', () => {
 
       expect(mockedStore.recordEvent).toHaveBeenCalledTimes(6);
       expect(mockedStore.outboxAdd).toHaveBeenCalledTimes(6);
-      expect(mockedDb.withTransaction).toHaveBeenCalledTimes(6);
+      expect(mockWithTransaction).toHaveBeenCalledTimes(6);
     });
 
     it('handles mixed driver scenarios', async () => {
       // Start with DB driver
       Object.defineProperty(mockedStore, 'driver', { value: 'db', writable: true });
       await recordEvent('run-mixed', 'run.started', {});
-      expect(mockedDb.withTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWithTransaction).toHaveBeenCalledTimes(1);
 
       jest.clearAllMocks();
 
       // Switch to FS driver
       Object.defineProperty(mockedStore, 'driver', { value: 'fs', writable: true });
       await recordEvent('run-mixed', 'step.completed', {}, 'step-1');
-      expect(mockedDb.withTransaction).not.toHaveBeenCalled();
+      expect(mockWithTransaction).not.toHaveBeenCalled();
     });
 
     it('handles high-volume event recording', async () => {
@@ -495,7 +501,7 @@ describe('Events Module', () => {
 
       expect(mockedStore.recordEvent).toHaveBeenCalledTimes(100);
       expect(mockedStore.outboxAdd).toHaveBeenCalledTimes(100);
-      expect(mockedDb.withTransaction).toHaveBeenCalledTimes(100);
+      expect(mockWithTransaction).toHaveBeenCalledTimes(100);
     });
   });
 

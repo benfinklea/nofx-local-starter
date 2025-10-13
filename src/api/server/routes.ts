@@ -8,7 +8,6 @@ import builderRoutes from '../routes/builder';
 import responsesRoutes from '../routes/responses';
 import authV2Routes from '../routes/auth_v2';
 import billingRoutes from '../routes/billing';
-import webhookRoutes from '../routes/webhooks';
 import teamsRoutes from '../routes/teams';
 import performanceRoutes from '../routes/performance';
 import superAdminRoutes from '../routes/super-admin';
@@ -32,7 +31,7 @@ export function mountSaasRoutes(app: Express) {
   // SaaS authentication and billing routes
   authV2Routes(app);
   billingRoutes(app);
-  webhookRoutes(app);
+  // Note: webhookRoutes are mounted early in main.ts before express.json()
   teamsRoutes(app);
 
   // Super admin routes (protected by email check)

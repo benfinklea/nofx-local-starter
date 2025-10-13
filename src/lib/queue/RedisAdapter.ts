@@ -5,15 +5,29 @@ import { metrics } from "../metrics";
 import { STEP_DLQ_TOPIC } from "./constants";
 
 export class RedisQueueAdapter {
-  connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
-    maxRetriesPerRequest: null
-  });
+  connection: IORedis;
   queues = new Map<string, Queue>();
   private readonly backoffScheduleMs = [0, 2000, 5000, 10000];
   private readonly DLQ_TOPIC = STEP_DLQ_TOPIC;
 
+  constructor() {
+    // Initialize connection in constructor to ensure proper initialization order
+    this.connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+      maxRetriesPerRequest: null
+    });
+
+    this.connection.on('connect', () => log.info('redis.connect'));
+    this.connection.on('ready', () => log.info('redis.ready'));
+    this.connection.on('error', (err) => log.error({ err }, 'redis.error'));
+    this.connection.on('reconnecting', () => log.warn('redis.reconnecting'));
+    this.connection.on('end', () => log.warn('redis.end'));
+  }
+
   private getQueue(topic: string) {
     if (!this.queues.has(topic)) {
+      if (!this.connection) {
+        throw new Error('Redis connection not initialized');
+      }
       const q = new Queue(topic, { connection: this.connection });
       this.queues.set(topic, q);
     }
@@ -94,14 +108,6 @@ export class RedisQueueAdapter {
   async getCounts(topic: string) {
     const q = this.getQueue(topic);
     return q.getJobCounts('waiting','active','completed','failed','delayed','paused');
-  }
-
-  constructor() {
-    this.connection.on('connect', () => log.info('redis.connect'));
-    this.connection.on('ready', () => log.info('redis.ready'));
-    this.connection.on('error', (err) => log.error({ err }, 'redis.error'));
-    this.connection.on('reconnecting', () => log.warn('redis.reconnecting'));
-    this.connection.on('end', () => log.warn('redis.end'));
   }
 
   async listDlq(topic: string) {

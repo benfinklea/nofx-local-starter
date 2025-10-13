@@ -208,6 +208,7 @@ export class FileSystemStore implements StoreDriver {
 
   async inboxDelete(key: string): Promise<void> {
     FS_INBOX_KEYS.delete(key);
+    return Promise.resolve();
   }
 
   async outboxAdd(topic: string, payload: JsonValue): Promise<void> {

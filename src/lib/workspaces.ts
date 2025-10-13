@@ -96,12 +96,15 @@ export class WorkspaceManager {
 
     this.git = simpleGit(workspacePath);
 
+    // Check if directory has any files before git init
+    const filesBeforeInit = await fsp.readdir(workspacePath);
+    const shouldCreateReadme = filesBeforeInit.length === 0;
+
     // Initialize repository
     await this.git.init();
 
-    // Create initial files if directory is empty
-    const files = await fsp.readdir(workspacePath);
-    if (files.length === 0) {
+    // Create initial files if directory was empty
+    if (shouldCreateReadme) {
       // Create a simple README
       const readmePath = path.join(workspacePath, 'README.md');
       await fsp.writeFile(readmePath, `# ${project.name}\n\nThis project was created with NOFX Control Plane.\n`);

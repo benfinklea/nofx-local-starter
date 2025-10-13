@@ -87,7 +87,7 @@ describe('Database Module Tests', () => {
   });
 
   test('handles null and special parameters', async () => {
-    mockPoolQuery.mockResolvedValueOnce({ rows: [] });
+    mockPoolQuery.mockResolvedValue({ rows: [] });
 
     await query('SELECT * FROM users WHERE id = $1', [null]);
     expect(mockPoolQuery).toHaveBeenCalledWith(

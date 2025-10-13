@@ -41,6 +41,11 @@ initTracing('nofx-api').catch(() => { });
 
 const _devRestartWatch = shouldEnableDevRestartWatch();
 
+// Webhook routes MUST be mounted before express.json() middleware
+// because Stripe webhooks need raw body for signature verification
+import webhookRoutes from './routes/webhooks';
+webhookRoutes(app);
+
 // Public performance monitoring endpoints (mounted BEFORE auth middleware)
 import publicPerformanceRoutes from './routes/public-performance';
 app.use('/api/public/performance', publicPerformanceRoutes);

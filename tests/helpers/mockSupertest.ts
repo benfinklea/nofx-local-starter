@@ -5,6 +5,7 @@ import { PassThrough } from 'node:stream';
 type Headers = Record<string, string>;
 
 type ExpectationFn = (res: MockResponse) => void | Promise<void>;
+type ExpectationArg = number | Record<string, any> | ExpectationFn;
 
 type MockResponse = {
   status: number;
@@ -57,15 +58,24 @@ class RequestChain {
     return this;
   }
 
-  expect(arg: number | ExpectationFn) {
+  expect(arg: ExpectationArg) {
     if (typeof arg === 'number') {
       this.expectations.push((res) => {
         if (res.status !== arg) {
           throw new Error(`Expected status ${arg} but received ${res.status}`);
         }
       });
-    } else {
-      this.expectations.push(arg);
+    } else if (typeof arg === 'function') {
+      this.expectations.push(arg as ExpectationFn);
+    } else if (typeof arg === 'object') {
+      // Handle object expectations for body matching
+      this.expectations.push((res) => {
+        const expected = JSON.stringify(arg);
+        const actual = JSON.stringify(res.body);
+        if (expected !== actual) {
+          throw new Error(`Expected body ${expected} but received ${actual}`);
+        }
+      });
     }
     return this;
   }

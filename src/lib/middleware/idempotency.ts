@@ -50,7 +50,7 @@ const ENSURE_IDEMPOTENCY_TABLE = `
     UNIQUE(tenant_id, key, method, path)
   );
   CREATE INDEX IF NOT EXISTS idempotency_cache_expires_idx
-    ON nofx.idempotency_cache(expires_at) WHERE expires_at < now();
+    ON nofx.idempotency_cache(expires_at);
 `;
 
 /**
@@ -326,18 +326,26 @@ export function idempotency(config: IdempotencyConfig = {}): (req: Request, res:
 
       // Override json method
       res.json = function(body: any) {
-        cacheResponseData(body).finally(() => {
-          originalJson(body);
-        });
-        return this;
+        // Cache in background, don't wait for it (only if not already cached)
+        if (!responseCached) {
+          cacheResponseData(body).catch(() => {
+            // Silently ignore cache errors
+          });
+        }
+        // Call original immediately
+        return originalJson(body);
       };
 
       // Override send method
       res.send = function(body: any) {
-        cacheResponseData(body).finally(() => {
-          originalSend(body);
-        });
-        return this;
+        // Cache in background, don't wait for it (only if not already cached)
+        if (!responseCached) {
+          cacheResponseData(body).catch(() => {
+            // Silently ignore cache errors
+          });
+        }
+        // Call original immediately
+        return originalSend(body);
       };
 
       log.debug({

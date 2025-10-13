@@ -29,16 +29,24 @@ function normalizePrimitive(value: unknown): JsonValue | undefined {
   return undefined;
 }
 
-export function toJsonValue(input: unknown): JsonValue {
+export function toJsonValue(input: unknown, seen: WeakSet<object> = new WeakSet()): JsonValue {
   const primitive = normalizePrimitive(input);
   if (primitive !== undefined) return primitive;
 
+  // Detect circular references
+  if (typeof input === 'object' && input !== null) {
+    if (seen.has(input)) {
+      return '[Circular]';
+    }
+    seen.add(input);
+  }
+
   if (Array.isArray(input)) {
-    return input.map((item) => toJsonValue(item));
+    return input.map((item) => toJsonValue(item, seen));
   }
 
   if (input instanceof Set) {
-    return Array.from(input).map((item) => toJsonValue(item));
+    return Array.from(input).map((item) => toJsonValue(item, seen));
   }
 
   if (input instanceof Map) {
@@ -46,7 +54,7 @@ export function toJsonValue(input: unknown): JsonValue {
     for (const [key, value] of input.entries()) {
       if (typeof key !== 'string') continue;
       if (value === undefined) continue;
-      obj[key] = toJsonValue(value);
+      obj[key] = toJsonValue(value, seen);
     }
     return obj;
   }
@@ -55,7 +63,7 @@ export function toJsonValue(input: unknown): JsonValue {
     const obj: JsonObject = {};
     for (const [key, value] of Object.entries(input)) {
       if (value === undefined) continue;
-      obj[key] = toJsonValue(value);
+      obj[key] = toJsonValue(value, seen);
     }
     return obj;
   }

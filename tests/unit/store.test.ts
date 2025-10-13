@@ -15,8 +15,9 @@ jest.mock('../../src/lib/db', () => ({
 
 jest.mock('node:fs');
 jest.mock('node:fs/promises');
+let uuidCounter = 0;
 jest.mock('node:crypto', () => ({
-  randomUUID: jest.fn(() => 'test-uuid-123'),
+  randomUUID: jest.fn(() => `test-uuid-${++uuidCounter}`),
 }));
 
 const mockFs = jest.mocked(fs);
@@ -33,6 +34,9 @@ const ROOT = path.join(process.cwd(), 'local_data');
 describe('Store Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset UUID counter
+    uuidCounter = 0;
 
     // Reset the store factory to ensure fresh instances
     StoreFactory.reset();
@@ -80,12 +84,14 @@ describe('Store Module', () => {
       it('should create a run with FS driver', async () => {
         const plan = { goal: 'test goal' };
         const mockRunData = {
-          id: 'test-uuid-123',
+          id: expect.stringMatching(/^test-uuid-\d+$/),
           status: 'queued',
           plan,
           created_at: expect.any(String),
         };
 
+        // Mock directories don't exist so mkdirSync will be called
+        mockFs.existsSync.mockReturnValue(false);
         mockFsp.readdir.mockResolvedValue(['run1', 'run2'] as any);
         mockFsp.readFile.mockResolvedValue(JSON.stringify([{ id: 'run1', status: 'queued', created_at: '2023-01-01' }]));
 
@@ -93,10 +99,10 @@ describe('Store Module', () => {
 
         expect(result).toMatchObject(mockRunData);
         expect(mockFs.mkdirSync).toHaveBeenCalledWith(ROOT, { recursive: true });
-        expect(mockFs.mkdirSync).toHaveBeenCalledWith(path.join(ROOT, 'runs', 'test-uuid-123'), { recursive: true });
+        expect(mockFs.mkdirSync).toHaveBeenCalledWith(path.join(ROOT, 'runs', result.id), { recursive: true });
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
-          path.join(ROOT, 'runs', 'test-uuid-123', 'run.json'),
-          expect.stringContaining('"status":"queued"')
+          path.join(ROOT, 'runs', result.id, 'run.json'),
+          expect.stringContaining('"status": "queued"')
         );
       });
 
@@ -147,7 +153,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'test-id', 'run.json'),
-          expect.stringContaining('"status":"running"')
+          expect.stringContaining('"status": "running"')
         );
       });
 
@@ -173,11 +179,11 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'test-id', 'run.json'),
-          expect.stringContaining('"status":"queued"')
+          expect.stringContaining('"status": "queued"')
         );
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'test-id', 'run.json'),
-          expect.stringContaining('"ended_at":null')
+          expect.stringContaining('"ended_at": null')
         );
       });
     });
@@ -265,7 +271,7 @@ describe('Store Module', () => {
         const result = await store.createStep('run-id', 'test-step', 'test-tool', inputs);
 
         expect(result).toMatchObject({
-          id: 'test-uuid-123',
+          id: expect.stringMatching(/^test-uuid-\d+$/),
           run_id: 'run-id',
           name: 'test-step',
           tool: 'test-tool',
@@ -276,8 +282,8 @@ describe('Store Module', () => {
         });
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
-          path.join(ROOT, 'runs', 'run-id', 'steps', 'test-uuid-123.json'),
-          expect.stringContaining('"status":"queued"')
+          path.join(ROOT, 'runs', 'run-id', 'steps', result!.id + '.json'),
+          expect.stringContaining('"status": "queued"')
         );
       });
 
@@ -343,7 +349,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'run1', 'steps', 'step-id.json'),
-          expect.stringContaining('"status":"running"')
+          expect.stringContaining('"status": "running"')
         );
       });
     });
@@ -413,7 +419,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'run-id', 'steps', 'step-id.json'),
-          expect.stringContaining('"status":"queued"')
+          expect.stringContaining('"status": "queued"')
         );
       });
     });
@@ -433,7 +439,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'run-id', 'events.json'),
-          expect.stringContaining('"type":"test-event"')
+          expect.stringContaining('"type": "test-event"')
         );
       });
 
@@ -474,7 +480,7 @@ describe('Store Module', () => {
         const result = await store.createOrGetGate('run-id', 'step-id', 'approval');
 
         expect(result).toMatchObject({
-          id: 'test-uuid-123',
+          id: expect.stringMatching(/^test-uuid-\d+$/),
           run_id: 'run-id',
           step_id: 'step-id',
           gate_type: 'approval',
@@ -514,7 +520,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'runs', 'run-id', 'gates.json'),
-          expect.stringContaining('"status":"approved"')
+          expect.stringContaining('"status": "approved"')
         );
       });
     });
@@ -566,7 +572,7 @@ describe('Store Module', () => {
         const result = await store.addArtifact('step-id', 'log', '/path/to/log', { size: 1024 });
 
         expect(result).toMatchObject({
-          id: 'test-uuid-123',
+          id: expect.stringMatching(/^test-uuid-\d+$/),
           step_id: 'step-id',
           type: 'log',
           path: '/path/to/log',
@@ -591,11 +597,12 @@ describe('Store Module', () => {
           { id: 'step1', name: 'Step One' }
         ];
 
+        // First read: artifacts file
+        // Second read: step file
         mockFsp.readFile
           .mockResolvedValueOnce(JSON.stringify(artifacts))
-          .mockResolvedValueOnce('[]'); // for steps readdir
+          .mockResolvedValueOnce(JSON.stringify(steps[0]));
         mockFsp.readdir.mockResolvedValue(['step1.json'] as any);
-        mockFsp.readFile.mockResolvedValueOnce(JSON.stringify(steps[0]));
 
         const result = await store.listArtifactsByRun('run-id');
 
@@ -638,7 +645,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'outbox.json'),
-          expect.stringContaining('"topic":"topic1"')
+          expect.stringContaining('"topic": "topic1"')
         );
       });
 
@@ -666,7 +673,7 @@ describe('Store Module', () => {
 
         expect(mockFsp.writeFile).toHaveBeenCalledWith(
           path.join(ROOT, 'outbox.json'),
-          expect.stringContaining('"sent":true')
+          expect.stringContaining('"sent": true')
         );
       });
     });
@@ -1186,9 +1193,45 @@ describe('Store Module', () => {
   });
 
   describe('Integration Scenarios', () => {
+    // Create a simulated in-memory file system for integration tests
+    const memoryFS = new Map<string, string>();
+
     beforeEach(() => {
       process.env.DATA_DRIVER = 'fs';
       jest.clearAllMocks();
+      memoryFS.clear();
+
+      // Setup mocks to use memory FS
+      mockFsp.writeFile.mockImplementation(async (path: any, data: any) => {
+        memoryFS.set(path as string, data as string);
+        return undefined as any;
+      });
+      mockFsp.readFile.mockImplementation(async (path: any) => {
+        const data = memoryFS.get(path as string);
+        if (!data) throw new Error('File not found');
+        return data as any;
+      });
+      mockFsp.readdir.mockImplementation(async (path: any) => {
+        // Return directory contents based on path
+        const pathStr = path as string;
+
+        // Handle steps directory
+        if (pathStr.includes('/steps')) {
+          const keys = Array.from(memoryFS.keys()).filter(k => k.startsWith(pathStr) && k.endsWith('.json'));
+          return keys.map(k => k.split('/').pop() as string) as any;
+        }
+
+        // Handle events directory or other subdirectories
+        if (pathStr.includes('/runs/') && !pathStr.endsWith('/runs')) {
+          const keys = Array.from(memoryFS.keys()).filter(k => k.startsWith(pathStr) && k.endsWith('.json'));
+          return keys.map(k => k.split('/').pop() as string) as any;
+        }
+
+        // List run directories
+        const keys = Array.from(memoryFS.keys()).filter(k => k.includes('/runs/') && k.endsWith('/run.json'));
+        const runIds = keys.map(k => k.split('/runs/')[1].split('/')[0]);
+        return [...new Set(runIds)] as any;
+      });
     });
 
     it('should handle complete run lifecycle', async () => {

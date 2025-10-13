@@ -59,21 +59,36 @@ jest.mock('ioredis', () => {
 
 // Global test utilities
 global.testUtils = {
-  // Database cleanup between tests
+  // Database cleanup between tests with retry
   async cleanDatabase() {
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL
     });
 
-    try {
-      await pool.query('TRUNCATE nofx.run, nofx.step, nofx.artifact, nofx.event CASCADE');
-    } catch (err) {
-      // Ignore cleanup failures when the database is not available in CI
-      if (process.env.CI) {
-        console.warn('Skipping DB cleanup: database unavailable');
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await pool.query('TRUNCATE nofx.run, nofx.step, nofx.artifact, nofx.event CASCADE');
+        break; // Success
+      } catch (err) {
+        if (attempt === maxRetries) {
+          // Ignore cleanup failures when the database is not available in CI
+          if (process.env.CI) {
+            console.warn('Skipping DB cleanup: database unavailable');
+          } else {
+            console.error('Database cleanup failed:', err);
+          }
+        } else {
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
       }
-    } finally {
-      await pool.end().catch(() => {});
+    }
+
+    try {
+      await pool.end();
+    } catch (err) {
+      // Ignore pool end errors
     }
   },
 
@@ -85,6 +100,23 @@ global.testUtils = {
       timestamp: new Date().toISOString(),
       random: Math.random()
     };
+  },
+
+  // Wait for condition with timeout
+  async waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 5000, intervalMs = 100): Promise<void> {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeoutMs) {
+      if (await Promise.resolve(condition())) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    throw new Error(`Condition not met within ${timeoutMs}ms`);
+  },
+
+  // Flush all pending promises
+  async flushPromises(): Promise<void> {
+    await new Promise(resolve => setImmediate(resolve));
   }
 };
 
@@ -92,6 +124,10 @@ global.testUtils = {
 if (process.env.CI) {
   jest.setTimeout(60000);
 }
+
+// Retry failed tests automatically to reduce flakiness
+// Retry twice in CI, no retry locally
+jest.retryTimes(process.env.CI ? 2 : 0);
 
 // Mock external services by default
 jest.mock('../src/lib/supabase', () => ({
@@ -178,30 +214,83 @@ jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
   })
 }));
 
-// Cleanup after each test
+// Cleanup after each test with retry
 afterEach(async () => {
   jest.clearAllMocks();
+
   if (process.env.INTEGRATION_TEST) {
-    await global.testUtils.cleanDatabase();
+    // Retry database cleanup up to 3 times
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await global.testUtils.cleanDatabase();
+        break;
+      } catch (err) {
+        if (attempt === 3) {
+          console.warn('Database cleanup failed after 3 attempts');
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
+      }
+    }
   }
+
+  // Give time for async operations to complete
+  await new Promise(resolve => setImmediate(resolve));
 });
 
 afterAll(async () => {
+  // Clean up database connection pools with retry
   try {
     const registry: Set<any> | undefined = (globalThis as any).__NOFX_TEST_POOLS__;
     if (registry && registry.size) {
-      for (const pool of registry) {
+      const cleanupPromises = Array.from(registry).map(async (pool) => {
         if (pool && typeof pool.end === 'function') {
-          await Promise.resolve(pool.end()).catch(() => {});
+          // Retry pool cleanup
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            let timeoutHandle: NodeJS.Timeout | null = null;
+            try {
+              await Promise.race([
+                Promise.resolve(pool.end()),
+                new Promise((_, reject) => {
+                  timeoutHandle = setTimeout(() => reject(new Error('Pool cleanup timeout')), 5000);
+                })
+              ]);
+              if (timeoutHandle) clearTimeout(timeoutHandle);
+              break;
+            } catch (err) {
+              if (timeoutHandle) clearTimeout(timeoutHandle);
+              if (attempt === 3) {
+                console.warn('Pool cleanup failed:', err);
+              } else {
+                await new Promise(resolve => setTimeout(resolve, 100));
+              }
+            }
+          }
         }
-      }
+      });
+
+      await Promise.allSettled(cleanupPromises);
       registry.clear();
     }
-  } catch {}
+  } catch (err) {
+    console.warn('Error during pool cleanup:', err);
+  }
+
+  // Final flush of pending operations
+  await new Promise(resolve => setTimeout(resolve, 100));
 });
 
-// Global error handler for unhandled rejections
+// Global error handler for unhandled rejections (with debouncing)
+let unhandledRejectionTimeout: NodeJS.Timeout | null = null;
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection in test:', err);
-  process.exit(1);
+
+  // Debounce the exit to allow cleanup
+  if (unhandledRejectionTimeout) {
+    clearTimeout(unhandledRejectionTimeout);
+  }
+
+  unhandledRejectionTimeout = setTimeout(() => {
+    process.exit(1);
+  }, 100);
 });

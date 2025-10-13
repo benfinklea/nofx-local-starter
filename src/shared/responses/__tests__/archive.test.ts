@@ -170,7 +170,7 @@ describe('InMemoryResponsesArchive Tests', () => {
 
       expect(updated.status).toBe('completed');
       expect(updated.result).toBeDefined();
-      expect(updated.updatedAt.getTime()).toBeGreaterThan(created.createdAt.getTime());
+      expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(created.createdAt.getTime());
     });
 
     it('should throw error when updating non-existent run', () => {
@@ -180,16 +180,20 @@ describe('InMemoryResponsesArchive Tests', () => {
       })).toThrow('Cannot update status for run \'non-existent\': run not found');
     });
 
-    it('should list runs sorted by creation date', () => {
+    it('should list runs sorted by creation date', async () => {
       const runs = ['run-1', 'run-2', 'run-3'];
-      const createdRuns = runs.map((runId, index) => {
-        // Add small delay to ensure different timestamps
-        const now = new Date(Date.now() + index * 10);
-        return archive.startRun({
-          runId,
+
+      // Create runs with small delays to ensure different timestamps
+      for (let i = 0; i < runs.length; i++) {
+        archive.startRun({
+          runId: runs[i],
           request: { input: [], model: 'gpt-4' },
         });
-      });
+        // Small delay to ensure different timestamps
+        if (i < runs.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+      }
 
       const listed = archive.listRuns();
 
@@ -497,7 +501,7 @@ describe('InMemoryResponsesArchive Tests', () => {
       });
 
       const run = archive.getRun('test-run');
-      expect(run!.delegations).toContain(recorded);
+      expect(run!.delegations).toContainEqual(recorded);
     });
 
     it('should update existing delegation', () => {

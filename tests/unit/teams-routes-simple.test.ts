@@ -137,11 +137,12 @@ describe('Teams Routes', () => {
         billing_email: 'billing@example.com'
       };
 
-      mockSupabase.single
-        .mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.insert
-        .mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert().select().single() - returns team data
+      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
+      // Mock for: .insert() - add team member
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert() - activity log
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
         .post('/teams')
@@ -216,12 +217,12 @@ describe('Teams Routes', () => {
   describe('PATCH /teams/:teamId', () => {
     it('should update team successfully', async () => {
       const updateData = { name: 'Updated Team', billingEmail: 'new@example.com' };
-      const mockTeam = { id: 'team-123', ...updateData };
+      const mockTeam = { id: 'team-123', name: 'Updated Team', billing_email: 'new@example.com' };
 
-      mockSupabase.single
-        .mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.insert
-        .mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .update().eq().select().single() - returns updated team
+      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
+      // Mock for: .insert() - activity log
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
         .patch('/teams/team-123')
@@ -287,22 +288,20 @@ describe('Teams Routes', () => {
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      // Setup mocks for the sequence of operations in InviteService.sendTeamInvite
-      let singleCallCount = 0;
-      mockSupabase.single.mockImplementation(() => {
-        singleCallCount++;
-        if (singleCallCount === 1) {
-          // First call: Get team details
-          return Promise.resolve({ data: mockTeam, error: null });
-        } else {
-          // Second call: Create invite
-          return Promise.resolve({ data: mockInvite, error: null });
-        }
-      });
+      // Mock team lookup: .select().eq().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
 
-      // Mock for checking existing member and pending invites (both should return empty)
-      mockSupabase.select.mockReturnValue(mockSupabase);
-      mockSupabase.eq.mockResolvedValue({ data: [], error: null });
+      // Mock existing member check: .select().eq().eq() - returns empty array
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
+
+      // Mock existing invite check: .select().eq().eq().eq() - returns empty array
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
+
+      // Mock invite creation: .insert().select().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
+
+      // Mock activity log: .insert()
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       mockSendTeamInviteEmail.mockResolvedValue(undefined);
 

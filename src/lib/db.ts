@@ -116,7 +116,7 @@ export async function query<T extends QueryResultRow = QueryResultRow>(text: str
     // Performance monitoring: log slow queries
     // Thresholds: WARN at 100ms, ERROR at 500ms
     const queryPreview = text.substring(0, 100).replace(/\s+/g, ' ').trim();
-    const rowCount = res.rows.length;
+    const rowCount = res.rows?.length || 0;
 
     if (latencyMs > 500) {
       // Critical slow query - needs immediate attention

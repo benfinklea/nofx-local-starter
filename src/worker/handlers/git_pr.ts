@@ -91,7 +91,13 @@ const handler: StepHandler = {
         await recordEvent(runId, 'step.failed', { stepId, tool: step.tool, manual: true, gateId: (g as any).id }, stepId);
         throw new Error('git_pr not approved');
       }
-    } catch {/* non-fatal: continue if store not available */}
+    } catch (e) {
+      // Re-throw gate rejection errors
+      if (e instanceof Error && e.message === 'git_pr not approved') {
+        throw e;
+      }
+      /* non-fatal: continue if store not available */
+    }
 
     const inputs: Inputs = step.inputs as Inputs || { commits: [] };
     if (!Array.isArray(inputs.commits) || inputs.commits.length === 0) throw new Error('git_pr requires commits');

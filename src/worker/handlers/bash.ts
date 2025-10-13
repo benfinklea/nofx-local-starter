@@ -48,12 +48,13 @@ const handler: StepHandler = {
         success: result.exitCode === 0
       };
 
-      if (result.exitCode === 0) {
-        await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs });
-        await recordEvent(runId, 'step.finished', { outputs }, stepId);
-      } else {
+      // Mark step as failed if command failed (non-zero exit code)
+      if (result.exitCode !== 0) {
         await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString(), outputs });
         await recordEvent(runId, 'step.failed', { outputs, error: `Command failed with exit code ${result.exitCode}` }, stepId);
+      } else {
+        await store.updateStep(stepId, { status: 'succeeded', ended_at: new Date().toISOString(), outputs });
+        await recordEvent(runId, 'step.finished', { outputs }, stepId);
       }
     } catch (error) {
       const outputs = {
@@ -62,6 +63,7 @@ const handler: StepHandler = {
       };
       await store.updateStep(stepId, { status: 'failed', ended_at: new Date().toISOString(), outputs });
       await recordEvent(runId, 'step.failed', { outputs, error: outputs.error }, stepId);
+      throw error; // Re-throw to allow caller to handle
     }
   }
 };

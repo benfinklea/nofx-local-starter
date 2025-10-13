@@ -5,16 +5,32 @@ import path from 'node:path';
 describe('MemoryQueueAdapter retries + DLQ', () => {
   const cwd = process.cwd();
   let tmp:string;
+  let originalLogLevel: string | undefined;
+
   beforeAll(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nofx-test-'));
     process.chdir(tmp);
     process.env.DATA_DRIVER = 'fs';
     process.env.QUEUE_DRIVER = 'memory';
+
+    // Suppress error logs from intentional test failures
+    originalLogLevel = process.env.LOG_LEVEL;
+    process.env.LOG_LEVEL = 'silent';
+
     jest.resetModules();
     jest.useRealTimers();
   });
+
   afterAll(() => {
     process.chdir(cwd);
+
+    // Restore original log level
+    if (originalLogLevel !== undefined) {
+      process.env.LOG_LEVEL = originalLogLevel;
+    } else {
+      delete process.env.LOG_LEVEL;
+    }
+
     try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
   });
 

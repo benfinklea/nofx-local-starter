@@ -68,6 +68,14 @@ function serializeModeratorNote(note: ModeratorNote) {
   };
 }
 
+function serializeIncident(incident: any) {
+  return {
+    ...incident,
+    occurredAt: typeof incident.occurredAt === 'string' ? incident.occurredAt : incident.occurredAt?.toISOString(),
+    resolvedAt: incident.resolvedAt instanceof Date ? incident.resolvedAt.toISOString() : incident.resolvedAt,
+  };
+}
+
 export default function mount(app: Express) {
   app.get('/responses/ops/summary', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
@@ -108,7 +116,7 @@ export default function mount(app: Express) {
         disposition: parsed.disposition,
         linkedRunId: parsed.linkedRunId,
       });
-      res.json({ incident });
+      res.json({ incident: serializeIncident(incident) });
     } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ error: err.flatten() });

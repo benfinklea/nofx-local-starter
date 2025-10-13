@@ -38,7 +38,7 @@ export default defineConfig({
     // Base URL for tests
     baseURL: process.env.PW_BASE_URL || process.env.NODE_ENV === 'production'
       ? 'https://nofx-local-starter.vercel.app'
-      : 'http://localhost:3000',
+      : 'http://localhost:3002',
 
     // Browser settings
     headless: !!process.env.CI,
@@ -138,8 +138,8 @@ export default defineConfig({
 
   // Web server configuration for local testing
   webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: 'npm run dev:api',
+    url: 'http://localhost:3002/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {

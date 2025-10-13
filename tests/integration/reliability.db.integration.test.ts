@@ -75,10 +75,18 @@ afterAll(async () => {
 
     // Clean up queue if it was loaded
     if (queue) {
-      const { Queue } = await import('bullmq');
-      const q = new Queue(queue.STEP_READY_TOPIC, { connection: { url: REDIS_URL } });
-      await q.drain(true);
-      await q.close();
+      try {
+        const { Queue } = await import('bullmq');
+        // Create an IORedis connection instance to avoid constructor issues
+        const connection = new IORedis(REDIS_URL, { lazyConnect: true });
+        const q = new Queue(queue.STEP_READY_TOPIC, { connection });
+        await q.drain(true);
+        await q.close();
+        await connection.quit();
+      } catch (error) {
+        // Ignore queue cleanup failures in teardown
+        console.warn('⚠️ Queue cleanup failed (non-critical):', error);
+      }
     }
   }
 

@@ -266,14 +266,15 @@ describe('RedisQueueAdapter - Integration Tests', () => {
   });
 
   describe('Error Handling', () => {
-    it('handles queue creation errors gracefully', () => {
+    it('handles queue creation errors gracefully during enqueue', async () => {
       MockedQueue.mockImplementation(() => {
         throw new Error('Queue creation failed');
       });
 
-      expect(() => {
-        new RedisQueueAdapter();
-      }).toThrow('Queue creation failed');
+      const newAdapter = new RedisQueueAdapter();
+
+      await expect(newAdapter.enqueue('test', {}))
+        .rejects.toThrow('Queue creation failed');
     });
 
     it('handles worker creation errors gracefully', () => {

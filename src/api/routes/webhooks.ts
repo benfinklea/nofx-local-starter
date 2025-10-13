@@ -122,12 +122,15 @@ export default function mount(app: Express) {
   /**
    * Test endpoint for webhook (development only)
    */
-  if (process.env.NODE_ENV !== 'production') {
-    app.post('/webhooks/test', async (req: Request, res: Response) => {
-      log.info({ body: req.body }, 'Test webhook received');
-      res.json({ received: true, test: true });
-    });
-  }
+  app.post('/webhooks/test', async (req: Request, res: Response) => {
+    // Runtime check for production
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    log.info({ body: req.body }, 'Test webhook received');
+    res.json({ received: true, test: true });
+  });
 
   /**
    * Health check for webhooks

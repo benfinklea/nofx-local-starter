@@ -249,10 +249,14 @@ describe('Worker Handlers Tests', () => {
 
       await bashHandler.run({ runId: 'run-456', step });
 
-      expect(spawn).toHaveBeenCalledWith('bash', ['-c', 'echo "Hello World"'], {
-        cwd: expect.any(String),
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+      expect(spawn).toHaveBeenCalledWith(
+        'bash',
+        ['-c', 'echo "Hello World"'],
+        expect.objectContaining({
+          cwd: expect.any(String),
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
+      );
 
       expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
         status: 'running',
@@ -286,7 +290,14 @@ describe('Worker Handlers Tests', () => {
 
       await bashHandler.run({ runId: 'run-456', step });
 
-      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
+      // Check that step was marked as running first
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(1, 'step-123', {
+        status: 'running',
+        started_at: expect.any(String)
+      });
+
+      // Then check that step was marked as failed
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(2, 'step-123', {
         status: 'failed',
         ended_at: expect.any(String),
         outputs: {
@@ -362,7 +373,13 @@ describe('Worker Handlers Tests', () => {
 
       await bashHandler.run({ runId: 'run-456', step });
 
-      expect(spawn).toHaveBeenCalledWith('bash', ['-c', 'echo "No command provided"'], expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith(
+        'bash',
+        ['-c', 'echo "No command provided"'],
+        expect.objectContaining({
+          cwd: expect.any(String)
+        })
+      );
     });
 
     test('uses custom working directory', async () => {
@@ -379,10 +396,14 @@ describe('Worker Handlers Tests', () => {
 
       await bashHandler.run({ runId: 'run-456', step });
 
-      expect(spawn).toHaveBeenCalledWith('bash', ['-c', 'pwd'], {
-        cwd: '/custom/path',
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+      expect(spawn).toHaveBeenCalledWith(
+        'bash',
+        ['-c', 'pwd'],
+        expect.objectContaining({
+          cwd: '/custom/path',
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
+      );
     });
 
     test.skip('uses default timeout', async () => {

@@ -69,6 +69,7 @@ describe('git_ops handler', () => {
     it('should handle save operation in hidden mode', async () => {
       // Initialize project first
       await workspaceManager.initializeRepo(testProject);
+      testProject.initialized = true;
 
       // Create a change to save
       const workspacePath = workspaceManager.getWorkspacePath(testProject);
@@ -101,6 +102,7 @@ describe('git_ops handler', () => {
 
     it('should handle status operation in hidden mode', async () => {
       await workspaceManager.initializeRepo(testProject);
+      testProject.initialized = true;
 
       jest.spyOn(require('../../src/lib/projects'), 'getProject').mockResolvedValue(testProject);
 
@@ -138,6 +140,7 @@ describe('git_ops handler', () => {
 
     it('should handle commit with custom message in basic mode', async () => {
       await workspaceManager.initializeRepo(testProject);
+      testProject.initialized = true;
 
       // Create a change
       const workspacePath = workspaceManager.getWorkspacePath(testProject);
@@ -173,6 +176,7 @@ describe('git_ops handler', () => {
 
     it('should handle branch creation in basic mode', async () => {
       await workspaceManager.initializeRepo(testProject);
+      testProject.initialized = true;
 
       jest.spyOn(require('../../src/lib/projects'), 'getProject').mockResolvedValue(testProject);
 
@@ -210,6 +214,7 @@ describe('git_ops handler', () => {
 
     it('should handle selective file commits in advanced mode', async () => {
       await workspaceManager.initializeRepo(testProject);
+      testProject.initialized = true;
 
       const workspacePath = workspaceManager.getWorkspacePath(testProject);
       await fsp.writeFile(path.join(workspacePath, 'file1.js'), 'content1');
@@ -245,6 +250,7 @@ describe('git_ops handler', () => {
 
     it('should return full git status in advanced mode', async () => {
       await workspaceManager.initializeRepo(testProject);
+      testProject.initialized = true;
 
       jest.spyOn(require('../../src/lib/projects'), 'getProject').mockResolvedValue(testProject);
 

@@ -31,15 +31,24 @@ describe('registry API routes', () => {
   });
 
   test('GET /api/agents returns json payload', async () => {
-    jest.doMock('../../src/lib/auth', () => ({
-      isAdmin: () => true
+    jest.doMock('../../src/lib/tenant-auth', () => ({
+      getTenantContext: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        email: 'admin@example.com',
+        tenantId: 'test-tenant',
+        isAuthenticated: true
+      })
     }));
     jest.doMock('../../src/lib/registry', () => ({
       listAgents: jest.fn(async () => ({ agents: [], nextCursor: undefined }))
     }));
     const handler = (await import('../../api/agents/index')).default;
 
-    const req = { method: 'GET', query: {} } as unknown as VercelRequest;
+    const req = {
+      method: 'GET',
+      query: {},
+      headers: { authorization: 'Bearer test-token' }
+    } as unknown as VercelRequest;
     const res = makeRes();
 
     await handler(req, res);
@@ -49,6 +58,14 @@ describe('registry API routes', () => {
   });
 
   test('POST /api/agents/publish validates body and marks inbox', async () => {
+    jest.doMock('../../src/lib/tenant-auth', () => ({
+      getTenantContext: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        email: 'admin@example.com',
+        tenantId: 'test-tenant',
+        isAuthenticated: true
+      })
+    }));
     jest.doMock('../../src/lib/auth', () => ({
       isAdmin: () => true
     }));
@@ -78,7 +95,10 @@ describe('registry API routes', () => {
         manifest: {},
         version: '1.0.0'
       },
-      headers: { 'x-user-id': 'user-1' }
+      headers: {
+        'x-user-id': 'user-1',
+        authorization: 'Bearer test-token'
+      }
     } as unknown as VercelRequest;
     const res = makeRes();
 
@@ -95,6 +115,14 @@ describe('registry API routes', () => {
   });
 
   test('POST /api/agents/publish skips duplicate when inbox returns false', async () => {
+    jest.doMock('../../src/lib/tenant-auth', () => ({
+      getTenantContext: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        email: 'admin@example.com',
+        tenantId: 'test-tenant',
+        isAuthenticated: true
+      })
+    }));
     jest.doMock('../../src/lib/auth', () => ({
       isAdmin: () => true
     }));
@@ -120,7 +148,10 @@ describe('registry API routes', () => {
         manifest: {},
         version: '1.0.0'
       },
-      headers: { 'x-user-id': 'user-1' }
+      headers: {
+        'x-user-id': 'user-1',
+        authorization: 'Bearer test-token'
+      }
     } as unknown as VercelRequest;
     const res = makeRes();
 

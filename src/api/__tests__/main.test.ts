@@ -13,6 +13,9 @@ jest.mock('../../lib/store', () => ({
     getRun: jest.fn(),
     getRunTimeline: jest.fn(),
     listRuns: jest.fn(),
+    createStep: jest.fn(),
+    getStep: jest.fn(),
+    getStepByIdempotencyKey: jest.fn(),
   },
 }));
 
@@ -58,9 +61,9 @@ jest.mock('../../lib/runRecovery', () => ({
 jest.mock('../../auth/middleware', () => ({
   requireAuth: jest.fn((_req: any, _res: any, next: any) => next()),
   optionalAuth: jest.fn((_req: any, _res: any, next: any) => next()),
-  checkUsage: jest.fn((_req: any, _res: any, next: any) => next()),
-  rateLimit: jest.fn((_req: any, _res: any, next: any) => next()),
-  trackApiUsage: jest.fn((_req: any, _res: any, next: any) => next()),
+  checkUsage: jest.fn((_metric: string) => jest.fn((_req: any, _res: any, next: any) => next())),
+  rateLimit: jest.fn((_windowMs?: number, _maxRequests?: number) => jest.fn((_req: any, _res: any, next: any) => next())),
+  trackApiUsage: jest.fn((_metric?: string, _quantity?: number) => jest.fn((_req: any, _res: any, next: any) => next())),
 }));
 
 jest.mock('../routes/builder', () => jest.fn());
@@ -83,6 +86,62 @@ jest.mock('../../lib/devRestart', () => ({
   shouldEnableDevRestartWatch: jest.fn(() => false),
 }));
 
+jest.mock('cookie-parser', () => jest.fn(() => (_req: any, _res: any, next: any) => next()));
+
+jest.mock('../../lib/performance-monitor', () => ({
+  performanceMiddleware: jest.fn(() => (_req: any, _res: any, next: any) => next()),
+  performanceMonitor: {
+    start: jest.fn(),
+    stop: jest.fn(),
+  },
+}));
+
+jest.mock('../../lib/middleware/idempotency', () => ({
+  idempotency: jest.fn(() => (_req: any, _res: any, next: any) => next()),
+  initializeIdempotencyCache: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('../../lib/auth', () => ({
+  issueAdminCookie: jest.fn(() => 'mock-cookie'),
+  isAdmin: jest.fn(() => true),
+}));
+
+jest.mock('../../config', () => ({
+  CORS_ORIGINS: ['http://localhost:3000', 'http://localhost:3002'],
+}));
+
+// Don't mock middleware setup - we want to test the actual middleware stack
+jest.mock('cors', () => jest.fn(() => (_req: any, _res: any, next: any) => next()));
+
+jest.mock('../server/routes', () => ({
+  mountCoreRoutes: jest.fn(),
+  mountSaasRoutes: jest.fn(),
+  mountDynamicRoutes: jest.fn(),
+}));
+
+jest.mock('../server/frontend', () => ({
+  setupFrontendRouting: jest.fn(),
+}));
+
+// Don't mock handlers - we want to test the actual handler logic
+jest.mock('../../lib/json', () => ({
+  toJsonObject: jest.fn((obj: any) => obj || {}),
+}));
+
+jest.mock('../../lib/traceLogger', () => ({
+  trace: jest.fn(),
+}));
+
+jest.mock('../planBuilder', () => ({
+  buildPlanFromPrompt: jest.fn(() => Promise.resolve({
+    name: 'test-plan',
+    steps: [{ tool: 'test', inputs: {} }]
+  })),
+}));
+
+jest.mock('../routes/public-performance', () => jest.fn());
+jest.mock('../routes/dev-admin', () => jest.fn());
+
 describe('Main API Server Tests', () => {
   let app: any;
   let mockStore: any;
@@ -90,12 +149,20 @@ describe('Main API Server Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Set environment variable to disable server autostart in tests
+    process.env.DISABLE_SERVER_AUTOSTART = '1';
+
     // Import the app after all mocks are set up
     const { app: appModule } = require('../main');
     app = appModule;
 
     const { store } = require('../../lib/store');
     mockStore = store;
+  });
+
+  afterEach(() => {
+    // Clean up any pending timers
+    jest.clearAllTimers();
   });
 
   describe('Health Check', () => {
@@ -223,17 +290,28 @@ describe('Main API Server Tests', () => {
     });
 
     describe('GET /runs/:id/stream', () => {
-      it('should setup SSE stream for run events', async () => {
+      it('should setup SSE stream for run events', (done) => {
         mockStore.getRun.mockResolvedValue({
           id: 'test-run-id',
           status: 'running',
         });
 
-        const response = await request(app)
+        const req = request(app)
           .get('/runs/test-run-id/stream')
-          .expect(200);
+          .set('Accept', 'text/event-stream');
 
-        expect(response.headers['content-type']).toContain('text/event-stream');
+        req.on('response', (response: any) => {
+          expect(response.statusCode).toBe(200);
+          expect(response.headers['content-type']).toContain('text/event-stream');
+          req.abort();
+          done();
+        });
+
+        // Add timeout to prevent test from hanging
+        setTimeout(() => {
+          req.abort();
+          done(new Error('Stream test timed out'));
+        }, 2000);
       });
     });
 
@@ -244,17 +322,13 @@ describe('Main API Server Tests', () => {
           total: 2,
         });
 
-        const response = await request(app)
-          .get('/runs')
-          .query({ page: 1, limit: 10 });
+        const response = await request(app).get('/runs?page=1&limit=10');
 
         expect([200, 500]).toContain(response.status);
       });
 
       it('should handle invalid pagination parameters', async () => {
-        const response = await request(app)
-          .get('/runs')
-          .query({ page: -1, limit: 'invalid' });
+        const response = await request(app).get('/runs?page=-1&limit=invalid');
 
         expect([200, 400]).toContain(response.status);
       });

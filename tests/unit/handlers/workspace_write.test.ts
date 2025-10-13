@@ -366,8 +366,8 @@ describe('workspace_write handler', () => {
     });
 
     it('should fail with invalid source specification edge case', async () => {
-      // This tests the else branch at line 78 which is a safety net
-      // We force this by having fromStep but missing artifactName after validation
+      // This tests the validation logic with fromStep but null artifactName
+      // In JavaScript, (fromStep && null) evaluates to null, so !(fromStep && null) is true
       const step: Step = {
         id: 'step-123',
         run_id: 'run-456',
@@ -377,15 +377,16 @@ describe('workspace_write handler', () => {
           projectId: 'proj-1',
           targetPath: 'src/output.ts',
           fromStep: 'prev-step',
-          artifactName: null as any // Force null to bypass validation
+          artifactName: null as any // Force null - validation will catch this
         }
       };
 
       await handler.run({ runId: 'run-456', step });
 
-      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
+      // Check the final call (should be the second one)
+      expect(mockStore.updateStep).toHaveBeenLastCalledWith('step-123', {
         status: 'failed',
-        outputs: { error: expect.stringContaining('Invalid source specification') },
+        outputs: { error: 'workspace:write requires either sourceArtifact or (fromStep + artifactName)' },
         ended_at: expect.any(String)
       });
     });

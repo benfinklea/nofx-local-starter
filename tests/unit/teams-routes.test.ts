@@ -47,6 +47,16 @@ describe('Teams Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Reset all mock implementations to default return values with proper chaining
+    mockSupabase.from.mockReturnValue(mockSupabase);
+    mockSupabase.select.mockReturnValue(mockSupabase);
+    mockSupabase.insert.mockReturnValue(mockSupabase);
+    mockSupabase.update.mockReturnValue(mockSupabase);
+    mockSupabase.delete.mockReturnValue(mockSupabase);
+    mockSupabase.eq.mockReturnValue(mockSupabase);
+    mockSupabase.order.mockReturnValue(mockSupabase);
+    mockSupabase.single.mockReturnValue(mockSupabase);
+
     app = express();
     app.use(express.json());
 
@@ -89,7 +99,7 @@ describe('Teams Routes', () => {
         }
       ];
 
-      mockSupabase.eq.mockResolvedValue({ data: mockTeams, error: null });
+      mockSupabase.order.mockResolvedValue({ data: mockTeams, error: null });
 
       const response = await request(app)
         .get('/teams')
@@ -101,7 +111,8 @@ describe('Teams Routes', () => {
     });
 
     it('should handle database error', async () => {
-      mockSupabase.eq.mockResolvedValue({
+      // Mock the final .order() to return an error
+      mockSupabase.order.mockResolvedValue({
         data: null,
         error: { message: 'Database error' }
       });
@@ -123,18 +134,21 @@ describe('Teams Routes', () => {
       expect(response.body).toEqual({ error: 'Service unavailable' });
     });
 
-    it('should handle exception errors', async () => {
-      mockSupabase.eq.mockRejectedValue(new Error('Network error'));
+    it('should handle unexpected exceptions', async () => {
+      // Simulate an unexpected exception in the service layer
+      mockSupabase.from.mockImplementation(() => {
+        throw new Error('Unexpected error');
+      });
 
       const response = await request(app)
         .get('/teams')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to list teams' });
+      expect(response.body).toEqual({ error: 'Unexpected error' });
     });
 
     it('should return empty array when no teams found', async () => {
-      mockSupabase.eq.mockResolvedValue({ data: null, error: null });
+      mockSupabase.order.mockResolvedValue({ data: null, error: null });
 
       const response = await request(app)
         .get('/teams')
@@ -155,8 +169,11 @@ describe('Teams Routes', () => {
         billing_email: 'billing@example.com'
       };
 
+      // Mock for: .insert().select().single() - returns team data
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
+      // Mock for: .insert() - add team member (no select, so returns immediately)
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert() - activity log (no select, so returns immediately)
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -186,11 +203,15 @@ describe('Teams Routes', () => {
         id: 'team-123',
         name: 'New Team',
         slug: 'new-team',
-        owner_id: 'user-123'
+        owner_id: 'user-123',
+        billing_email: 'test@example.com'
       };
 
+      // Mock for: .insert().select().single() - returns team data
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
+      // Mock for: .insert() - add team member
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert() - activity log
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       await request(app)
@@ -241,8 +262,11 @@ describe('Teams Routes', () => {
       const teamData = { name: 'My Awesome Team!' };
       const mockTeam = { id: 'team-123', slug: 'my-awesome-team' };
 
+      // Mock for: .insert().select().single() - returns team data
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
+      // Mock for: .insert() - add team member
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert() - activity log
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       await request(app)
@@ -297,9 +321,11 @@ describe('Teams Routes', () => {
   describe('PATCH /teams/:teamId', () => {
     it('should update team successfully', async () => {
       const updateData = { name: 'Updated Team', billingEmail: 'new@example.com' };
-      const mockTeam = { id: 'team-123', ...updateData };
+      const mockTeam = { id: 'team-123', name: 'Updated Team', billing_email: 'new@example.com' };
 
+      // Mock for: .update().select().single() - returns updated team
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
+      // Mock for: .insert() - activity log
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -336,7 +362,10 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId', () => {
     it('should delete team successfully', async () => {
-      mockSupabase.eq.mockResolvedValue({ data: null, error: null });
+      // Mock for: .delete().eq() - delete operation
+      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert() - activity log
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
         .delete('/teams/team-123')
@@ -372,22 +401,25 @@ describe('Teams Routes', () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
       const mockInvite = {
         id: 'invite-123',
+        email: 'newuser@example.com',
+        role: 'member',
         token: 'invite-token-123',
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      // Mock team lookup
-      mockSupabase.single
-        .mockResolvedValueOnce({ data: mockTeam, error: null })
-        .mockResolvedValueOnce({ data: mockInvite, error: null });
+      // Mock team lookup: .select().eq().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
 
-      // Mock existing member check
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+      // Mock existing member check: .select().eq().eq() - returns empty array
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
 
-      // Mock existing invite check
-      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+      // Mock existing invite check: .select().eq().eq().eq() - returns empty array
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
 
-      // Mock activity log
+      // Mock invite creation: .insert().select().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
+
+      // Mock activity log: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       mockSendTeamInviteEmail.mockResolvedValue(undefined);
@@ -406,7 +438,7 @@ describe('Teams Routes', () => {
         'newuser@example.com',
         expect.objectContaining({
           teamName: 'Test Team',
-          inviterName: 'test@example.com'
+          inviterName: 'New User'
         })
       );
     });
@@ -424,10 +456,11 @@ describe('Teams Routes', () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
       const existingMember = { id: 'member-123', role: 'member' };
 
+      // Mock team lookup: .select().eq().single()
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: [existingMember], error: null })
-        .mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock existing member check: .select().eq().eq() - returns member found
+      mockSupabase.eq.mockResolvedValueOnce({ data: [existingMember], error: null });
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -441,10 +474,14 @@ describe('Teams Routes', () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
       const existingInvite = { id: 'invite-123', status: 'pending' };
 
+      // Mock team lookup: .select().eq().single()
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: null, error: null }) // no existing member
-        .mockResolvedValueOnce({ data: [existingInvite], error: null }); // existing invite
+
+      // Mock existing member check: .select().eq().eq() - no existing member
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
+
+      // Mock existing invite check: .select().eq().eq().eq() - existing invite found
+      mockSupabase.eq.mockResolvedValueOnce({ data: [existingInvite], error: null });
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -458,15 +495,20 @@ describe('Teams Routes', () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
       const mockInvite = { id: 'invite-123', token: 'token-123' };
 
-      mockSupabase.single
-        .mockResolvedValueOnce({ data: mockTeam, error: null })
-        .mockResolvedValueOnce({ data: mockInvite, error: null });
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: null, error: null });
-      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock team lookup: .select().eq().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
 
-      mockSendTeamInviteEmail.mockRejectedValue(new Error('Email service unavailable'));
+      // Mock existing member check: .select().eq().eq() - no existing member
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
+
+      // Mock existing invite check: .select().eq().eq().eq() - no existing invite
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
+
+      // Mock invite creation: .insert().select().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
+
+      // Simulate email service throwing an error
+      mockSendTeamInviteEmail.mockRejectedValue(new Error('Failed to send invite email'));
 
       const response = await request(app)
         .post('/teams/team-123/invites')
@@ -488,16 +530,16 @@ describe('Teams Routes', () => {
         status: 'pending'
       };
 
-      // Mock invite lookup
+      // Mock invite lookup: .select().eq().single()
       mockSupabase.single.mockResolvedValueOnce({ data: mockInvite, error: null });
 
-      // Mock member insertion
+      // Mock member insertion: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
-      // Mock invite update
+      // Mock invite update: .update().eq()
       mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
 
-      // Mock activity log
+      // Mock activity log: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -577,7 +619,11 @@ describe('Teams Routes', () => {
 
   describe('DELETE /teams/:teamId/invites/:inviteId', () => {
     it('should cancel invite successfully', async () => {
-      mockSupabase.eq.mockResolvedValue({ data: null, error: null });
+      // Mock invite update: .update().eq().eq()
+      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock activity log: .insert()
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
         .delete('/teams/team-123/invites/invite-123')
@@ -604,13 +650,22 @@ describe('Teams Routes', () => {
     it('should update member role successfully', async () => {
       const mockMember = {
         id: 'member-123',
+        role: 'member',
+        user: { id: 'user-456', email: 'member@example.com' }
+      };
+      const updatedMember = {
+        id: 'member-123',
         role: 'admin',
         user: { id: 'user-456', email: 'member@example.com' }
       };
 
-      mockSupabase.single
-        .mockResolvedValueOnce({ data: mockMember, error: null })
-        .mockResolvedValueOnce({ data: mockMember, error: null });
+      // Mock get current member: .select().eq().eq().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: mockMember, error: null });
+
+      // Mock update member: .update().eq().eq().select().single()
+      mockSupabase.single.mockResolvedValueOnce({ data: updatedMember, error: null });
+
+      // Mock activity log: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -618,7 +673,7 @@ describe('Teams Routes', () => {
         .send({ role: 'admin' })
         .expect(200);
 
-      expect(response.body).toEqual({ member: mockMember });
+      expect(response.body).toEqual({ member: updatedMember });
     });
 
     it('should prevent role change of team owner', async () => {
@@ -656,8 +711,13 @@ describe('Teams Routes', () => {
         user: { id: 'user-456', email: 'member@example.com' }
       };
 
+      // Mock get member: .select().eq().eq().single()
       mockSupabase.single.mockResolvedValueOnce({ data: mockMember, error: null });
+
+      // Mock delete member: .delete().eq().eq()
       mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock activity log: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -686,7 +746,13 @@ describe('Teams Routes', () => {
 
   describe('POST /teams/:teamId/leave', () => {
     it('should allow member to leave team', async () => {
+      // Mock check membership: .select().eq().eq() - returns member (not owner)
+      mockSupabase.eq.mockResolvedValueOnce({ data: [{ id: 'member-123', role: 'member' }], error: null });
+
+      // Mock delete membership: .delete().eq().eq()
       mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock activity log: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -722,10 +788,16 @@ describe('Teams Routes', () => {
         user: { id: 'user-456', email: 'newowner@example.com' }
       };
 
+      // Mock validate new owner: .select().eq().eq().single()
       mockSupabase.single.mockResolvedValueOnce({ data: newOwner, error: null });
-      mockSupabase.eq
-        .mockResolvedValueOnce({ data: null, error: null }) // update new owner
-        .mockResolvedValueOnce({ data: null, error: null }); // update old owner
+
+      // Mock update new owner: .update().eq().eq()
+      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock update old owner: .update().eq().eq()
+      mockSupabase.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock activity log: .insert()
       mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       const response = await request(app)
@@ -780,7 +852,7 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to list teams' });
+      expect(response.body).toEqual({ error: 'Unexpected error' });
     });
   });
 
@@ -826,10 +898,12 @@ describe('Teams Routes', () => {
     it('should log team creation activity', async () => {
       const mockTeam = { id: 'team-123', name: 'Test Team' };
 
+      // Mock for: .insert().select().single() - returns team data
       mockSupabase.single.mockResolvedValueOnce({ data: mockTeam, error: null });
-      mockSupabase.insert
-        .mockResolvedValueOnce({ data: null, error: null }) // member
-        .mockResolvedValueOnce({ data: null, error: null }); // activity log
+      // Mock for: .insert() - add team member
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+      // Mock for: .insert() - activity log
+      mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
 
       await request(app)
         .post('/teams')

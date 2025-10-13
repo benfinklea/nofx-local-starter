@@ -111,7 +111,7 @@ describe('registry store', () => {
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
-      if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1') && params[0] === 'doc-writer') {
+      if (sql.includes('select * from nofx.agent_registry where agent_id = $1') && sql.includes('limit 1') && params[0] === 'doc-writer') {
         lookupCount += 1;
         return lookupCount === 1 ? { rows: [] } : { rows: [registryRow] };
       }
@@ -124,7 +124,7 @@ describe('registry store', () => {
       if (sql.startsWith('insert into nofx.agent_versions')) {
         return { rows: [versionRow] };
       }
-      if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1')) {
+      if (sql.includes('select * from nofx.agent_registry where agent_id = $1') && sql.includes('limit 1')) {
         return { rows: [registryRow] };
       }
       if (sql.startsWith('select * from nofx.agent_versions where agent_id = $1')) {
@@ -160,7 +160,7 @@ describe('registry store', () => {
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
-      if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1')) {
+      if (sql.includes('select * from nofx.agent_registry where agent_id = $1') && sql.includes('limit 1')) {
         return { rows: [] };
       }
       throw new Error(`Unexpected query: ${sql}`);
@@ -356,7 +356,7 @@ describe('registry store', () => {
       if (sql.includes('select 1 from nofx.template_registry')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_usage_daily')) return { rows: [{ ok: 1 }] };
       if (sql.includes('select 1 from nofx.template_feedback')) return { rows: [{ ok: 1 }] };
-      if (sql.startsWith('select * from nofx.agent_registry where agent_id = $1 limit 1')) {
+      if (sql.includes('select * from nofx.agent_registry where agent_id = $1') && sql.includes('limit 1')) {
         return { rows: [agentRow] };
       }
       if (sql.startsWith('select * from nofx.agent_versions where agent_id = $1 and version = $2')) {

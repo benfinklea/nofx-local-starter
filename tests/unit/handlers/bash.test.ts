@@ -125,29 +125,41 @@ describe('bash handler', () => {
       // Should spawn with correct command
       expect(mockSpawn).toHaveBeenCalledWith('bash', ['-c', 'echo "hello world"'], {
         cwd: '/default/cwd',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-        env: expect.any(Object)
+        stdio: ['ignore', 'pipe', 'pipe']
       });
 
-      // Should update step to succeeded
-      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
+      // Should update step to running first, then succeeded
+      expect(mockStore.updateStep).toHaveBeenCalledTimes(2);
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(1, 'step-123', {
+        status: 'running',
+        started_at: expect.any(String)
+      });
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(2, 'step-123', {
         status: 'succeeded',
         ended_at: expect.any(String),
         outputs: {
           command: 'echo "hello world"',
-          stdout: 'hello world\n',
+          stdout: 'hello world', // Handler trims output
           stderr: '',
           exitCode: 0,
           success: true
         }
       });
 
-      // Should record completion event
-      expect(mockRecordEvent).toHaveBeenCalledWith(
+      // Should record start and completion events
+      expect(mockRecordEvent).toHaveBeenCalledTimes(2);
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(
+        1,
+        'run-123',
+        'step.started',
+        { name: 'run-command', tool: 'bash' },
+        'step-123'
+      );
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(
+        2,
         'run-123',
         'step.finished',
-        { name: 'run-command', tool: 'bash', exitCode: 0 },
+        { outputs: expect.objectContaining({ exitCode: 0 }) },
         'step-123'
       );
     });
@@ -170,17 +182,30 @@ describe('bash handler', () => {
 
       await runPromise;
 
-      expect(mockStore.updateStep).toHaveBeenCalledWith('step-123', {
-        status: 'succeeded',
+      // Non-zero exit code now marks step as failed
+      expect(mockStore.updateStep).toHaveBeenNthCalledWith(2, 'step-123', {
+        status: 'failed',
         ended_at: expect.any(String),
         outputs: {
           command: 'ls nonexistent_file',
           stdout: '',
-          stderr: 'ls: nonexistent_file: No such file or directory\n',
+          stderr: 'ls: nonexistent_file: No such file or directory', // Handler trims output
           exitCode: 1,
           success: false
         }
       });
+
+      // Should record failed event
+      expect(mockRecordEvent).toHaveBeenNthCalledWith(
+        2,
+        'run-123',
+        'step.failed',
+        {
+          outputs: expect.objectContaining({ exitCode: 1 }),
+          error: 'Command failed with exit code 1'
+        },
+        'step-123'
+      );
     });
 
     it('should use project workspace when project_id provided', async () => {
@@ -212,9 +237,7 @@ describe('bash handler', () => {
       expect(mockWorkspaceManager.ensureWorkspace).toHaveBeenCalledWith(project);
       expect(mockSpawn).toHaveBeenCalledWith('bash', ['-c', 'pwd'], {
         cwd: '/project/workspace',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-        env: expect.any(Object)
+        stdio: ['ignore', 'pipe', 'pipe']
       });
     });
 
@@ -246,9 +269,7 @@ describe('bash handler', () => {
       expect(mockGetProject).toHaveBeenCalledWith('proj-456');
       expect(mockSpawn).toHaveBeenCalledWith('bash', ['-c', 'ls'], {
         cwd: '/workspace/path',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-        env: expect.any(Object)
+        stdio: ['ignore', 'pipe', 'pipe']
       });
     });
 
@@ -277,9 +298,7 @@ describe('bash handler', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith('bash', ['-c', 'ls'], {
         cwd: '/direct/path',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-        env: expect.any(Object)
+        stdio: ['ignore', 'pipe', 'pipe']
       });
     });
 
@@ -306,9 +325,7 @@ describe('bash handler', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith('bash', ['-c', 'pwd'], {
         cwd: '/custom/working/dir',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-        env: expect.any(Object)
+        stdio: ['ignore', 'pipe', 'pipe']
       });
     });
 
@@ -316,23 +333,20 @@ describe('bash handler', () => {
       const mockProcess = new MockChildProcess();
       mockSpawn.mockReturnValue(mockProcess as any);
 
+      // Set a very short timeout to trigger it
       const runPromise = bashHandler.run({
         runId: 'run-123',
         step: {
           ...baseStep,
           inputs: {
             command: 'sleep 60',
-            timeout: 1000 // 1 second timeout
+            timeout: 10 // Very short timeout
           }
         } as any
       });
 
-      // Simulate timeout after 1 second
-      setTimeout(() => {
-        mockProcess.simulateTimeout();
-      }, 10);
-
-      await expect(runPromise).rejects.toThrow();
+      // Expect the promise to reject with timeout error
+      await expect(runPromise).rejects.toThrow('Command timed out');
 
       // Should have tried to kill the process
       expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
@@ -358,9 +372,7 @@ describe('bash handler', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith('bash', ['-c', 'echo "No command provided"'], {
         cwd: '/default/cwd',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false,
-        env: expect.any(Object)
+        stdio: ['ignore', 'pipe', 'pipe']
       });
     });
 

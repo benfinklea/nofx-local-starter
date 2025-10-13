@@ -268,23 +268,35 @@ describe('Worker Integration Tests', () => {
         inputs: {}
       };
 
-      mocks.store.getStep.mockResolvedValue(mockStep);
-      mocks.store.inboxMarkIfNew.mockResolvedValue(true);
-      mocks.store.updateStep.mockResolvedValue(undefined);
-
-      // Make countRemainingSteps always fail to simulate atomic operation failure
-      mocks.store.countRemainingSteps.mockRejectedValue(new Error('Count failed'));
-
-      // The atomic operation should fail
-      mocks.tx.runAtomically.mockImplementation(async (fn: Function) => {
-        try {
-          return await fn();
-        } catch (err) {
-          throw err;
-        }
+      // First call returns the step, second call (in atomic block) succeeds
+      let getStepCallCount = 0;
+      mocks.store.getStep.mockImplementation(() => {
+        getStepCallCount++;
+        return Promise.resolve(mockStep);
       });
 
-      await expect(runner.runStep('run-456', 'step-123')).rejects.toThrow('Count failed');
+      mocks.store.inboxMarkIfNew.mockResolvedValue(true);
+
+      // Make updateStep fail on the success update to simulate atomic operation failure
+      let updateStepCallCount = 0;
+      mocks.store.updateStep.mockImplementation(() => {
+        updateStepCallCount++;
+        // Fail when trying to mark as succeeded (in the atomic block after handler runs)
+        if (updateStepCallCount === 1) {
+          return Promise.reject(new Error('Update failed'));
+        }
+        return Promise.resolve(undefined);
+      });
+
+      // The atomic operation should fail and the error should propagate
+      mocks.tx.runAtomically.mockImplementation(async (fn: Function) => {
+        return await fn();
+      });
+
+      await expect(runner.runStep('run-456', 'step-123')).rejects.toThrow('Update failed');
+
+      // Verify the error was logged
+      expect(mocks.logger.log.error).toHaveBeenCalled();
     });
 
     test('handles handler loading failures', async () => {

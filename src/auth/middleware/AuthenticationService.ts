@@ -92,6 +92,13 @@ export class AuthenticationService {
    * Require authentication - blocks unauthenticated requests
    */
   async requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+    // Bypass auth in test/integration mode
+    if (process.env.NODE_ENV === 'test' || process.env.BYPASS_AUTH === 'true') {
+      req.userId = req.headers['x-test-user-id'] as string || 'test-user-123';
+      req.userTier = 'free';
+      return next();
+    }
+
     await this.authenticate(req, res, () => {
       if (!req.userId) {
         return res.status(401).json({

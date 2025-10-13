@@ -6,8 +6,20 @@
 import { Resend } from 'resend';
 import { log } from '../logger';
 
-// Initialize Resend client - use dummy key in test environment
-const resend = new Resend(process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'test' ? 're_test_key' : undefined));
+// Lazy initialization of Resend client for better testability
+let resendInstance: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendInstance) {
+    resendInstance = new Resend(process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'test' ? 're_test_key' : undefined));
+  }
+  return resendInstance;
+}
+
+// Export for testing - allows tests to reset the client instance
+export function resetResendClient(): void {
+  resendInstance = null;
+}
 
 // Email configuration
 export const EMAIL_CONFIG = {
@@ -76,8 +88,11 @@ export async function sendEmail(options: EmailOptions): Promise<{ id: string; su
     };
   }
 
-  // Sanitize subject - remove CRLF injection attempts
-  const sanitizedSubject = options.subject.replace(/[\r\n]/g, '');
+  // Sanitize subject - remove CRLF injection attempts and any header-like content
+  let sanitizedSubject = options.subject.replace(/[\r\n\t]/g, '');
+  // Remove anything that looks like an email header injection (header name followed by colon)
+  // This needs to handle cases like "Test\r\nBcc:" or mid-string injections
+  sanitizedSubject = sanitizedSubject.replace(/(Bcc|Cc|To|From|Subject|X-[\w-]+):\s*/gi, '');
 
   // Validate API key
   if (!process.env.RESEND_API_KEY) {
@@ -100,13 +115,13 @@ export async function sendEmail(options: EmailOptions): Promise<{ id: string; su
   const finalHtml = options.html ? options.html.replace(/\{\{[^}]*\}\}/g, '') : undefined;
 
   const emailData = {
-    from: options.from || EMAIL_CONFIG.from,
+    from: options.from || process.env.EMAIL_FROM || EMAIL_CONFIG.from,
     to: options.to,
     subject: finalSubject,
     html: finalHtml,
     text: options.text,
     react: options.react,
-    reply_to: options.replyTo || EMAIL_CONFIG.replyTo,
+    reply_to: options.replyTo || process.env.EMAIL_REPLY_TO || EMAIL_CONFIG.replyTo,
     cc: options.cc,
     bcc: options.bcc,
     attachments: options.attachments,
@@ -125,7 +140,7 @@ export async function sendEmail(options: EmailOptions): Promise<{ id: string; su
         attempt
       }, 'Sending email');
 
-      const response = await resend.emails.send(emailData);
+      const response = await getResendClient().emails.send(emailData);
 
       if (response.error) {
         throw new Error(response.error.message);
@@ -153,11 +168,21 @@ export async function sendEmail(options: EmailOptions): Promise<{ id: string; su
       }, 'Failed to send email');
 
       // Check if this is a permanent failure (don't retry)
-      const isPermanentFailure =
+      // Temporary failures: rate limit, timeout, network errors, temporary errors
+      // Permanent failures: authentication, validation, forbidden access
+      const isTemporaryFailure =
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('temporary') ||
+        errorMessage.includes('network');
+
+      const isPermanentFailure = !isTemporaryFailure && (
         errorMessage.includes('invalid email') ||
         errorMessage.includes('invalid api key') ||
         errorMessage.includes('authentication') ||
-        errorMessage.includes('forbidden');
+        errorMessage.includes('forbidden') ||
+        errorMessage.includes('failed') // Generic failure - don't retry
+      );
 
       if (isPermanentFailure || attempt >= EMAIL_CONFIG.maxRetries) {
         break;
@@ -324,4 +349,4 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; err
   });
 }
 
-export default resend;
+export default getResendClient();

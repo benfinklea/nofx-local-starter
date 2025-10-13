@@ -22,7 +22,9 @@ function hashInputs(val: any) {
 }
 
 subscribe(STEP_READY_TOPIC, async ({ runId, stepId, idempotencyKey, __attempt }) => {
-  return runWithContext({ runId, stepId, retryCount: Math.max(0, Number(__attempt || 1) - 1) }, async () => {
+  const attemptNum = Number(__attempt);
+  const retryCount = Number.isNaN(attemptNum) || attemptNum < 1 ? 0 : Math.max(0, attemptNum - 1);
+  return runWithContext({ runId, stepId, retryCount }, async () => {
     log.info({ runId, stepId, attempt: __attempt }, "worker handling step");
     // Compute or use provided idempotency key, and guard via inbox
     let key = String(idempotencyKey || '');

@@ -51,12 +51,15 @@ export class RunManagementService {
 
   /**
    * Update a run
+   * @throws Error if run does not exist - ensures data integrity
    */
   async updateRun(id: string, patch: Partial<RunRow>): Promise<void> {
     const runPath = this.fileOps.getRunPath(id, this.root);
     const existingRun = await this.fileOps.readJsonFile(runPath);
 
     if (!existingRun) {
+      // Throw error to prevent silent failures and ensure data integrity
+      // This matches expected behavior in tests and calling code
       throw new Error(`Run ${id} not found`);
     }
 

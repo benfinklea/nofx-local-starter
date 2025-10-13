@@ -21,8 +21,13 @@ import { log } from '../observability';
 jest.mock('../db');
 jest.mock('../observability', () => ({
   timeIt: jest.fn(async (_name: string, fn: () => Promise<any>) => {
-    const result = await fn();
-    return { result, latencyMs: 0 };
+    try {
+      const result = await fn();
+      return { result, latencyMs: 0 };
+    } catch (error) {
+      // Re-throw the error to properly reject the promise
+      throw error;
+    }
   }),
   log: {
     info: jest.fn(),
@@ -65,19 +70,20 @@ describe('Orchestration Service - Comprehensive Tests', () => {
           created_at: new Date().toISOString()
         };
 
-        mockedDb.query.mockResolvedValueOnce({
-          rows: [mockSessionRow],
-          rowCount: 1,
-          command: 'INSERT'
-        } as any);
-
         mockedDb.withTransaction.mockImplementation(async (fn: any) => fn());
 
-        // Mock agent selection
+        // Mock agent selection FIRST (this runs before withTransaction)
         mockedDb.query.mockResolvedValueOnce({
           rows: [mockAgent],
           rowCount: 1,
           command: 'SELECT'
+        } as any);
+
+        // Mock session creation SECOND (this runs inside withTransaction)
+        mockedDb.query.mockResolvedValueOnce({
+          rows: [mockSessionRow],
+          rowCount: 1,
+          command: 'INSERT'
         } as any);
 
         const result = await createOrchestrationSession({
@@ -115,24 +121,25 @@ describe('Orchestration Service - Comprehensive Tests', () => {
 
         mockedDb.withTransaction.mockImplementation(async (fn: any) => fn());
 
-        // Mock session creation
-        mockedDb.query
-          .mockResolvedValueOnce({
-            rows: [mockSessionRow],
-            rowCount: 1,
-            command: 'INSERT'
-          } as any)
-          .mockResolvedValueOnce({
-            rows: [],
-            rowCount: 0,
-            command: 'INSERT'
-          } as any);
-
-        // Mock agent selection
+        // Mock agent selection FIRST (this runs before withTransaction)
         mockedDb.query.mockResolvedValueOnce({
           rows: mockAgents,
           rowCount: mockAgents.length,
           command: 'SELECT'
+        } as any);
+
+        // Mock session creation SECOND (this runs inside withTransaction)
+        mockedDb.query.mockResolvedValueOnce({
+          rows: [mockSessionRow],
+          rowCount: 1,
+          command: 'INSERT'
+        } as any);
+
+        // Mock relationship creation THIRD (this runs inside withTransaction after session creation)
+        mockedDb.query.mockResolvedValueOnce({
+          rows: [],
+          rowCount: 2,
+          command: 'INSERT'
         } as any);
 
         const result = await createOrchestrationSession({
@@ -180,21 +187,32 @@ describe('Orchestration Service - Comprehensive Tests', () => {
       });
 
       it('throws error when no agents match criteria', async () => {
+        // Mock structured capabilities query (first attempt)
         mockedDb.query.mockResolvedValueOnce({
           rows: [],
           rowCount: 0,
           command: 'SELECT'
         } as any);
 
-        await expect(
-          createOrchestrationSession({
-            orchestrationType: 'solo',
-            agentSelectionCriteria: {
-              requiredCapabilities: [{ skillId: 'nonexistent', minProficiency: 10 }],
-              orchestrationType: 'solo'
-            }
-          })
-        ).rejects.toThrow('No agents match the selection criteria');
+        // Mock JSONB capabilities query (fallback attempt)
+        mockedDb.query.mockResolvedValueOnce({
+          rows: [],
+          rowCount: 0,
+          command: 'SELECT'
+        } as any);
+
+        const promise = createOrchestrationSession({
+          orchestrationType: 'solo',
+          agentSelectionCriteria: {
+            requiredCapabilities: [{ skillId: 'nonexistent', minProficiency: 10 }],
+            orchestrationType: 'solo'
+          }
+        });
+
+        await expect(promise).rejects.toMatchObject({
+          code: 'AGENT_NOT_AVAILABLE',
+          message: 'No agents match the selection criteria'
+        });
       });
     });
 
@@ -266,11 +284,14 @@ describe('Orchestration Service - Comprehensive Tests', () => {
           command: 'UPDATE'
         } as any);
 
-        await expect(
-          updateOrchestrationSession('nonexistent-session', {
-            status: 'completed'
-          })
-        ).rejects.toThrow('Session nonexistent-session not found');
+        const promise = updateOrchestrationSession('nonexistent-session', {
+          status: 'completed'
+        });
+
+        await expect(promise).rejects.toMatchObject({
+          code: 'SESSION_NOT_FOUND',
+          message: 'Session nonexistent-session not found'
+        });
       });
     });
 
@@ -606,15 +627,18 @@ describe('Orchestration Service - Comprehensive Tests', () => {
           command: 'SELECT'
         } as any);
 
-        await expect(
-          sendAgentMessage({
-            sessionId: 'session-789',
-            fromAgentId: 'agent-1',
-            toAgentId: 'agent-2',
-            messageType: 'task_assignment',
-            payload: {}
-          })
-        ).rejects.toThrow('Cannot send message to inactive session');
+        const promise = sendAgentMessage({
+          sessionId: 'session-789',
+          fromAgentId: 'agent-1',
+          toAgentId: 'agent-2',
+          messageType: 'task_assignment',
+          payload: {}
+        });
+
+        await expect(promise).rejects.toMatchObject({
+          code: 'COMMUNICATION_FAILED',
+          message: expect.stringContaining('Cannot send message to inactive session')
+        });
       });
     });
 
@@ -831,17 +855,19 @@ describe('Orchestration Service - Comprehensive Tests', () => {
       };
 
       mockedDb.withTransaction.mockImplementation(async (fn: any) => fn());
-      mockedDb.query
-        .mockResolvedValueOnce({
-          rows: [mockSessionRow],
-          rowCount: 1,
-          command: 'INSERT'
-        } as any);
 
+      // Mock agent selection FIRST (this runs before withTransaction)
       mockedDb.query.mockResolvedValueOnce({
         rows: [mockSupervisor],
         rowCount: 1,
         command: 'SELECT'
+      } as any);
+
+      // Mock session creation SECOND (this runs inside withTransaction)
+      mockedDb.query.mockResolvedValueOnce({
+        rows: [mockSessionRow],
+        rowCount: 1,
+        command: 'INSERT'
       } as any);
 
       const result = await createOrchestrationSession({

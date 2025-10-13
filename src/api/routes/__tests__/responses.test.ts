@@ -260,7 +260,12 @@ describe('Response API Routes - Comprehensive Tests', () => {
         .send(payload)
         .expect(200);
 
-      expect(response.body).toEqual({ incident: mockIncident });
+      expect(response.body).toEqual({
+        incident: {
+          ...mockIncident,
+          resolvedAt: mockIncident.resolvedAt.toISOString()
+        }
+      });
       expect(mockRuntime.resolveResponseIncident).toHaveBeenCalledWith({
         incidentId: 'inc_123',
         resolvedBy: 'admin',

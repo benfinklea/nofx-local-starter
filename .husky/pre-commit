@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run Stripe billing tests before allowing commit
+echo "🧪 Running Stripe billing tests..."
+npm test -- src/billing/__tests__/stripe.test.ts --passWithNoTests
+
+if [ $? -ne 0 ]; then
+  echo "❌ Stripe tests failed! Please fix the tests before committing."
+  exit 1
+fi
+
+echo "✅ Stripe tests passed!"
