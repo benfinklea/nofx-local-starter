@@ -9,23 +9,34 @@ import path from 'node:path';
 import type { JsonValue } from '../types';
 
 export class FileOperationService {
+  // Cache resolved parent paths to avoid repeated path.resolve() calls
+  private readonly resolvedPaths = new Map<string, string>();
+
   /**
    * Validate that resolved path is within the expected directory
    * Throws error if path traversal is detected
    */
   private validatePath(resolvedPath: string, expectedParent: string): void {
-    // Resolve both paths to absolute paths to detect escaping
+    // Cache the resolved parent path to avoid repeated path.resolve() calls
+    let parentAbsolute = this.resolvedPaths.get(expectedParent);
+    if (!parentAbsolute) {
+      parentAbsolute = path.resolve(expectedParent);
+      this.resolvedPaths.set(expectedParent, parentAbsolute);
+    }
+
+    // Resolve the path to check
     const resolvedAbsolute = path.resolve(resolvedPath);
-    const parentAbsolute = path.resolve(expectedParent);
 
     // Check if the resolved path starts with the expected parent
-    if (!resolvedAbsolute.startsWith(parentAbsolute)) {
+    // Add path separator to prevent false positives (e.g., /foo vs /foobar)
+    const parentWithSep = parentAbsolute.endsWith(path.sep) ? parentAbsolute : parentAbsolute + path.sep;
+    if (!resolvedAbsolute.startsWith(parentWithSep) && resolvedAbsolute !== parentAbsolute) {
       throw new Error('Path traversal detected');
     }
 
     // Additional check: ensure no '..' remains after resolution
-    const normalized = path.normalize(resolvedPath);
-    if (normalized.includes('..')) {
+    // This is fast since it's just a string check on the already resolved path
+    if (resolvedAbsolute.includes('..')) {
       throw new Error('Path traversal detected');
     }
   }

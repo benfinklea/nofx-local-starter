@@ -130,3 +130,4 @@ archive/
 .env.staging.local
 reference-starter/
 .env.vercel
+local_data_backup_*.tar.gz
