@@ -23,6 +23,12 @@ describe('Artifact Storage Pipeline', () => {
   let testStepId: string;
 
   beforeAll(async () => {
+    // Clear any previous mock storage to ensure clean state
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((global as any).mockStorageMap) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).mockStorageMap.clear();
+    }
     // Ensure test run and step exist in the store
     const run = await store.createRun({
       goal: 'Test artifact storage',

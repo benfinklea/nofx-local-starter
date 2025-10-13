@@ -22,18 +22,18 @@ jest.mock('supertest', () => {
 // Force HTTP servers created during tests (e.g., via supertest) to bind to
 // 127.0.0.1 instead of 0.0.0.0, which is blocked by the sandbox.
 const originalListen = http.Server.prototype.listen;
-http.Server.prototype.listen = function patchedListen(port?: any, ...args: any[]) {
+(http.Server.prototype.listen as any) = function patchedListen(this: any, port?: any, ...args: any[]) {
   // When called with only a port (or port + callback), insert localhost host.
   if (typeof port === 'number') {
     if (args.length === 0) {
-      return originalListen.call(this, port, '127.0.0.1');
+      return (originalListen as any).call(this, port, '127.0.0.1');
     }
     if (typeof args[0] === 'function') {
       const callback = args[0];
-      return originalListen.call(this, port, '127.0.0.1', callback);
+      return (originalListen as any).call(this, port, '127.0.0.1', callback);
     }
   }
-  return originalListen.call(this, port, ...args);
+  return (originalListen as any).call(this, port, ...args);
 };
 
 // Prevent real Redis connections during tests unless explicitly overridden
@@ -58,7 +58,7 @@ jest.mock('ioredis', () => {
 
 
 // Global test utilities
-global.testUtils = {
+(global as any).testUtils = {
   // Database cleanup between tests with retry
   async cleanDatabase() {
     const pool = new Pool({
@@ -130,12 +130,32 @@ if (process.env.CI) {
 jest.retryTimes(process.env.CI ? 2 : 0);
 
 // Mock external services by default
+// Create a storage map to track uploaded files
+const mockStorageMap = new Map<string, Buffer>();
+// Export globally for test access
+(global as any).mockStorageMap = mockStorageMap;
+
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
     storage: {
       from: jest.fn(() => ({
-        upload: jest.fn().mockResolvedValue({ error: null }),
-        download: jest.fn().mockResolvedValue({ data: Buffer.from('test'), error: null })
+        upload: jest.fn().mockImplementation(async (path: string, content: Buffer) => {
+          // Store the uploaded content
+          mockStorageMap.set(path, content);
+          return { error: null };
+        }),
+        download: jest.fn().mockImplementation(async (path: string) => {
+          // Return the stored content if it exists
+          const data = mockStorageMap.get(path);
+          if (data) {
+            return { data, error: null };
+          }
+          // Return 404-like error if not found
+          return {
+            data: null,
+            error: { message: 'Object not found', statusCode: '404' }
+          };
+        })
       }))
     }
   },
@@ -217,12 +237,14 @@ jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
 // Cleanup after each test with retry
 afterEach(async () => {
   jest.clearAllMocks();
+  // Note: We do NOT clear mockStorageMap here because some tests
+  // rely on artifacts persisting across test cases within the same suite
 
   if (process.env.INTEGRATION_TEST) {
     // Retry database cleanup up to 3 times
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await global.testUtils.cleanDatabase();
+        await (global as any).testUtils.cleanDatabase();
         break;
       } catch (err) {
         if (attempt === 3) {
