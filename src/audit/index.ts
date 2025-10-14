@@ -217,3 +217,13 @@ export type {
   RetentionExecutionResult,
   ArchivalConfig,
 } from './RetentionPolicyService';
+
+// Export audit integration
+export {
+  AuditIntegration,
+  createAuditIntegration,
+} from './integrations/AuditIntegration';
+
+export type {
+  AuditIntegrationConfig,
+} from './integrations/AuditIntegration';
