@@ -1,21 +1,14 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile.worker"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install && npm run build"
   },
   "deploy": {
-    "numReplicas": 1,
-    "healthcheckPath": "/",
-    "healthcheckTimeout": 3,
+    "startCommand": "npm run dev:worker",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3
-  },
-  "envVars": {
-    "NODE_ENV": "production",
-    "QUEUE_DRIVER": "redis",
-    "WORKER_CONCURRENCY": "2",
-    "STEP_TIMEOUT_MS": "30000",
-    "LOG_LEVEL": "info"
+    "restartPolicyMaxRetries": 10
   }
 }
