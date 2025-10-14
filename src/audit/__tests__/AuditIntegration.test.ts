@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { AuditIntegration } from '../integrations/AuditIntegration';
 import type { AuditService } from '../AuditService';
 import type { Request, Response, NextFunction } from 'express';
-import { EventCategory, EventSeverity } from '../types';
+import { EventCategory, EventSeverity, ResourceType } from '../types';
 import { OrganizationPermission, OrganizationRole } from '../../lib/organizations.types';
 
 describe('AuditIntegration', () => {
