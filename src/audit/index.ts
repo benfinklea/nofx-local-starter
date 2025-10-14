@@ -204,3 +204,16 @@ export type {
   SecurityAnomaly,
   ComplianceReportConfig,
 } from './AuditQueryAPI';
+
+// Export retention policy service
+export {
+  RetentionPolicyService,
+  createRetentionPolicyService,
+  DEFAULT_RETENTION_POLICIES,
+} from './RetentionPolicyService';
+
+export type {
+  RetentionPolicy,
+  RetentionExecutionResult,
+  ArchivalConfig,
+} from './RetentionPolicyService';
