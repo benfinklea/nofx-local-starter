@@ -189,3 +189,18 @@ export {
 export type {
   DatabaseConfig,
 } from './storage/DatabaseAuditStorage';
+
+// Export query API
+export {
+  AuditQueryAPI,
+  createAuditQueryAPI,
+} from './AuditQueryAPI';
+
+export type {
+  AdvancedAuditEventFilter,
+  AuditAggregations,
+  QueryResult,
+  TimeSeriesDataPoint,
+  SecurityAnomaly,
+  ComplianceReportConfig,
+} from './AuditQueryAPI';
