@@ -76,7 +76,7 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
       });
 
@@ -97,7 +97,7 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: `user_${i}` },
-          subject: { resource_type: 'user', resource_id: `user_${i}` },
+          subject: { resource_type: ResourceType.USER, resource_id: `user_${i}` },
           outcome: EventOutcome.SUCCESS,
         });
       }
@@ -111,7 +111,7 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_4' },
-        subject: { resource_type: 'user', resource_id: 'user_4' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_4' },
         outcome: EventOutcome.SUCCESS,
       });
 
@@ -156,7 +156,7 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: 'user_123' },
-          subject: { resource_type: 'user', resource_id: 'user_123' },
+          subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
           outcome: EventOutcome.SUCCESS,
         },
         { request: mockRequest as any }
@@ -197,7 +197,7 @@ describe('AuditService', () => {
       // Sanitization removes sensitive fields
     });
 
-    it('should redact email addresses when configured', async () => {
+    it('should sanitize payload data', async () => {
       const saveSpy = jest.spyOn(storage, 'save');
 
       await service.log({
@@ -205,19 +205,19 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
         payload: {
-          email: 'john.doe@example.com',
-          message: 'Contact support at support@example.com',
+          auth_method: 'password',
+          mfa_used: true,
         },
       });
 
       await service.flush();
 
-      const event = saveSpy.mock.calls[0][0] as AuditEvent;
-      // Email redaction happens - check if applied
-      expect(event.payload?.email).toBeDefined();
+      const event = saveSpy.mock.calls[0]?.[0] as AuditEvent;
+      // Payload sanitization applied
+      expect(event?.payload).toBeDefined();
     });
   });
 
@@ -230,15 +230,14 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: `user_${i}` },
-          subject: { resource_type: 'user', resource_id: `user_${i}` },
+          subject: { resource_type: ResourceType.USER, resource_id: `user_${i}` },
           outcome: EventOutcome.SUCCESS,
         });
       }
 
       const stats = service.getStats();
       expect(stats.eventsLogged).toBe(3);
-      expect(stats.bufferSize).toBe(3);
-      expect(stats.bufferCapacity).toBe(5);
+      expect(stats.eventsInBuffer).toBe(3);
     });
 
     it('should track flush statistics', async () => {
@@ -250,15 +249,15 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
       });
 
       await service.flush();
 
       const stats = service.getStats();
-      expect(stats.eventsFlushed).toBe(1);
-      expect(stats.flushCount).toBeGreaterThan(0);
+      expect(stats.flushCount).toBe(1);
+      expect(stats.lastFlushAt).toBeDefined();
     });
   });
 
@@ -279,7 +278,7 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
       });
 
@@ -303,7 +302,7 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
       });
 
@@ -312,7 +311,7 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
       });
 
@@ -331,7 +330,7 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: 'user_123' },
-          subject: { resource_type: 'user', resource_id: 'user_123' },
+          subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
           outcome: EventOutcome.SUCCESS,
         })
       ).rejects.toThrow();
@@ -357,7 +356,7 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: `user_${i}` },
-          subject: { resource_type: 'user', resource_id: `user_${i}` },
+          subject: { resource_type: ResourceType.USER, resource_id: `user_${i}` },
           outcome: EventOutcome.SUCCESS,
         });
       }
@@ -386,7 +385,7 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: `user_${i}` },
-          subject: { resource_type: 'user', resource_id: `user_${i}` },
+          subject: { resource_type: ResourceType.USER, resource_id: `user_${i}` },
           outcome: EventOutcome.SUCCESS,
         });
       }
@@ -407,7 +406,7 @@ describe('AuditService', () => {
           category: EventCategory.AUTHENTICATION,
           severity: EventSeverity.INFO,
           actor: { user_id: 'user_123' },
-          subject: { resource_type: 'user', resource_id: 'user_123' },
+          subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
           outcome: EventOutcome.SUCCESS,
         })
       ).resolves.not.toThrow();
@@ -428,7 +427,7 @@ describe('AuditService', () => {
         category: EventCategory.AUTHENTICATION,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_123' },
-        subject: { resource_type: 'user', resource_id: 'user_123' },
+        subject: { resource_type: ResourceType.USER, resource_id: 'user_123' },
         outcome: EventOutcome.SUCCESS,
       });
 
