@@ -24,9 +24,10 @@ echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
 echo "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY"
 echo ""
 
-# Queue configuration
-echo "# Queue Configuration"
+# Queue and storage configuration
+echo "# Queue and Storage Configuration"
 echo "QUEUE_DRIVER=postgres"
+echo "DATA_DRIVER=postgres"
 echo ""
 
 # Worker configuration
