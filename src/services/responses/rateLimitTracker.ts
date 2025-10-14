@@ -65,6 +65,11 @@ export class RateLimitTracker {
         continue;
       }
       const latest = history[history.length - 1];
+      if (!latest) {
+        // Shouldn't happen since we checked length, but satisfies TypeScript
+        summaries.push({ tenantId, latest: undefined, averageProcessingMs: undefined });
+        continue;
+      }
       const avgProcessingMs = history.reduce((sum, item) => sum + (item.processingMs ?? 0), 0) / history.length;
       const remainingRequestsPct =
         latest.limitRequests && latest.remainingRequests !== undefined

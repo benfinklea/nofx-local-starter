@@ -44,19 +44,22 @@ function sanitizeNextParam(nextParam?: string | string[]): string {
   return value;
 }
 
-export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return res.status(500).json({ error: 'Supabase credentials not configured' });
+    res.status(500).json({ error: 'Supabase credentials not configured' });
+    return;
   }
 
   const provider = (req.query.provider as string) || 'google';
   if (provider !== 'google') {
-    return res.status(400).json({ error: 'Unsupported provider' });
+    res.status(400).json({ error: 'Unsupported provider' });
+    return;
   }
 
   const next = sanitizeNextParam(req.query.next);
@@ -73,7 +76,8 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
     if (error || !data?.url) {
       console.error('OAuth start error:', error?.message || 'No redirect URL');
-      return res.status(500).json({ error: 'Failed to initiate Google sign-in' });
+      res.status(500).json({ error: 'Failed to initiate Google sign-in' });
+      return;
     }
 
     res.setHeader('Cache-Control', 'no-store');

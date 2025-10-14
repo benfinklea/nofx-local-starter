@@ -8,7 +8,6 @@ import { log } from './logger';
 
 // Environment-aware database connection pool configuration
 // Optimized for both serverless (Vercel) and local development environments
-const isProduction = process.env.NODE_ENV === 'production';
 const isServerless = Boolean(process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
 // Connection pool sizing based on environment

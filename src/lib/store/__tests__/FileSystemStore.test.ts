@@ -140,9 +140,9 @@ describe('FileSystemStore - Core Functionality Tests', () => {
         const result = await store.listRuns();
 
         expect(result).toHaveLength(3);
-        expect(result[0].id).toBe('run3'); // Most recent first
-        expect(result[1].id).toBe('run2');
-        expect(result[2].id).toBe('run1');
+        expect(result[0]!.id).toBe('run3'); // Most recent first
+        expect(result[1]!.id).toBe('run2');
+        expect(result[2]!.id).toBe('run1');
       });
 
       it('respects custom limit', async () => {
@@ -174,7 +174,7 @@ describe('FileSystemStore - Core Functionality Tests', () => {
         const result = await store.listRuns();
 
         expect(result).toHaveLength(1);
-        expect(result[0].id).toBe('run1');
+        expect(result[0]!.id).toBe('run1');
       });
     });
 
@@ -281,8 +281,8 @@ describe('FileSystemStore - Core Functionality Tests', () => {
         const result = await store.listStepsByRun('run-id');
 
         expect(result).toHaveLength(2);
-        expect(result[0].id).toBe('step1'); // Chronological order
-        expect(result[1].id).toBe('step2');
+        expect(result[0]!.id).toBe('step1'); // Chronological order
+        expect(result[1]!.id).toBe('step2');
       });
     });
   });
@@ -312,7 +312,7 @@ describe('FileSystemStore - Core Functionality Tests', () => {
         const result = await store.listEvents('run-id');
 
         expect(result).toHaveLength(2);
-        expect(result[0].id).toBe('event1'); // Chronological order
+        expect(result[0]!.id).toBe('event1'); // Chronological order
       });
     });
   });

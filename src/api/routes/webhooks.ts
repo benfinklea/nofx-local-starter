@@ -50,13 +50,14 @@ export default function mount(app: Express) {
       // Filter out events we don't care about
       if (!webhookValidationService.isRelevantEvent(event.type)) {
         log.debug({ eventType: event.type }, 'Ignoring irrelevant webhook event');
-        return res.json({ received: true, event: event.type });
+        res.json({ received: true, event: event.type });
+        return;
       }
 
       try {
         await processWebhookEvent(event);
 
-        return res.json({ received: true });
+        res.json({ received: true });
       } catch (error) {
         log.error({
           error,
@@ -66,7 +67,7 @@ export default function mount(app: Express) {
 
         // Return 200 to prevent Stripe from retrying
         // We log the error but don't want infinite retries
-        return res.json({ received: true, error: 'Processing error' });
+        res.json({ received: true, error: 'Processing error' });
       }
     }
   );
@@ -127,23 +128,24 @@ export default function mount(app: Express) {
   app.post('/webhooks/test', async (req: Request, res: Response): Promise<void> => {
     // Runtime check for production
     if (process.env.NODE_ENV === 'production') {
-      return res.status(404).json({ error: 'Not found' });
+      res.status(404).json({ error: 'Not found' });
+      return;
     }
 
     log.info({ body: req.body }, 'Test webhook received');
-    return res.json({ received: true, test: true });
+    res.json({ received: true, test: true });
   });
 
   /**
    * Health check for webhooks
    */
-  app.get('/webhooks/health', (_req: Request, res: Response): Promise<void> => {
+  app.get('/webhooks/health', (_req: Request, res: Response): void => {
     const configured = !!(
       process.env.STRIPE_SECRET_KEY &&
       process.env.STRIPE_WEBHOOK_SECRET
     );
 
-    return res.json({
+    res.json({
       ok: configured,
       stripe: configured ? 'configured' : 'not configured',
       timestamp: new Date().toISOString()

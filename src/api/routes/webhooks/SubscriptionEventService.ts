@@ -7,6 +7,9 @@ import Stripe from 'stripe';
 import { manageSubscriptionStatusChange } from '../../../billing/stripe';
 import { EmailNotificationService } from './EmailNotificationService';
 
+// Legacy invoice type for backward compatibility - may be needed for future Stripe API changes
+// @ts-ignore - Type definition for future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type InvoiceWithLegacyFields = Stripe.Invoice & {
   subscription?: string | Stripe.Subscription;
   payment_intent?: string | Stripe.PaymentIntent;

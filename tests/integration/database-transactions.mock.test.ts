@@ -62,7 +62,7 @@ describe('Integration: Database Transactions (Mocked)', () => {
       );
 
       expect(result.rows.length).toBe(1);
-      expect(result.rows[0].id).toBe(runId);
+      expect(result.rows[0]!.id).toBe(runId);
 
       // Verify query was called
       expect(mockQuery).toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe('Integration: Database Transactions (Mocked)', () => {
         ['TEST_TRANSACTION: Cascade test', '{}', 'pending']
       );
 
-      expect(createRun.rows[0].id).toBe(runId);
+      expect(createRun.rows[0]!.id).toBe(runId);
 
       await query(
         'INSERT INTO step (run_id, name, tool, inputs, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())',
@@ -122,7 +122,7 @@ describe('Integration: Database Transactions (Mocked)', () => {
         ['duplicate-id', 'TEST_TRANSACTION: Duplicate', '{}', 'pending']
       );
 
-      expect(firstInsert.rows[0].id).toBe('duplicate-id');
+      expect(firstInsert.rows[0]!.id).toBe('duplicate-id');
 
       // Second insert fails with constraint violation
       mockQuery.mockRejectedValueOnce(

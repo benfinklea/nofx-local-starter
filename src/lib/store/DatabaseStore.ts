@@ -10,7 +10,6 @@ import type {
   StepRow,
   EventRow,
   GateRow,
-  ArtifactRow,
   OutboxRow,
   RunSummaryRow,
   ArtifactWithStepName,

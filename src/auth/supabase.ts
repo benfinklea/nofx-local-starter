@@ -37,7 +37,7 @@ export function createServiceClient(): SupabaseClient | null {
  * Create a Supabase client for server-side operations with user context
  * This respects RLS policies
  */
-export function createServerClient(req: Request, res: Response): SupabaseClient | null {
+export function createServerClient(req: Request, _res: Response): SupabaseClient | null {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return null;
   }

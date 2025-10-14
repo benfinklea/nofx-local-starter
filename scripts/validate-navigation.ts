@@ -77,7 +77,9 @@ class NavigationValidator {
       // Extract route paths from React Router
       const routeMatches = appContent.matchAll(/path="([^"]+)"/g);
       for (const match of routeMatches) {
-        this.routeFiles.add(match[1]);
+        if (match[1]) {
+          this.routeFiles.add(match[1]);
+        }
       }
     } catch (_error) {
       console.warn(`Warning: Could not load routes from App.tsx: ${_error}`);

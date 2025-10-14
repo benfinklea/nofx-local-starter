@@ -228,9 +228,9 @@ class BenchmarkRunner extends EventEmitter {
       count: suite.results.length,
       totalDuration: durations.reduce((sum, d) => sum + d, 0),
       avgDuration: durations.reduce((sum, d) => sum + d, 0) / durations.length,
-      minDuration: durations[0],
-      maxDuration: durations[durations.length - 1],
-      p95Duration: durations[p95Index],
+      minDuration: durations[0] ?? 0,
+      maxDuration: durations[durations.length - 1] ?? 0,
+      p95Duration: durations[p95Index] ?? 0,
       avgMemoryMB: (memories.reduce((sum, m) => sum + m, 0) / memories.length) / (1024 * 1024),
       errors
     };

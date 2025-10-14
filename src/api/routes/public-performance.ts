@@ -26,7 +26,7 @@ function handleError(res: Response, error: Error, message: string) {
 /**
  * Public health check with performance status
  */
-router.get('/health', (req: Request, res: Response) => {
+router.get('/health', (_req: Request, res: Response) => {
   try {
     const isHealthy = performanceMonitor.isHealthy();
     const summary = performanceMonitor.getSummary();
@@ -53,7 +53,7 @@ router.get('/health', (req: Request, res: Response) => {
 /**
  * Get current performance snapshot
  */
-router.get('/current', (req: Request, res: Response) => {
+router.get('/current', (_req: Request, res: Response) => {
   try {
     const snapshot = performanceMonitor.getCurrentSnapshot();
     return res.json({
@@ -108,7 +108,7 @@ router.get('/snapshots', (req: Request, res: Response) => {
 /**
  * Get benchmark suites list
  */
-router.get('/benchmarks/suites', (req: Request, res: Response) => {
+router.get('/benchmarks/suites', (_req: Request, res: Response) => {
   try {
     const suites = benchmarkRunner.listSuites();
 
@@ -151,7 +151,7 @@ router.get('/benchmarks/stats/:suiteName', (req: Request, res: Response) => {
 /**
  * Simple system info endpoint
  */
-router.get('/info', (req: Request, res: Response) => {
+router.get('/info', (_req: Request, res: Response) => {
   try {
     const memoryUsage = process.memoryUsage();
     const uptime = process.uptime();
@@ -180,7 +180,7 @@ router.get('/info', (req: Request, res: Response) => {
 /**
  * Ping endpoint for connectivity testing
  */
-router.get('/ping', (req: Request, res: Response) => {
+router.get('/ping', (_req: Request, res: Response) => {
   return res.json({
     status: 'success',
     message: 'pong',

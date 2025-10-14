@@ -3,7 +3,7 @@
  * Part of HEAVY MODE reliability patterns
  */
 
-import { log } from '../logger';
+// Async Mutex implementation for preventing race conditions
 
 interface QueueItem {
   resolve: () => void;

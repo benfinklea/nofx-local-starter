@@ -150,7 +150,10 @@ describe('Auth Middleware - Security Tests', () => {
         await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
         expect(mockStatus).toHaveBeenCalledWith(500);
-        expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication failed' });
+        expect(mockJson).toHaveBeenCalledWith({
+          error: 'Authentication failed',
+          message: 'Database error'
+        });
       });
     });
 

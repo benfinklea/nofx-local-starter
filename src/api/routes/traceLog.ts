@@ -28,7 +28,7 @@ export default function traceLogRoutes(app: Express) {
     const refreshed = getTraceStatusSync();
     const filePath = logFilePath();
     const available = logFileExists();
-    return res.json({
+    res.json({
       enabled: refreshed.value,
       source: refreshed.source,
       logFilePath: filePath,
@@ -48,14 +48,15 @@ export default function traceLogRoutes(app: Express) {
     await setTraceLogging(enable);
     log.info({ enable }, 'trace logging toggled via API');
     const status = getTraceStatusSync();
-    return res.json({ enabled: status.value, source: status.source });
+    res.json({ enabled: status.value, source: status.source });
   });
 
-  router.get('/download', (req, res): Promise<void> => {
+  router.get('/download', (_req, res): void => {
     const filePath = logFilePath();
     try {
       if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Log file not found. Enable tracing and try again.' });
+        res.status(404).json({ error: 'Log file not found. Enable tracing and try again.' });
+        return;
       }
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Content-Disposition', 'attachment; filename="nofx-trace.log"');
@@ -63,7 +64,7 @@ export default function traceLogRoutes(app: Express) {
       stream.pipe(res);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to read log file';
-      return res.status(500).json({ error: message });
+      res.status(500).json({ error: message });
     }
   });
 

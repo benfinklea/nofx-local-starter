@@ -82,12 +82,22 @@ export class TeamService {
 
     // Use Supabase RPC for atomic transaction (if available)
     // This ensures team and member are created together or rolled back
-    const { data: result, error } = await supabase.rpc('create_team_with_owner', {
-      p_name: name,
-      p_slug: slug,
-      p_owner_id: validatedUserId,
-      p_billing_email: billingEmail || userEmail
-    }).select().single().catch(() => ({ data: null, error: null }));
+    let result = null;
+    let error = null;
+    try {
+      const response = await supabase.rpc('create_team_with_owner', {
+        p_name: name,
+        p_slug: slug,
+        p_owner_id: validatedUserId,
+        p_billing_email: billingEmail || userEmail
+      }).select().single();
+      result = response.data;
+      error = response.error;
+    } catch (rpcError) {
+      // RPC not available, will fall back to manual transaction
+      result = null;
+      error = null;
+    }
 
     // If RPC not available, fall back to manual transaction with cleanup
     if (!result) {
@@ -117,13 +127,15 @@ export class TeamService {
           .catch(err => log.warn({ error: err }, 'Failed to log team creation activity'));
 
         return team;
-      } catch (error) {
+      } catch (memberError) {
         // ROLLBACK: Clean up team if member creation fails
-        log.warn({ teamId: team.id, error }, 'Rolling back team creation due to member add failure');
-        await supabase.from('teams').delete().eq('id', team.id).catch(rollbackError => {
+        log.warn({ teamId: team.id, error: memberError }, 'Rolling back team creation due to member add failure');
+        try {
+          await supabase.from('teams').delete().eq('id', team.id);
+        } catch (rollbackError) {
           log.error({ teamId: team.id, rollbackError }, 'Failed to rollback team creation');
-        });
-        throw error;
+        }
+        throw memberError;
       }
     }
 

@@ -40,6 +40,9 @@ export const app = express();
 // Optional tracing (OpenTelemetry) if enabled via env
 initTracing('nofx-api').catch(() => { });
 
+// Dev restart watch (intentionally unused in production) - side effect for file watching
+// @ts-ignore - intentionally unused, kept for side effects
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _devRestartWatch = shouldEnableDevRestartWatch();
 
 // Webhook routes MUST be mounted before express.json() middleware

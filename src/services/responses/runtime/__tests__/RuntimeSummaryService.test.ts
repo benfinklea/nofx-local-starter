@@ -135,6 +135,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: {
               total_tokens: 1000,
               input_tokens: 500,
@@ -150,6 +151,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-2',
+            status: 'completed',
             usage: {
               total_tokens: 2000,
               input_tokens: 1000,
@@ -181,6 +183,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: {
               total_tokens: 10000,
               input_tokens: 5000,
@@ -243,6 +246,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-a' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: {
               total_tokens: 1000,
               input_tokens: 500,
@@ -259,6 +263,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-a' },
           result: {
             id: 'result-2',
+            status: 'completed',
             usage: {
               total_tokens: 2000,
               input_tokens: 1000,
@@ -275,6 +280,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-b' },
           result: {
             id: 'result-3',
+            status: 'completed',
             usage: {
               total_tokens: 500,
               input_tokens: 250,
@@ -291,12 +297,12 @@ describe('RuntimeSummaryService', () => {
       const summary = service.generateOperationsSummary();
 
       expect(summary.tenantRollup).toHaveLength(2);
-      expect(summary.tenantRollup[0].tenantId).toBe('tenant-a');
-      expect(summary.tenantRollup[0].runCount).toBe(2);
-      expect(summary.tenantRollup[0].totalTokens).toBe(3000);
-      expect(summary.tenantRollup[1].tenantId).toBe('tenant-b');
-      expect(summary.tenantRollup[1].runCount).toBe(1);
-      expect(summary.tenantRollup[1].totalTokens).toBe(500);
+      expect(summary.tenantRollup[0]!.tenantId).toBe('tenant-a');
+      expect(summary.tenantRollup[0]!.runCount).toBe(2);
+      expect(summary.tenantRollup[0]!.totalTokens).toBe(3000);
+      expect(summary.tenantRollup[1]!.tenantId).toBe('tenant-b');
+      expect(summary.tenantRollup[1]!.runCount).toBe(1);
+      expect(summary.tenantRollup[1]!.totalTokens).toBe(500);
     });
 
     it('should sort tenant rollup by total tokens descending', () => {
@@ -308,6 +314,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-small' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: { total_tokens: 100, input_tokens: 50, output_tokens: 50 },
           },
           createdAt: new Date(),
@@ -320,6 +327,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-large' },
           result: {
             id: 'result-2',
+            status: 'completed',
             usage: { total_tokens: 10000, input_tokens: 5000, output_tokens: 5000 },
           },
           createdAt: new Date(),
@@ -331,8 +339,8 @@ describe('RuntimeSummaryService', () => {
 
       const summary = service.generateOperationsSummary();
 
-      expect(summary.tenantRollup[0].tenantId).toBe('tenant-large');
-      expect(summary.tenantRollup[1].tenantId).toBe('tenant-small');
+      expect(summary.tenantRollup[0]!.tenantId).toBe('tenant-large');
+      expect(summary.tenantRollup[1]!.tenantId).toBe('tenant-small');
     });
 
     it('should use default tenant when tenant_id is missing', () => {
@@ -343,6 +351,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: { total_tokens: 1000, input_tokens: 500, output_tokens: 500 },
           },
           createdAt: new Date(),
@@ -355,7 +364,7 @@ describe('RuntimeSummaryService', () => {
       const summary = service.generateOperationsSummary();
 
       expect(summary.tenantRollup).toHaveLength(1);
-      expect(summary.tenantRollup[0].tenantId).toBe('default');
+      expect(summary.tenantRollup[0]!.tenantId).toBe('default');
     });
 
     it('should include region information in tenant rollup', () => {
@@ -367,6 +376,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-a', region: 'us-east-1' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: { total_tokens: 1000, input_tokens: 500, output_tokens: 500 },
           },
           createdAt: new Date(),
@@ -379,6 +389,7 @@ describe('RuntimeSummaryService', () => {
           metadata: { tenant_id: 'tenant-a', region: 'eu-west-1' },
           result: {
             id: 'result-2',
+            status: 'completed',
             usage: { total_tokens: 2000, input_tokens: 1000, output_tokens: 1000 },
           },
           createdAt: new Date(),
@@ -390,9 +401,9 @@ describe('RuntimeSummaryService', () => {
 
       const summary = service.generateOperationsSummary();
 
-      expect(summary.tenantRollup[0].regions).toContain('us-east-1');
-      expect(summary.tenantRollup[0].regions).toContain('eu-west-1');
-      expect(summary.tenantRollup[0].regions).toHaveLength(2);
+      expect(summary.tenantRollup[0]!.regions).toContain('us-east-1');
+      expect(summary.tenantRollup[0]!.regions).toContain('eu-west-1');
+      expect(summary.tenantRollup[0]!.regions).toHaveLength(2);
     });
 
     it('should generate recent runs list', () => {
@@ -409,7 +420,7 @@ describe('RuntimeSummaryService', () => {
       const summary = service.generateOperationsSummary();
 
       expect(summary.recentRuns).toHaveLength(10); // Limited to 10
-      expect(summary.recentRuns[0].runId).toBe('run-0');
+      expect(summary.recentRuns[0]!.runId).toBe('run-0');
     });
 
     it('should include all run metadata in recent runs', () => {
@@ -494,7 +505,7 @@ describe('RuntimeSummaryService', () => {
 
       expect(summary.lastRateLimits).toBeDefined();
       expect(summary.rateLimitTenants).toHaveLength(1);
-      expect(summary.rateLimitTenants[0].tenantId).toBe('tenant-a');
+      expect(summary.rateLimitTenants[0]!.tenantId).toBe('tenant-a');
     });
 
     it('should handle runs without usage data', () => {
@@ -569,6 +580,7 @@ describe('RuntimeSummaryService', () => {
         request: { model: 'gpt-4' },
         result: {
           id: `result-${i}`,
+            status: 'completed',
           usage: { total_tokens: 100, input_tokens: 50, output_tokens: 50 },
         },
         createdAt: new Date(),
@@ -615,6 +627,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-1',
+            status: 'completed',
             usage: { total_tokens: 300, input_tokens: 150, output_tokens: 150 },
           },
           createdAt: new Date(),
@@ -626,6 +639,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-2',
+            status: 'completed',
             usage: { total_tokens: 500, input_tokens: 250, output_tokens: 250 },
           },
           createdAt: new Date(),
@@ -637,6 +651,7 @@ describe('RuntimeSummaryService', () => {
           request: { model: 'gpt-4' },
           result: {
             id: 'result-3',
+            status: 'completed',
             usage: { total_tokens: 200, input_tokens: 100, output_tokens: 100 },
           },
           createdAt: new Date(),

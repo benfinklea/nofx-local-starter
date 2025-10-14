@@ -37,7 +37,7 @@ describe('BuilderConfigStore', () => {
 
     const listed = await store.list();
     expect(listed).toHaveLength(1);
-    expect(listed[0].name).toBe('Daily Focus Coach');
+    expect(listed[0]!.name).toBe('Daily Focus Coach');
 
     const fetched = await store.get(saved.id);
     expect(fetched?.channels.slack).toBe(true);
@@ -105,7 +105,7 @@ describe('BuilderConfigStore', () => {
 
     const history = await store.history(template.id);
     expect(history).toHaveLength(2);
-    expect(history[0].description).toContain('Monitor campaign metrics');
+    expect(history[0]!.description).toContain('Monitor campaign metrics');
   });
 
   it('stores deployment toggles per environment', async () => {

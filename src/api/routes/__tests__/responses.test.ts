@@ -1005,7 +1005,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
           .get('/responses/runs')
           .expect(200);
 
-        expect(response.body.runs[0].safety).toBeUndefined();
+        expect(response.body.runs[0]!.safety).toBeUndefined();
       });
     });
 

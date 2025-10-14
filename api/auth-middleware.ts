@@ -5,7 +5,6 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -34,7 +33,7 @@ function getTokenFromRequest(req: VercelRequest): string | null {
   for (const cookie of cookies) {
     const [name, value] = cookie.split('=');
     if (name === 'sb-access-token' || name === 'supabase-auth-token') {
-      return value;
+      return value || null;
     }
   }
 

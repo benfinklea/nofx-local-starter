@@ -66,6 +66,9 @@ export class BuilderConfigStore {
 
     if (existingIndex >= 0) {
       const existing = templates[existingIndex];
+      if (!existing) {
+        throw new Error('Template not found at index');
+      }
       const normalized = this.normalizeTemplate(input, existing.id, existing.createdAt);
       const updatedAt = this.nextUpdatedAt(existing.updatedAt);
       const merged: BuilderTemplate = {
@@ -109,6 +112,9 @@ export class BuilderConfigStore {
     }
 
     const template = templates[idx];
+    if (!template) {
+      throw new Error(`template ${id} not found at index`);
+    }
     const deployments = { ...template.deployments };
     const envState = deployments[input.environment] ?? defaultDeploymentState(template.channels);
     deployments[input.environment] = { ...envState, [input.channel]: input.enabled } as BuilderDeploymentState;

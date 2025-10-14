@@ -203,19 +203,19 @@ async function getHealthStatus(): Promise<HealthStatus> {
 }
 
 // Health check endpoints
-app.get('/health', async (req, res) => {
+app.get('/health', async (_req, res) => {
   const health = await getHealthStatus();
   const statusCode = health.status === 'healthy' ? 200 :
                      health.status === 'degraded' ? 200 : 503;
   res.status(statusCode).json(health);
 });
 
-app.get('/health/live', (req, res) => {
+app.get('/health/live', (_req, res) => {
   // Liveness probe - just check if process is running
   res.status(200).json({ status: 'alive' });
 });
 
-app.get('/health/ready', async (req, res) => {
+app.get('/health/ready', async (_req, res) => {
   // Readiness probe - check if worker can process jobs
   const health = await getHealthStatus();
   if (health.status === 'unhealthy') {
@@ -225,7 +225,7 @@ app.get('/health/ready', async (req, res) => {
   }
 });
 
-app.get('/metrics', async (req, res) => {
+app.get('/metrics', async (_req, res) => {
   // Prometheus-style metrics
   const health = await getHealthStatus();
   const metrics = [

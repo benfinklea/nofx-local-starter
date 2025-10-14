@@ -108,6 +108,8 @@ export function requestObservability(req: Request, res: Response, next: NextFunc
 }
 
 // Helper to measure durations
+// @ts-ignore - op parameter for future metrics integration
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function timeIt<T>(op: string, f: () => Promise<T>): Promise<{ result: T; latencyMs: number }>{
   const start = Date.now();
   const result = await f();

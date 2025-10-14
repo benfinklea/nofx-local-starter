@@ -213,7 +213,7 @@ describe('Integration Scenarios', () => {
     await expect(query('SELECT 1')).rejects.toThrow('Connection lost');
 
     const result = await query('SELECT 2');
-    expect(result.rows[0].status).toBe('ok');
+    expect(result.rows[0]!.status).toBe('ok');
   });
 });
 

@@ -5,7 +5,7 @@
 
 // Use built-in fetch if available (Node 18+), otherwise import node-fetch
 const fetch = globalThis.fetch || require('node-fetch');
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 
 export interface TestUser {
   email: string;

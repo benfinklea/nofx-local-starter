@@ -4,7 +4,7 @@ import type { CompileTemplateOptions, BuilderTemplate } from './builderTypes';
 
 function renderText(text: string, variables: Record<string, string>): string {
   const regex = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
-  return text.replace(regex, (match, key) => {
+  return text.replace(regex, (_match, key) => {
     const trimmed = key.trim();
     const value = variables[trimmed];
     if (value === undefined) {
@@ -21,7 +21,10 @@ function collectRequiredVariables(template: BuilderTemplate): Set<string> {
       const regex = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
       let match: RegExpExecArray | null;
       while ((match = regex.exec(item.text)) !== null) {
-        required.add(match[1].trim());
+        const captured = match[1];
+        if (captured) {
+          required.add(captured.trim());
+        }
       }
     }
   }

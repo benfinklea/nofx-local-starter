@@ -54,7 +54,7 @@ describe('InMemoryResponsesArchive', () => {
 
     const timeline = archive.snapshotAt('run-4', 2)!;
     expect(timeline.events).toHaveLength(2);
-    expect(timeline.events[1].type).toBe('response.output_text.delta');
+    expect(timeline.events[1]!.type).toBe('response.output_text.delta');
   });
 
   it('lists runs in reverse chronological order', () => {
@@ -65,7 +65,7 @@ describe('InMemoryResponsesArchive', () => {
     a.updatedAt = a.createdAt;
 
     const runs = archive.listRuns();
-    expect(runs[0].runId).toBe('run-b');
+    expect(runs[0]!.runId).toBe('run-b');
     expect(runs.some((run) => run.runId === 'run-a')).toBe(true);
   });
 });

@@ -5,7 +5,7 @@
  * without using unsafe type assertions like `as any` or `as unknown as Type`.
  */
 
-import type { UserProfile } from '../types/teams';
+import type { UserProfile, TeamMemberWithUser as TeamMemberWithUserType } from '../types/teams';
 
 /**
  * Checks if a value is a non-null object
@@ -120,27 +120,15 @@ export function isApiKeyVerificationResult(value: unknown): value is ApiKeyVerif
 
 /**
  * Type guard for team member with user data
+ * Uses the canonical type from types/teams.ts
  */
-export interface TeamMemberWithUser {
-  id: string;
-  teamId: string;
-  userId: string;
-  role: string;
-  joinedAt: Date | string;
-  user: UserProfile;
-}
-
-export function isTeamMemberWithUser(value: unknown): value is TeamMemberWithUser {
+export function isTeamMemberWithUser(value: unknown): value is TeamMemberWithUserType {
   return (
     isObject(value) &&
     hasProperty(value, 'id') &&
-    hasProperty(value, 'teamId') &&
-    hasProperty(value, 'userId') &&
     hasProperty(value, 'role') &&
     hasProperty(value, 'user') &&
     isString(value.id) &&
-    isString(value.teamId) &&
-    isString(value.userId) &&
     isString(value.role) &&
     isUserProfile(value.user)
   );

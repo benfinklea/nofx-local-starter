@@ -28,7 +28,7 @@ describe('FileSystemResponsesArchive', () => {
 
     const runs = archive.listRuns();
     expect(runs.length).toBe(1);
-    expect(runs[0].runId).toBe('fs-run-1');
+    expect(runs[0]!.runId).toBe('fs-run-1');
 
     // mark run as old and prune
     const runPath = path.join(baseDir, 'fs-run-1', 'run.json');

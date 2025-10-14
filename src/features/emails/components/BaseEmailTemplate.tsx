@@ -10,7 +10,6 @@ import {
   Head,
   Hr,
   Html,
-  Img,
   Link,
   Preview,
   Section,
@@ -31,7 +30,7 @@ export function BaseEmailTemplate({
   showFooter = true,
   showUnsubscribe = true,
 }: BaseEmailTemplateProps) {
-  const { company, branding, footer, unsubscribe } = EMAIL_SETTINGS;
+  const { company, footer, unsubscribe } = EMAIL_SETTINGS;
 
   return (
     <Html>

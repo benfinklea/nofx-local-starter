@@ -151,8 +151,8 @@ describe('Agent SDK Integration', () => {
       const steps = await store.listStepsByRun(run.id);
       expect(steps.length).toBe(1);
 
-      expect(steps[0].tool).toBe('codegen:v2');
-      expect(steps[0].status).toBe('queued');
+      expect(steps[0]!.tool).toBe('codegen:v2');
+      expect(steps[0]!.status).toBe('queued');
     }, 30000);
   });
 

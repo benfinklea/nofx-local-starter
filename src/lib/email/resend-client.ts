@@ -318,7 +318,7 @@ export function isValidEmail(email: string | null | undefined): boolean {
 
   // TLD (last part of domain) should be at least 2 characters
   const tld = domainLabels[domainLabels.length - 1];
-  if (tld.length < 2) {
+  if (!tld || tld.length < 2) {
     return false;
   }
 

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { ResponsesRunCoordinator } from './runCoordinator';
-import { ResponsesRunService, type ResponsesRunConfig, type ResponsesRunResult } from './runService';
+import { ResponsesRunService, type ResponsesRunResult } from './runService';
 import { FileSystemResponsesArchive } from './archiveStore';
 import { ConversationStateManager, InMemoryConversationStore } from './conversationStateManager';
 import { RateLimitTracker } from './rateLimitTracker';

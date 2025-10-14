@@ -10,7 +10,7 @@ export interface RetryOptions {
   baseDelay?: number;
   maxDelay?: number;
   backoffFactor?: number;
-  retryableErrors?: Array<new (...args: unknown[]) => Error>;
+  retryableErrors?: Array<new (...args: any[]) => Error>;
   onRetry?: (error: Error, attempt: number) => void;
 }
 

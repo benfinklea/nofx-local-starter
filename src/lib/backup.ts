@@ -145,7 +145,9 @@ async function restoreDbFromJson(dump: Record<string, Record<string, unknown>[]>
       const rows = dump[t] || [];
       if (!rows.length) continue;
       // Build dynamic insert
-      const cols = Object.keys(rows[0]);
+      const firstRow = rows[0];
+      if (!firstRow) continue;
+      const cols = Object.keys(firstRow);
       const placeholders: string[] = [];
       const values: unknown[] = [];
       const chunk = 100;

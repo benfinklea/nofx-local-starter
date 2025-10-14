@@ -11,19 +11,21 @@ export class UsageTrackingService {
    * Check usage limits for a specific metric
    */
   checkUsage(metric: string) {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!req.userId) {
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const withinLimits = await checkUsageLimits(req.userId, metric);
       if (!withinLimits) {
-        return res.status(429).json({
+        res.status(429).json({
           error: 'Usage limit exceeded',
           message: `You have exceeded your monthly ${metric} limit`,
           metric,
           upgradeUrl: '/billing/upgrade'
         });
+        return;
       }
 
       next();

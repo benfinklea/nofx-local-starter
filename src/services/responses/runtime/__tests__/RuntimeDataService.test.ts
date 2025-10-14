@@ -223,8 +223,8 @@ describe('RuntimeDataService', () => {
       expect(parsed).toHaveProperty('totalRuns');
       expect(parsed.runs).toHaveLength(2);
       expect(parsed.totalRuns).toBe(2);
-      expect(parsed.runs[0].runId).toBe('run-1');
-      expect(parsed.runs[1].runId).toBe('run-2');
+      expect(parsed.runs[0]!.runId).toBe('run-1');
+      expect(parsed.runs[1]!.runId).toBe('run-2');
     });
 
     it('should handle empty run list', async () => {
@@ -254,7 +254,7 @@ describe('RuntimeDataService', () => {
       const result = await service.exportAllRuns();
       const parsed = JSON.parse(result);
 
-      expect(parsed.runs[0].events).toEqual([]);
+      expect(parsed.runs[0]!.events).toEqual([]);
     });
 
     it('should export large number of runs efficiently', async () => {

@@ -193,7 +193,7 @@ describe('ApiKeyService', () => {
       const result = await apiKeyService.listApiKeys('user123');
 
       expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('Key 1');
+      expect(result[0]!.name).toBe('Key 1');
       expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', 'user123');
       expect(mockSupabase.eq).toHaveBeenCalledWith('is_active', true);
     });

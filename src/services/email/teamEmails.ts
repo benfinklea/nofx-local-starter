@@ -6,7 +6,7 @@
 import { sendEmail, isValidEmail } from '../../lib/email/resend-client';
 import TeamInviteEmail from '../../features/emails/TeamInviteEmail';
 import { log } from '../../lib/logger';
-import { EMAIL_SETTINGS, getEmailSubject } from '../../config/email';
+import { EMAIL_SETTINGS } from '../../config/email';
 import { createServiceClient } from '../../auth/supabase';
 
 /**

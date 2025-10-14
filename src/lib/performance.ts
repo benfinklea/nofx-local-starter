@@ -120,12 +120,12 @@ class PerformanceMonitor {
 
     return {
       count: values.length,
-      min: values[0],
-      max: values[values.length - 1],
+      min: values[0] ?? 0,
+      max: values[values.length - 1] ?? 0,
       avg: values.reduce((a, b) => a + b, 0) / values.length,
-      p50: values[Math.floor(values.length * 0.5)],
-      p95: values[Math.floor(values.length * 0.95)],
-      p99: values[Math.floor(values.length * 0.99)]
+      p50: values[Math.floor(values.length * 0.5)] ?? 0,
+      p95: values[Math.floor(values.length * 0.95)] ?? 0,
+      p99: values[Math.floor(values.length * 0.99)] ?? 0
     };
   }
 

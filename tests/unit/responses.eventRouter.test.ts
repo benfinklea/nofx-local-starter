@@ -17,7 +17,7 @@ describe('ResponsesEventRouter', () => {
 
     const timeline = archive.getTimeline('run-router')!;
     expect(timeline.events).toHaveLength(2);
-    expect(timeline.events[1].type).toBe('response.output_text.delta');
+    expect(timeline.events[1]!.type).toBe('response.output_text.delta');
   });
 
   it('rejects out-of-order or duplicate sequences', () => {

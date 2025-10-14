@@ -178,7 +178,7 @@ describe('StreamingBuffer Tests', () => {
       const segments = buffer.getOutputAudioSegments();
 
       expect(segments).toHaveLength(1);
-      expect(segments[0].format).toBe('mp3');
+      expect(segments[0]!.format).toBe('mp3');
     });
 
     it('should handle audio transcript deltas', () => {
@@ -209,7 +209,7 @@ describe('StreamingBuffer Tests', () => {
       const segments = buffer.getOutputAudioSegments();
 
       expect(segments).toHaveLength(1);
-      expect(segments[0].transcript).toBe('Final transcript');
+      expect(segments[0]!.transcript).toBe('Final transcript');
     });
 
     it('should handle input audio transcription', () => {
@@ -267,8 +267,8 @@ describe('StreamingBuffer Tests', () => {
       const segments = buffer.getOutputAudioSegments();
 
       expect(segments).toHaveLength(2);
-      expect(segments[0].itemId).toBe('audio-2');
-      expect(segments[1].itemId).toBe('audio-1');
+      expect(segments[0]!.itemId).toBe('audio-2');
+      expect(segments[1]!.itemId).toBe('audio-1');
     });
   });
 
@@ -335,7 +335,7 @@ describe('StreamingBuffer Tests', () => {
       const artifacts = buffer.getImageArtifacts();
 
       expect(artifacts).toHaveLength(1);
-      expect(artifacts[0].background).toBeNull();
+      expect(artifacts[0]!.background).toBeNull();
     });
 
     it('should fall back to partials if no final b64', () => {
@@ -349,7 +349,7 @@ describe('StreamingBuffer Tests', () => {
       const artifacts = buffer.getImageArtifacts();
 
       expect(artifacts).toHaveLength(1);
-      expect(artifacts[0].b64JSON).toBe('partial2');
+      expect(artifacts[0]!.b64JSON).toBe('partial2');
     });
 
     it('should maintain order for image artifacts', () => {
@@ -362,8 +362,8 @@ describe('StreamingBuffer Tests', () => {
       const artifacts = buffer.getImageArtifacts();
 
       expect(artifacts).toHaveLength(2);
-      expect(artifacts[0].itemId).toBe('img-2');
-      expect(artifacts[1].itemId).toBe('img-1');
+      expect(artifacts[0]!.itemId).toBe('img-2');
+      expect(artifacts[1]!.itemId).toBe('img-1');
     });
   });
 
@@ -512,11 +512,11 @@ describe('StreamingBuffer Tests', () => {
       const audioSegments = buffer.getOutputAudioSegments();
 
       expect(messages).toHaveLength(1);
-      expect(messages[0].text).toBe('Final text'); // Done event should be preserved
+      expect(messages[0]!.text).toBe('Final text'); // Done event should be preserved
 
       expect(audioSegments).toHaveLength(1);
-      expect(audioSegments[0].transcript).toBe('Transcript');
-      expect(audioSegments[0].audioBase64).toBe('audio_data');
+      expect(audioSegments[0]!.transcript).toBe('Transcript');
+      expect(audioSegments[0]!.audioBase64).toBe('audio_data');
     });
 
     it('should handle duplicate item additions gracefully', () => {
@@ -553,7 +553,7 @@ describe('StreamingBuffer Tests', () => {
       const messages = buffer.getAssistantMessages();
 
       expect(messages).toHaveLength(1);
-      expect(messages[0].text).toBe('content');
+      expect(messages[0]!.text).toBe('content');
     });
 
     it('should handle missing optional fields', () => {
@@ -567,9 +567,9 @@ describe('StreamingBuffer Tests', () => {
       const audioSegments = buffer.getOutputAudioSegments();
       const imageArtifacts = buffer.getImageArtifacts();
 
-      expect(audioSegments[0].format).toBeUndefined();
-      expect(imageArtifacts[0].imageUrl).toBeUndefined();
-      expect(imageArtifacts[0].size).toBeUndefined();
+      expect(audioSegments[0]!.format).toBeUndefined();
+      expect(imageArtifacts[0]!.imageUrl).toBeUndefined();
+      expect(imageArtifacts[0]!.size).toBeUndefined();
     });
 
     it('should handle items with no content', () => {

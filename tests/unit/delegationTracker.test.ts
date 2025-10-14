@@ -18,9 +18,9 @@ describe('DelegationTracker', () => {
 
     let delegations = tracker.getDelegations('run-delegation');
     expect(delegations).toHaveLength(1);
-    expect(delegations[0].toolName).toBe('delegate_agent');
-    expect(delegations[0].status).toBe('requested');
-    expect(delegations[0].arguments).toMatchObject({ task: 'organize' });
+    expect(delegations[0]!.toolName).toBe('delegate_agent');
+    expect(delegations[0]!.status).toBe('requested');
+    expect(delegations[0]!.arguments).toMatchObject({ task: 'organize' });
 
     tracker.handleEvent('run-delegation', {
       type: 'response.output_item.done',
@@ -29,7 +29,7 @@ describe('DelegationTracker', () => {
 
     delegations = tracker.getDelegations('run-delegation');
     expect(delegations).toHaveLength(1);
-    expect(delegations[0].status).toBe('completed');
-    expect(delegations[0].output).toMatchObject({ result: 'ok' });
+    expect(delegations[0]!.status).toBe('completed');
+    expect(delegations[0]!.output).toMatchObject({ result: 'ok' });
   });
 });

@@ -85,7 +85,7 @@ describe('RuntimeIncidentService', () => {
 
       expect(mockIncidents.listIncidents).toHaveBeenCalledWith({ status: 'resolved' });
       expect(result).toHaveLength(1);
-      expect(result[0].status).toBe('resolved');
+      expect(result[0]!.status).toBe('resolved');
     });
 
     it('should return empty array when no incidents found', () => {
@@ -157,11 +157,11 @@ describe('RuntimeIncidentService', () => {
         type: 'failed',
         sequence: 1,
       });
-      expect(result[0].tenantId).toBeUndefined();
-      expect(result[0].model).toBeUndefined();
-      expect(result[0].requestId).toBeUndefined();
-      expect(result[0].traceId).toBeUndefined();
-      expect(result[0].reason).toBeUndefined();
+      expect(result[0]!.tenantId).toBeUndefined();
+      expect(result[0]!.model).toBeUndefined();
+      expect(result[0]!.requestId).toBeUndefined();
+      expect(result[0]!.traceId).toBeUndefined();
+      expect(result[0]!.reason).toBeUndefined();
     });
 
     it('should handle large number of incidents', () => {
@@ -428,8 +428,8 @@ describe('RuntimeIncidentService', () => {
 
       expect(mockIncidents.getIncidentsForRun).toHaveBeenCalledWith(runId);
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('incident-1');
-      expect(result[1].id).toBe('incident-2');
+      expect(result[0]!.id).toBe('incident-1');
+      expect(result[1]!.id).toBe('incident-2');
     });
 
     it('should return empty array for run with no incidents', () => {
@@ -464,7 +464,7 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.getRunIncidents('run-1');
 
-      expect(result[0].resolution).toEqual({
+      expect(result[0]!.resolution).toEqual({
         resolvedAt: resolvedAt.toISOString(),
         resolvedBy: 'admin',
         notes: 'Fixed manually',
@@ -489,7 +489,7 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.getRunIncidents('run-1');
 
-      expect(result[0].resolution).toBeUndefined();
+      expect(result[0]!.resolution).toBeUndefined();
     });
 
     it('should handle multiple incidents with mixed statuses', () => {
@@ -553,7 +553,7 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.listResponseIncidents();
 
-      expect(result[0].occurredAt).toBe('2024-01-01T10:00:00.123Z');
+      expect(result[0]!.occurredAt).toBe('2024-01-01T10:00:00.123Z');
     });
 
     it('should convert resolvedAt to ISO string', () => {
@@ -599,8 +599,8 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.listResponseIncidents();
 
-      expect(result[0].occurredAt).toContain('Z');
-      expect(new Date(result[0].occurredAt).getTime()).toBe(date.getTime());
+      expect(result[0]!.occurredAt).toContain('Z');
+      expect(new Date(result[0]!.occurredAt).getTime()).toBe(date.getTime());
     });
   });
 
@@ -621,7 +621,7 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.listResponseIncidents();
 
-      expect(result[0].sequence).toBe(Number.MAX_SAFE_INTEGER);
+      expect(result[0]!.sequence).toBe(Number.MAX_SAFE_INTEGER);
     });
 
     it('should handle very long notes in resolution', () => {
@@ -671,8 +671,8 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.listResponseIncidents();
 
-      expect(result[0].reason).toBe(specialChars);
-      expect(result[0].tenantId).toBe(specialChars);
+      expect(result[0]!.reason).toBe(specialChars);
+      expect(result[0]!.tenantId).toBe(specialChars);
     });
 
     it('should handle Unicode characters in incident data', () => {
@@ -693,7 +693,7 @@ describe('RuntimeIncidentService', () => {
 
       const result = service.listResponseIncidents();
 
-      expect(result[0].reason).toBe(unicode);
+      expect(result[0]!.reason).toBe(unicode);
     });
   });
 });

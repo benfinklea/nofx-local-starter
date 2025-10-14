@@ -41,7 +41,7 @@ function loadMigrations(): Migration[] {
     return {
       id: file.replace('.sql', ''),
       name: file.replace(/^\d+_/, '').replace('.sql', ''),
-      up: upSql.replace('-- UP', '').trim(),
+      up: (upSql || '').replace('-- UP', '').trim(),
       down: (downSql || '').trim(),
       timestamp: new Date()
     };

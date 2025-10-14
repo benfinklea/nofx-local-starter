@@ -121,15 +121,16 @@ export function configureSizeLimits(app: Express): void {
   // Already configured in main.ts with express.json({ limit: "2mb" })
   // But we can add additional checks here
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use((req: Request, res: Response, next: NextFunction): void => {
     const contentLength = req.headers['content-length'];
     const maxSize = 2 * 1024 * 1024; // 2MB
 
     if (contentLength && parseInt(contentLength) > maxSize) {
-      return res.status(413).json({
+      res.status(413).json({
         error: 'Payload too large',
         message: 'Request body exceeds maximum allowed size of 2MB'
       });
+      return;
     }
 
     next();
@@ -148,7 +149,7 @@ export function preventSqlInjection(req: Request, res: Response, next: NextFunct
   ];
 
   // Check query parameters
-  for (const [key, value] of Object.entries(req.query)) {
+  for (const [_key, value] of Object.entries(req.query)) {
     const strValue = String(value);
     for (const pattern of suspiciousPatterns) {
       if (pattern.test(strValue)) {
@@ -167,7 +168,7 @@ export function preventSqlInjection(req: Request, res: Response, next: NextFunct
   }
 
   // Check URL parameters
-  for (const [key, value] of Object.entries(req.params)) {
+  for (const [_key, value] of Object.entries(req.params)) {
     const strValue = String(value);
     // Allow UUIDs
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strValue)) {
@@ -197,7 +198,7 @@ export function preventSqlInjection(req: Request, res: Response, next: NextFunct
  * XSS prevention middleware
  * Sanitizes common inputs
  */
-export function preventXss(req: Request, res: Response, next: NextFunction): void {
+export function preventXss(req: Request, _res: Response, next: NextFunction): void {
   const xssPatterns = [
     /<script[^>]*>[\s\S]*?<\/script>/gi,
     /<iframe[^>]*>[\s\S]*?<\/iframe>/gi,

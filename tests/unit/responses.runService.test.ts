@@ -101,7 +101,7 @@ describe('ResponsesRunService', () => {
       },
     });
 
-    expect(result.bufferedMessages[0].text).toBe('hello');
+    expect(result.bufferedMessages[0]!.text).toBe('hello');
     expect(coordinator.startRun).toHaveBeenCalledTimes(1);
     expect(coordinator.startRun.mock.calls[0][0].maxToolCalls).toBe(3);
     expect(coordinator.startRun.mock.calls[0][0].metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expect.any(String) });

@@ -375,20 +375,24 @@ describe('Queue Adapters Tests', () => {
       expect(Queue).toHaveBeenNthCalledWith(2, 'topic2', expect.any(Object));
     });
 
-    test('uses environment Redis URL', () => {
+    test('uses environment Redis URL', async () => {
       process.env.REDIS_URL = 'redis://custom:6380';
       const IORedis = require('ioredis');
 
-      new RedisQueueAdapter();
+      const adapter = new RedisQueueAdapter();
+      // Trigger lazy initialization by enqueuing a job
+      await adapter.enqueue('test.topic', { data: 'test' });
 
       expect(IORedis).toHaveBeenCalledWith('redis://custom:6380', expect.any(Object));
     });
 
-    test('falls back to default Redis URL', () => {
+    test('falls back to default Redis URL', async () => {
       delete process.env.REDIS_URL;
       const IORedis = require('ioredis');
 
-      new RedisQueueAdapter();
+      const adapter = new RedisQueueAdapter();
+      // Trigger lazy initialization by enqueuing a job
+      await adapter.enqueue('test.topic', { data: 'test' });
 
       expect(IORedis).toHaveBeenCalledWith('redis://localhost:6379', expect.any(Object));
     });

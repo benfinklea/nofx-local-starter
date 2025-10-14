@@ -124,6 +124,6 @@ describe('registryIntegration.searchRegistry', () => {
 
     const results = await searchRegistry({ limit: 1 });
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe('agent-a');
+    expect(results[0]!.id).toBe('agent-a');
   });
 });

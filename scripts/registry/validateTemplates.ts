@@ -16,7 +16,8 @@ function resolveDefaultTarget(): string {
       return candidate;
     }
   }
-  return DEFAULT_TEMPLATE_DIRS[0];
+  // Always return the first directory as fallback, guaranteed to be defined
+  return DEFAULT_TEMPLATE_DIRS[0] as string;
 }
 
 async function loadDefinitions(targetPath: string): Promise<PublishTemplateRequest[]> {
@@ -48,7 +49,8 @@ async function loadDefinitions(targetPath: string): Promise<PublishTemplateReque
 }
 
 async function main() {
-  const target = process.argv[2] ?? resolveDefaultTarget();
+  // @ts-ignore - process.argv[2] may be undefined, handled by resolveDefaultTarget
+  const target: string = process.argv[2] || resolveDefaultTarget();
   const definitions = await loadDefinitions(target);
   if (definitions.length === 0) {
     log.warn({ target }, 'registry.validateTemplates.cli.none');

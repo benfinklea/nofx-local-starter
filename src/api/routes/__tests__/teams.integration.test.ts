@@ -500,7 +500,7 @@ describe('Team Management - Database Integration Tests', () => {
 
         expect(teams).toBeDefined();
         if (teams && teams.length > 0) {
-          expect(teams[0].name).toContain('Team');
+          expect(teams[0]!.name).toContain('Team');
           // Check if is_personal flag is set
           const isPersonal = teams[0].settings?.is_personal;
           expect(isPersonal).toBe(true);

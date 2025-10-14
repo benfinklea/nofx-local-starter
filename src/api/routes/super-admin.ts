@@ -36,7 +36,7 @@ router.use(requireSuperAdmin);
 /**
  * Super Admin Dashboard - Main admin interface
  */
-router.get('/dashboard', (_req: Request, res: Response): Promise<void> => {
+router.get('/dashboard', (_req: Request, res: Response): void => {
   try {
     const summary = performanceMonitor.getSummary();
     const isHealthy = performanceMonitor.isHealthy();
@@ -61,7 +61,7 @@ router.get('/dashboard', (_req: Request, res: Response): Promise<void> => {
 /**
  * Get all performance data (admin view)
  */
-router.get('/performance/full', (_req: Request, res: Response): Promise<void> => {
+router.get('/performance/full', (_req: Request, res: Response): void => {
   try {
     const current = performanceMonitor.getCurrentSnapshot();
     const summary = performanceMonitor.getSummary();
@@ -118,7 +118,7 @@ router.post('/benchmarks/run', async (req: Request, res: Response): Promise<void
 /**
  * Export all performance data
  */
-router.post('/export/performance', (_req: Request, res: Response): Promise<void> => {
+router.post('/export/performance', (_req: Request, res: Response): void => {
   try {
     // Export benchmark results
     exportBenchmarkResults();
@@ -150,7 +150,7 @@ router.post('/export/performance', (_req: Request, res: Response): Promise<void>
 /**
  * System control - Reset performance monitoring
  */
-router.post('/system/reset-performance', (_req: Request, res: Response): Promise<void> => {
+router.post('/system/reset-performance', (_req: Request, res: Response): void => {
   try {
     performanceMonitor.reset();
     benchmarkRunner.clear();
@@ -172,7 +172,7 @@ router.post('/system/reset-performance', (_req: Request, res: Response): Promise
 /**
  * Get system information (admin view)
  */
-router.get('/system/info', (_req: Request, res: Response): Promise<void> => {
+router.get('/system/info', (_req: Request, res: Response): void => {
   try {
     const memoryUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
@@ -215,7 +215,7 @@ router.get('/system/info', (_req: Request, res: Response): Promise<void> => {
 /**
  * Update performance thresholds (admin only)
  */
-router.post('/performance/thresholds', (req: Request, res: Response): Promise<void> => {
+router.post('/performance/thresholds', (req: Request, res: Response): void => {
   try {
     const thresholds = req.body;
     performanceMonitor.updateThresholds(thresholds);

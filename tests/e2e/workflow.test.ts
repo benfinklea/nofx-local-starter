@@ -60,10 +60,10 @@ test.describe('NOFX End-to-End Workflow Tests', () => {
       const finalData = await finalResponse.json();
 
       expect(finalData.steps).toHaveLength(1);
-      expect(finalData.steps[0].status).toBe('succeeded');
+      expect(finalData.steps[0]!.status).toBe('succeeded');
 
       if (finalData.artifacts && finalData.artifacts.length > 0) {
-        expect(finalData.artifacts[0].type).toBe('text/markdown');
+        expect(finalData.artifacts[0]!.type).toBe('text/markdown');
       }
     });
 

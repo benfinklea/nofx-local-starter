@@ -20,7 +20,7 @@ export class SubscriptionManagementService {
   async manageSubscriptionStatusChange(
     subscriptionId: string,
     customerId: string,
-    createAction = false
+    _createAction = false
   ): Promise<void> {
     try {
       const { createServiceClient } = require('../../auth/supabase');

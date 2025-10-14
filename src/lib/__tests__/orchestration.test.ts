@@ -347,7 +347,7 @@ describe('Orchestration Service - Comprehensive Tests', () => {
         });
 
         expect(result.sessions).toHaveLength(1);
-        expect(result.sessions[0].orchestrationType).toBe('hierarchical');
+        expect(result.sessions[0]!.orchestrationType).toBe('hierarchical');
       });
 
       it('filters sessions by date range', async () => {
@@ -406,7 +406,7 @@ describe('Orchestration Service - Comprehensive Tests', () => {
         });
 
         expect(result).toHaveLength(1);
-        expect(result[0].role).toBe('primary');
+        expect(result[0]!.role).toBe('primary');
       });
 
       it('falls back to JSONB capabilities when structured fails', async () => {
@@ -455,8 +455,8 @@ describe('Orchestration Service - Comprehensive Tests', () => {
         });
 
         expect(result).toHaveLength(2);
-        expect(result[0].role).toBe('primary');
-        expect(result[1].role).toBe('secondary');
+        expect(result[0]!.role).toBe('primary');
+        expect(result[1]!.role).toBe('secondary');
       });
 
       it('selects agents for swarm orchestration', async () => {
@@ -676,7 +676,7 @@ describe('Orchestration Service - Comprehensive Tests', () => {
         const result = await getSessionRelationships('session-123');
 
         expect(result).toHaveLength(2);
-        expect(result[0].relationshipType).toBe('supervisor');
+        expect(result[0]!.relationshipType).toBe('supervisor');
       });
     });
   });

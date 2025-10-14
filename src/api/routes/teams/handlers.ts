@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import { log } from '../../../lib/logger';
 import { ApiResponse } from '../../../lib/apiResponse';
-import { createApiError, isError } from '../../../lib/errors';
+import { createApiError } from '../../../lib/errors';
 import { TeamService } from './TeamService';
 import { InviteService } from './InviteService';
 import { MemberService } from './MemberService';
@@ -84,9 +84,16 @@ export async function handleCreateTeam(req: Request, res: Response): Promise<voi
  */
 export async function handleGetTeam(req: Request, res: Response): Promise<void> {
   try {
-    const team = await teamService.getTeamDetails(req.params.teamId);
+    const teamId = req.params.teamId;
+    if (!teamId) {
+      const apiError = createApiError.validation('teamId', 'Team ID is required');
+      ApiResponse.fromApiError(res, apiError);
+      return;
+    }
+
+    const team = await teamService.getTeamDetails(teamId);
     if (!team) {
-      const apiError = createApiError.notFound('Team', req.params.teamId);
+      const apiError = createApiError.notFound('Team', teamId);
       ApiResponse.fromApiError(res, apiError);
       return;
     }
@@ -110,6 +117,13 @@ export async function handleGetTeam(req: Request, res: Response): Promise<void> 
  */
 export async function handleUpdateTeam(req: Request, res: Response): Promise<void> {
   try {
+    const teamId = req.params.teamId;
+    if (!teamId) {
+      const apiError = createApiError.validation('teamId', 'Team ID is required');
+      ApiResponse.fromApiError(res, apiError);
+      return;
+    }
+
     const parsed = UpdateTeamSchema.safeParse(req.body);
     if (!parsed.success) {
       const errors = parsed.error.errors.map(err => ({
@@ -122,7 +136,7 @@ export async function handleUpdateTeam(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const team = await teamService.updateTeam(req.params.teamId, parsed.data, req.userId!);
+    const team = await teamService.updateTeam(teamId, parsed.data, req.userId!);
     ApiResponse.success(res, { team });
   } catch (error) {
     log.error({ error }, 'Update team error');
@@ -143,7 +157,14 @@ export async function handleUpdateTeam(req: Request, res: Response): Promise<voi
  */
 export async function handleDeleteTeam(req: Request, res: Response): Promise<void> {
   try {
-    await teamService.deleteTeam(req.params.teamId, req.userId!);
+    const teamId = req.params.teamId;
+    if (!teamId) {
+      const apiError = createApiError.validation('teamId', 'Team ID is required');
+      ApiResponse.fromApiError(res, apiError);
+      return;
+    }
+
+    await teamService.deleteTeam(teamId, req.userId!);
     ApiResponse.success(res, { message: 'Team deleted successfully' });
   } catch (error) {
     log.error({ error }, 'Delete team error');
@@ -158,6 +179,12 @@ export async function handleDeleteTeam(req: Request, res: Response): Promise<voi
 
 export async function handleSendInvite(req: Request, res: Response): Promise<void> {
   try {
+    const teamId = req.params.teamId;
+    if (!teamId) {
+      res.status(400).json({ error: 'Team ID is required' });
+      return;
+    }
+
     const parsed = InviteMemberSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
@@ -165,7 +192,7 @@ export async function handleSendInvite(req: Request, res: Response): Promise<voi
     }
 
     const invite = await inviteService.sendTeamInvite(
-      req.params.teamId,
+      teamId,
       parsed.data,
       req.userId!,
       req.user?.email || ''
@@ -206,7 +233,14 @@ export async function handleAcceptInvite(req: Request, res: Response): Promise<v
 
 export async function handleCancelInvite(req: Request, res: Response): Promise<void> {
   try {
-    await inviteService.cancelInvite(req.params.teamId, req.params.inviteId, req.userId!);
+    const teamId = req.params.teamId;
+    const inviteId = req.params.inviteId;
+    if (!teamId || !inviteId) {
+      res.status(400).json({ error: 'Team ID and Invite ID are required' });
+      return;
+    }
+
+    await inviteService.cancelInvite(teamId, inviteId, req.userId!);
     res.json({ message: 'Invite cancelled successfully' });
   } catch (error) {
     log.error({ error }, 'Cancel invite error');
@@ -216,6 +250,13 @@ export async function handleCancelInvite(req: Request, res: Response): Promise<v
 
 export async function handleUpdateMemberRole(req: Request, res: Response): Promise<void> {
   try {
+    const teamId = req.params.teamId;
+    const memberId = req.params.memberId;
+    if (!teamId || !memberId) {
+      res.status(400).json({ error: 'Team ID and Member ID are required' });
+      return;
+    }
+
     const parsed = UpdateMemberRoleSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
@@ -223,8 +264,8 @@ export async function handleUpdateMemberRole(req: Request, res: Response): Promi
     }
 
     const member = await memberService.updateMemberRole(
-      req.params.teamId,
-      req.params.memberId,
+      teamId,
+      memberId,
       parsed.data,
       req.userId!
     );
@@ -239,7 +280,14 @@ export async function handleUpdateMemberRole(req: Request, res: Response): Promi
 
 export async function handleRemoveMember(req: Request, res: Response): Promise<void> {
   try {
-    await memberService.removeMember(req.params.teamId, req.params.memberId, req.userId!);
+    const teamId = req.params.teamId;
+    const memberId = req.params.memberId;
+    if (!teamId || !memberId) {
+      res.status(400).json({ error: 'Team ID and Member ID are required' });
+      return;
+    }
+
+    await memberService.removeMember(teamId, memberId, req.userId!);
     res.json({ message: 'Member removed successfully' });
   } catch (error) {
     log.error({ error }, 'Remove member error');
@@ -250,7 +298,13 @@ export async function handleRemoveMember(req: Request, res: Response): Promise<v
 
 export async function handleLeaveTeam(req: Request, res: Response): Promise<void> {
   try {
-    await memberService.leaveTeam(req.params.teamId, req.userId!);
+    const teamId = req.params.teamId;
+    if (!teamId) {
+      res.status(400).json({ error: 'Team ID is required' });
+      return;
+    }
+
+    await memberService.leaveTeam(teamId, req.userId!);
     res.json({ message: 'Left team successfully' });
   } catch (error) {
     log.error({ error }, 'Leave team error');
@@ -261,14 +315,19 @@ export async function handleLeaveTeam(req: Request, res: Response): Promise<void
 
 export async function handleTransferOwnership(req: Request, res: Response): Promise<void> {
   try {
-    const { newOwnerId } = req.body;
+    const teamId = req.params.teamId;
+    if (!teamId) {
+      res.status(400).json({ error: 'Team ID is required' });
+      return;
+    }
 
+    const { newOwnerId } = req.body;
     if (!newOwnerId) {
       res.status(400).json({ error: 'New owner ID is required' });
       return;
     }
 
-    await memberService.transferOwnership(req.params.teamId, newOwnerId, req.userId!);
+    await memberService.transferOwnership(teamId, newOwnerId, req.userId!);
     res.json({ message: 'Ownership transferred successfully' });
   } catch (error) {
     log.error({ error }, 'Transfer ownership error');

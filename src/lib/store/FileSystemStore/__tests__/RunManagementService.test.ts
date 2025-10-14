@@ -454,7 +454,7 @@ describe('RunManagementService', () => {
 
       const result = await service.listRuns();
 
-      expect(result[0].title).toBe('');
+      expect(result[0]!.title).toBe('');
     });
 
     it('handles runs with null plan', async () => {
@@ -470,7 +470,7 @@ describe('RunManagementService', () => {
 
       const result = await service.listRuns();
 
-      expect(result[0].title).toBe('');
+      expect(result[0]!.title).toBe('');
     });
 
     it('skips invalid run files', async () => {

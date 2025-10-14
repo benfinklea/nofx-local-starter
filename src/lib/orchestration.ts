@@ -5,7 +5,6 @@
 
 import { query, withTransaction } from './db';
 import { timeIt, log } from './observability';
-import { metrics } from './metrics';
 import type {
   AgentSession,
   CreateSessionRequest,
@@ -376,7 +375,7 @@ function selectByOrchestrationPattern(
   switch (orchestrationType) {
     case 'solo':
       // Select the best single agent
-      if (agents.length > 0) {
+      if (agents.length > 0 && agents[0]) {
         agents[0].role = 'primary';
         return [agents[0]];
       }
@@ -384,7 +383,7 @@ function selectByOrchestrationPattern(
 
     case 'pair':
       // Select two complementary agents
-      if (agents.length >= 2) {
+      if (agents.length >= 2 && agents[0] && agents[1]) {
         agents[0].role = 'primary';
         agents[1].role = 'secondary';
         return agents.slice(0, 2);
@@ -393,7 +392,7 @@ function selectByOrchestrationPattern(
 
     case 'hierarchical':
       // Select supervisor and workers
-      if (agents.length > 0) {
+      if (agents.length > 0 && agents[0]) {
         agents[0].role = 'supervisor';
         agents.slice(1).forEach(a => a.role = 'worker');
         return agents;
@@ -445,6 +444,10 @@ export async function sendAgentMessage(
       `,
       [sessionId, fromAgentId, toAgentId, messageType, payload]
     );
+
+    if (!result.rows[0]) {
+      throw createOrchestrationError('COMMUNICATION_FAILED', 'Failed to create agent message');
+    }
 
     const messageId = result.rows[0].id;
 

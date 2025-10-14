@@ -32,7 +32,7 @@ describe('Responses archive rollbacks', () => {
 
     const snapshot = archive.rollback('run-seq', { sequence: 1, operator: 'qa', reason: 'trim after failure' });
     expect(snapshot.events).toHaveLength(1);
-    expect(snapshot.events[0].sequence).toBe(1);
+    expect(snapshot.events[0]!.sequence).toBe(1);
     expect(snapshot.run.metadata?.last_rollback_operator).toBe('qa');
     expect(snapshot.run.metadata?.last_rollback_reason).toBe('trim after failure');
     expect(snapshot.run.metadata?.last_rollback_sequence).toBe('1');

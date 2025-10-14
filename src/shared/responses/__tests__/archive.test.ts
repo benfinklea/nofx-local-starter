@@ -199,9 +199,9 @@ describe('InMemoryResponsesArchive Tests', () => {
 
       expect(listed).toHaveLength(3);
       // Should be sorted by creation date descending (newest first)
-      expect(listed[0].runId).toBe('run-3');
-      expect(listed[1].runId).toBe('run-2');
-      expect(listed[2].runId).toBe('run-1');
+      expect(listed[0]!.runId).toBe('run-3');
+      expect(listed[1]!.runId).toBe('run-2');
+      expect(listed[2]!.runId).toBe('run-1');
     });
 
     it('should delete run', () => {
@@ -647,8 +647,8 @@ describe('InMemoryResponsesArchive Tests', () => {
       const result = archive.rollback('test-run', { sequence: 2 });
 
       expect(result.events).toHaveLength(2);
-      expect(result.events[0].type).toBe('event.1');
-      expect(result.events[1].type).toBe('event.2');
+      expect(result.events[0]!.type).toBe('event.1');
+      expect(result.events[1]!.type).toBe('event.2');
       expect(result.run.metadata!.last_rollback_sequence).toBe('2');
     });
 
@@ -680,8 +680,8 @@ describe('InMemoryResponsesArchive Tests', () => {
 
       // Should have 2 events with sequences 1, 2
       expect(result.events).toHaveLength(2);
-      expect(result.events[0].sequence).toBe(1);
-      expect(result.events[1].sequence).toBe(2);
+      expect(result.events[0]!.sequence).toBe(1);
+      expect(result.events[1]!.sequence).toBe(2);
     });
 
     it('should throw error when rolling back non-existent run', () => {
@@ -748,21 +748,21 @@ describe('InMemoryResponsesArchive Tests', () => {
         const result = applyRollbackToTimeline(sampleRun, sampleEvents, { sequence: 2 });
 
         expect(result.events).toHaveLength(2);
-        expect(result.events[0].sequence).toBe(1);
-        expect(result.events[1].sequence).toBe(2);
+        expect(result.events[0]!.sequence).toBe(1);
+        expect(result.events[1]!.sequence).toBe(2);
       });
 
       it('should filter events by tool call ID', () => {
         const result = applyRollbackToTimeline(sampleRun, sampleEvents, { toolCallId: 'call-1' });
 
         expect(result.events).toHaveLength(1);
-        expect(result.events[0].type).toBe('event.2');
+        expect(result.events[0]!.type).toBe('event.2');
       });
 
       it('should reindex filtered events', () => {
         const result = applyRollbackToTimeline(sampleRun, sampleEvents, { toolCallId: 'call-1' });
 
-        expect(result.events[0].sequence).toBe(1);
+        expect(result.events[0]!.sequence).toBe(1);
       });
 
       it('should strip tool call from result', () => {
@@ -863,7 +863,7 @@ describe('InMemoryResponsesArchive Tests', () => {
 
       // Get timeline again to verify original is preserved
       const timeline2 = archive.getTimeline('test-run')!;
-      expect(timeline2.events[0].payload).toEqual({ mutable: 'data' });
+      expect(timeline2.events[0]!.payload).toEqual({ mutable: 'data' });
     });
 
     it('should preserve safety data immutability', () => {

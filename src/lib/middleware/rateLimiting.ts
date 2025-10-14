@@ -19,7 +19,7 @@ const keyGenerator = (req: Request): string => {
   // Get real IP from X-Forwarded-For or socket
   const forwarded = req.headers['x-forwarded-for'];
   const ip = typeof forwarded === 'string'
-    ? forwarded.split(',')[0].trim()
+    ? (forwarded.split(',')[0] || '').trim() || 'unknown'
     : req.socket.remoteAddress || 'unknown';
 
   return `ip:${ip}`;

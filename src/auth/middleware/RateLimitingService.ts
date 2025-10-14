@@ -50,8 +50,9 @@ export class RateLimitingService {
    * Get rate limit based on user tier
    */
   private getTierLimit(userTier: string | undefined, maxRequests?: number): number {
+    const defaultLimit = maxRequests || 10;
     const tierLimits: Record<string, number> = {
-      free: maxRequests || 10,
+      free: defaultLimit,
       starter: maxRequests || 30,
       pro: maxRequests || 60,
       enterprise: maxRequests || 200
@@ -59,7 +60,7 @@ export class RateLimitingService {
 
     const tier = userTier || 'free';
     const limit = tierLimits[tier];
-    return limit !== undefined ? limit : tierLimits.free;
+    return limit !== undefined ? limit : defaultLimit;
   }
 
   /**

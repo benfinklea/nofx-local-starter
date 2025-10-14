@@ -134,12 +134,18 @@ describe('Reliability Module - Circuit Breaker', () => {
     });
 
     it('should timeout long-running operations', async () => {
+      // Use real timers for this test since we need actual timeout behavior
+      jest.useRealTimers();
+
       const breaker = new CircuitBreaker({ timeout: 100 });
       const fn = jest.fn().mockImplementation(() =>
         new Promise(resolve => setTimeout(resolve, 200))
       );
 
       await expect(breaker.execute(fn)).rejects.toThrow('timeout');
+
+      // Restore fake timers for other tests
+      jest.useFakeTimers();
     });
 
     it('should reset failure count on success', async () => {

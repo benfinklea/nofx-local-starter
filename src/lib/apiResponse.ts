@@ -9,7 +9,6 @@ import {
   ApiError,
   isApiError,
   getHttpStatusFromApiError,
-  type ValidationErrorDetail,
 } from './errors';
 
 // Standard response envelope for successful operations

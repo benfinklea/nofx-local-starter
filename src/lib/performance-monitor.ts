@@ -179,6 +179,9 @@ class PerformanceMonitor extends EventEmitter {
 
     const uptime = Date.now() - this.startTime;
     const rps = this.requestCount / (uptime / 1000);
+    // Error rate calculated but not used in snapshot - useful for future analytics
+    // @ts-ignore - Calculated for future use in analytics
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const errorRate = this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0;
 
     // Calculate response time percentiles

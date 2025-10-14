@@ -176,7 +176,7 @@ export class InviteService {
       .eq('email', email);
 
     // If no user exists with this email, they can't be a member
-    if (!users || users.length === 0) {
+    if (!users || users.length === 0 || !users[0]) {
       return;
     }
 

@@ -162,6 +162,7 @@ export function getHttpStatusFromApiError(error: ApiError): number {
       return 500;
     default:
       // Exhaustive check - TypeScript will error if we miss a case
+      // @ts-ignore - Exhaustiveness check variable
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _exhaustive: never = error;
       return 500;

@@ -182,7 +182,7 @@ export class MemberService {
       .eq('team_id', teamId)
       .eq('user_id', userId);
 
-    if (membership && membership.length > 0 && membership[0].role === 'owner') {
+    if (membership && membership.length > 0 && membership[0] && membership[0].role === 'owner') {
       throw new Error('Team owners cannot leave the team. Transfer ownership first.');
     }
 

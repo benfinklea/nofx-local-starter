@@ -16,7 +16,7 @@ const router = Router();
 /**
  * Get current performance snapshot (public endpoint for monitoring)
  */
-router.get('/performance/current', (req, res) => {
+router.get('/performance/current', (_req, res) => {
   try {
     const snapshot = performanceMonitor.getCurrentSnapshot();
     return res.json({
@@ -102,7 +102,7 @@ router.post('/performance/thresholds', (req, res) => {
 /**
  * Reset performance metrics
  */
-router.post('/performance/reset', (req, res) => {
+router.post('/performance/reset', (_req, res) => {
   try {
     performanceMonitor.reset();
 
@@ -122,7 +122,7 @@ router.post('/performance/reset', (req, res) => {
 /**
  * Get benchmark suites list
  */
-router.get('/benchmarks/suites', (req, res) => {
+router.get('/benchmarks/suites', (_req, res) => {
   try {
     const suites = benchmarkRunner.listSuites();
 
@@ -222,7 +222,7 @@ router.post('/benchmarks/export', (req, res) => {
 /**
  * Clear benchmark data
  */
-router.post('/benchmarks/clear', (req, res) => {
+router.post('/benchmarks/clear', (_req, res) => {
   try {
     benchmarkRunner.clear();
 
@@ -242,7 +242,7 @@ router.post('/benchmarks/clear', (req, res) => {
 /**
  * Health check with performance status
  */
-router.get('/performance/health', (req, res) => {
+router.get('/performance/health', (_req, res) => {
   try {
     const isHealthy = performanceMonitor.isHealthy();
     const summary = performanceMonitor.getSummary();

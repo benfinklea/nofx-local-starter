@@ -43,14 +43,16 @@ function sanitizeNextParam(nextParam?: string | string[]): string {
   return value;
 }
 
-export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return res.status(500).json({ error: 'Supabase credentials not configured' });
+    res.status(500).json({ error: 'Supabase credentials not configured' });
+    return;
   }
 
   const errorDescription = req.query.error_description as string | undefined;
@@ -125,7 +127,8 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   </script>
 </body>
 </html>`;
-    return res.status(200).send(html);
+    res.status(200).send(html);
+    return;
   }
 
   const next = sanitizeNextParam(req.query.next);
@@ -139,7 +142,8 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
       if (userError || !userData?.user) {
         console.error('Failed to get user with token:', userError);
-        return res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+        res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+        return;
       }
 
       session = {
@@ -155,13 +159,15 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
 
       if (error || !data?.session || !data.user) {
         console.error('OAuth exchange error:', error?.message || 'Unknown error');
-        return res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+        res.status(500).send('<p>Failed to complete Google sign-in.</p>');
+        return;
       }
 
       session = data.session;
       user = data.user;
     } else {
-      return res.status(400).send('<p>No authentication data provided.</p>');
+      res.status(400).send('<p>No authentication data provided.</p>');
+      return;
     }
 
     res.setHeader('Set-Cookie', [

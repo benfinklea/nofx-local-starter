@@ -214,8 +214,8 @@ describe('orchestration service', () => {
 
       // Assert
       expect(swarmAgents).toHaveLength(10);
-      expect(swarmAgents[0].agentId).toBe('agent-0');
-      expect(swarmAgents[9].agentId).toBe('agent-9');
+      expect(swarmAgents[0]!.agentId).toBe('agent-0');
+      expect(swarmAgents[9]!.agentId).toBe('agent-9');
     });
   });
 
@@ -254,11 +254,11 @@ describe('orchestration service', () => {
       // Assert
       // selectAgentsForOrchestration applies orchestration pattern (solo = 1 agent)
       expect(result).toHaveLength(1);
-      expect(result[0].agentId).toBe('agent-123');
-      expect(result[0].agentName).toBe('Code Generator');
-      expect(result[0].capabilities).toHaveLength(1);
+      expect(result[0]!.agentId).toBe('agent-123');
+      expect(result[0]!.agentName).toBe('Code Generator');
+      expect(result[0]!.capabilities).toHaveLength(1);
       expect(result[0].capabilities[0].skillId).toBe('typescript');
-      expect(result[0].role).toBe('primary'); // Solo mode assigns primary role
+      expect(result[0]!.role).toBe('primary'); // Solo mode assigns primary role
     });
 
     it('should match agents with all required capabilities', async () => {

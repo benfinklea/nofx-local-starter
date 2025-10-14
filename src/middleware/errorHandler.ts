@@ -266,7 +266,7 @@ export function notFoundHandler(req: Request, res: Response): void {
  * Unhandled rejection handler
  */
 export function setupProcessErrorHandlers(): void {
-  process.on('unhandledRejection', (reason: Error | unknown, promise: Promise<any>) => {
+  process.on('unhandledRejection', (reason: Error | unknown, _promise: Promise<any>) => {
     log.error({
       type: 'unhandledRejection',
       reason: reason instanceof Error ? reason.message : reason,

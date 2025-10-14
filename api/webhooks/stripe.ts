@@ -44,22 +44,25 @@ const relevantEvents = new Set([
   'customer.updated'
 ]);
 
-export default withCors(async function handler(req: VercelRequest, res: VercelResponse) {
+export default withCors(async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   const sig = req.headers['stripe-signature'];
 
   if (!sig) {
     console.warn('Stripe webhook called without signature');
-    return res.status(400).json({ error: 'Missing signature' });
+    res.status(400).json({ error: 'Missing signature' });
+    return;
   }
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error('STRIPE_WEBHOOK_SECRET not configured');
-    return res.status(500).json({ error: 'Webhook secret not configured' });
+    res.status(500).json({ error: 'Webhook secret not configured' });
+    return;
   }
 
   let event: Stripe.Event;
@@ -74,7 +77,8 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   } catch (err) {
     const error = err as Error;
     console.error('Webhook signature verification failed:', error.message);
-    return res.status(400).json({ error: `Webhook Error: ${error.message}` });
+    res.status(400).json({ error: `Webhook Error: ${error.message}` });
+    return;
   }
 
   // Log the event
@@ -83,7 +87,8 @@ export default withCors(async function handler(req: VercelRequest, res: VercelRe
   // Filter out events we don't care about
   if (!relevantEvents.has(event.type)) {
     console.log(`Ignoring irrelevant webhook event: ${event.type}`);
-    return res.json({ received: true });
+    res.json({ received: true });
+    return;
   }
 
   try {

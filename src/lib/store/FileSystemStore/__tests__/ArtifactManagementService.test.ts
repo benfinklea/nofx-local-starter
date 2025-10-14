@@ -253,8 +253,8 @@ describe('ArtifactManagementService', () => {
       const result = await service.listArtifacts('run-123');
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('artifact-1');
-      expect(result[1].id).toBe('artifact-3');
+      expect(result[0]!.id).toBe('artifact-1');
+      expect(result[1]!.id).toBe('artifact-3');
     });
 
     it('ensures artifacts directory exists before reading', async () => {
@@ -325,7 +325,7 @@ describe('ArtifactManagementService', () => {
 
       const result = await service.listArtifactsWithStepName('run-123');
 
-      expect(result[0].step_name).toBe('Unknown Step');
+      expect(result[0]!.step_name).toBe('Unknown Step');
     });
 
     it('reads step data from correct directory', async () => {
@@ -363,8 +363,8 @@ describe('ArtifactManagementService', () => {
 
       const result = await service.listArtifactsWithStepName('run-1');
 
-      expect(result[0].step_name).toBe('Shared Step');
-      expect(result[1].step_name).toBe('Shared Step');
+      expect(result[0]!.step_name).toBe('Shared Step');
+      expect(result[1]!.step_name).toBe('Shared Step');
     });
 
     it('returns empty array when no artifacts exist', async () => {

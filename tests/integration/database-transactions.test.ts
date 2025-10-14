@@ -94,7 +94,7 @@ describe('Integration: Database Transactions', () => {
       // Verify run was created
       const verifyRun = await query('SELECT * FROM run WHERE id = $1', [runId]);
       expect(verifyRun.rows.length).toBe(1);
-      expect(verifyRun.rows[0].goal).toBe(runData.goal);
+      expect(verifyRun.rows[0]!.goal).toBe(runData.goal);
 
       // Verify steps were created
       const verifySteps = await query('SELECT * FROM step WHERE run_id = $1', [runId]);
@@ -229,7 +229,7 @@ describe('Integration: Database Transactions', () => {
 
         // Verify final state
         const finalState = await query('SELECT status FROM run WHERE id = $1', [runId]);
-        expect(finalState.rows[0].status).toBe('running');
+        expect(finalState.rows[0]!.status).toBe('running');
       } finally {
         // Clean up
         await query('DELETE FROM run WHERE id = $1', [runId]);

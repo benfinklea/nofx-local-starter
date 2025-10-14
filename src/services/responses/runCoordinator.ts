@@ -1,6 +1,5 @@
-import { validateResponsesRequest } from '../../shared/openai/responsesSchemas';
 import type { ResponsesRequest, ResponsesResult } from '../../shared/openai/responsesSchemas';
-import { InMemoryResponsesArchive, type ResponsesArchive, type RunRecord } from '../../shared/responses/archive';
+import { InMemoryResponsesArchive, type ResponsesArchive } from '../../shared/responses/archive';
 import { ResponsesEventRouter } from '../../shared/responses/eventRouter';
 import { ConversationStateManager, type ConversationPolicy } from './conversationStateManager';
 import { RateLimitTracker, type RateLimitSnapshot } from './rateLimitTracker';

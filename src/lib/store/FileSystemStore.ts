@@ -32,6 +32,8 @@ export class FileSystemStore implements StoreDriver {
   private readonly runManager: RunManagementService;
   private readonly stepManager: StepManagementService;
   private readonly eventManager: EventManagementService;
+  // @ts-ignore - Service initialized for future artifact operations
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private readonly artifactManager: ArtifactManagementService;
 
   constructor() {

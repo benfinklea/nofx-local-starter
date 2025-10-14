@@ -55,7 +55,10 @@ function validateMigrationSQL(sql: string): { valid: boolean; errors: string[] }
 
 /**
  * Records migration in migrations table
+ * Currently unused but kept for manual migration scenarios
  */
+// @ts-ignore - Utility function for manual migrations
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function recordMigration(migration: Migration): Promise<void> {
   await pool.query(
     `INSERT INTO migrations (id, name, up_sql, down_sql, executed_at)

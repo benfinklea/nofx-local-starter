@@ -268,7 +268,7 @@ describe('Navigation System Tests', () => {
       });
       const results = composer.searchItems('dash');
       expect(results.length).toBe(1);
-      expect(results[0].id).toBe('dashboard');
+      expect(results[0]!.id).toBe('dashboard');
     });
 
     test('should find items by path', () => {

@@ -216,7 +216,7 @@ describe('Store Module', () => {
 
         const result = await store.listRuns();
 
-        expect(result[0].title).toBe('');
+        expect(result[0]!.title).toBe('');
       });
 
       it('should sort by created_at descending', async () => {
@@ -232,8 +232,8 @@ describe('Store Module', () => {
 
         const result = await store.listRuns();
 
-        expect(result[0].id).toBe('run2'); // More recent first
-        expect(result[1].id).toBe('run1');
+        expect(result[0]!.id).toBe('run2'); // More recent first
+        expect(result[1]!.id).toBe('run1');
       });
 
       it('should limit results', async () => {
@@ -254,7 +254,7 @@ describe('Store Module', () => {
         const result = await store.listRuns();
 
         expect(result).toHaveLength(1);
-        expect(result[0].id).toBe('run2');
+        expect(result[0]!.id).toBe('run2');
       });
     });
   });
@@ -368,8 +368,8 @@ describe('Store Module', () => {
 
         const result = await store.listStepsByRun('run-id');
 
-        expect(result[0].id).toBe('step2'); // Earlier first
-        expect(result[1].id).toBe('step1');
+        expect(result[0]!.id).toBe('step2'); // Earlier first
+        expect(result[1]!.id).toBe('step1');
       });
 
       it('should handle empty steps directory', async () => {
@@ -462,8 +462,8 @@ describe('Store Module', () => {
 
         const result = await store.listEvents('run-id');
 
-        expect(result[0].id).toBe('event2'); // Earlier first
-        expect(result[1].id).toBe('event1');
+        expect(result[0]!.id).toBe('event2'); // Earlier first
+        expect(result[1]!.id).toBe('event1');
       });
     });
   });
@@ -550,8 +550,8 @@ describe('Store Module', () => {
 
         const result = await store.listGatesByRun('run-id');
 
-        expect(result[0].id).toBe('gate2'); // Earlier first
-        expect(result[1].id).toBe('gate1');
+        expect(result[0]!.id).toBe('gate2'); // Earlier first
+        expect(result[1]!.id).toBe('gate1');
       });
     });
   });

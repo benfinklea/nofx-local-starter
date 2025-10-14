@@ -145,7 +145,7 @@ describe('Settings Module Tests', () => {
 
       expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM settings');
       expect(settings).toHaveLength(3);
-      expect(settings[0].key).toBe('theme');
+      expect(settings[0]!.key).toBe('theme');
     });
   });
 

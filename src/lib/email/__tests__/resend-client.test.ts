@@ -394,9 +394,9 @@ describe('Resend Email Client - Reliability Tests', () => {
 
       const results = await sendBatchEmails(batchEmails);
 
-      expect(results[0].success).toBe(true);
-      expect(results[1].success).toBe(false);
-      expect(results[2].success).toBe(true);
+      expect(results[0]!.success).toBe(true);
+      expect(results[1]!.success).toBe(false);
+      expect(results[2]!.success).toBe(true);
     });
 
     it('limits concurrent email sends', async () => {
@@ -429,8 +429,8 @@ describe('Resend Email Client - Reliability Tests', () => {
 
       const results = await sendBatchEmails(invalidBatch);
 
-      expect(results[3].success).toBe(false);
-      expect(results[3].error).toContain('Invalid email');
+      expect(results[3]!.success).toBe(false);
+      expect(results[3]!.error).toContain('Invalid email');
       expect(mockSend).toHaveBeenCalledTimes(3); // Only valid emails sent
     });
   });

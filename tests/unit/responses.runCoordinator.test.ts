@@ -140,9 +140,9 @@ describe('ResponsesRunCoordinator', () => {
 
     const delegations = coordinator.getDelegations('run-deleg');
     expect(delegations).toHaveLength(1);
-    expect(delegations[0].toolName).toBe('delegate_agent');
-    expect(delegations[0].status).toBe('completed');
-    expect(delegations[0].output).toMatchObject({ summary: 'ok' });
+    expect(delegations[0]!.toolName).toBe('delegate_agent');
+    expect(delegations[0]!.status).toBe('completed');
+    expect(delegations[0]!.output).toMatchObject({ summary: 'ok' });
   });
 
   it('respects vendor conversation policy and captures rate limits', async () => {
