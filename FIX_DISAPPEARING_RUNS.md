@@ -28,7 +28,7 @@ Go to your Railway dashboard and add this environment variable:
 2. Go to **"Variables"** tab
 3. Add new variable:
    ```
-   DATA_DRIVER=postgres
+   DATA_DRIVER=db
    ```
 4. Railway will auto-redeploy
 

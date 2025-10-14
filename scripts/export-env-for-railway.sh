@@ -27,7 +27,7 @@ echo ""
 # Queue and storage configuration
 echo "# Queue and Storage Configuration"
 echo "QUEUE_DRIVER=postgres"
-echo "DATA_DRIVER=postgres"
+echo "DATA_DRIVER=db"
 echo ""
 
 # Worker configuration
