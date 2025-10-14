@@ -6,7 +6,8 @@ import { log } from '../lib/logger';
 // import { getQueueCounts, isQueueHealthy } from '../lib/queue';
 
 const app = express();
-const PORT = process.env.HEALTH_CHECK_PORT || 3001;
+// Railway provides PORT env var, fallback to HEALTH_CHECK_PORT or 3001
+const PORT = process.env.PORT || process.env.HEALTH_CHECK_PORT || 3001;
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
