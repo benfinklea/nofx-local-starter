@@ -15,14 +15,16 @@ export class WorkspaceManager {
   }
 
   /**
-   * Get the workspace path for a project
+   * Get the workspace path for a project with path traversal prevention
    */
   public getWorkspacePath(project: Project): string {
     if (project.workspace_mode === 'local_path' && project.local_path) {
       return project.local_path;
     }
     // For clone/worktree modes, use sandboxed workspace
-    return path.join(this.getWorkspaceRoot(), project.id);
+    // Sanitize project ID to prevent path traversal
+    const sanitizedId = project.id.replace(/\.\./g, '').replace(/\//g, '-');
+    return path.join(this.getWorkspaceRoot(), sanitizedId);
   }
 
   /**
@@ -179,7 +181,8 @@ export class WorkspaceManager {
 
     // Stash any uncommitted changes
     const status = await this.git.status();
-    if (!status.isClean()) {
+    const hadChanges = !status.isClean();
+    if (hadChanges) {
       await this.git.stash();
     }
 
@@ -187,11 +190,15 @@ export class WorkspaceManager {
     try {
       await this.git.pull();
     } catch (error) {
-      log.warn({ projectId: project.id, error }, 'Pull failed, workspace may be ahead of remote');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Mask credentials in error messages
+      const sanitizedError = this.maskCredentials(errorMessage);
+      log.warn({ projectId: project.id, error: sanitizedError }, 'Pull failed, workspace may be ahead of remote');
+      throw new Error(`Failed to sync workspace: ${sanitizedError}`);
     }
 
     // Pop stash if we stashed
-    if (!status.isClean()) {
+    if (hadChanges) {
       try {
         await this.git.stash(['pop']);
       } catch {
@@ -277,7 +284,7 @@ export class WorkspaceManager {
   /**
    * Get git status for a project
    */
-  public async getStatus(project: Project): Promise<any> {
+  public async getStatus(project: Project): Promise<unknown> {
     const workspacePath = this.getWorkspacePath(project);
 
     if (!await this.isGitRepo(workspacePath)) {
@@ -326,6 +333,179 @@ export class WorkspaceManager {
     } catch (error) {
       log.error({ projectId: project.id, error }, 'Failed to cleanup workspace');
     }
+  }
+
+  /**
+   * Reinitialize workspace - full cleanup and recreation
+   */
+  public async reinitializeWorkspace(project: Project): Promise<string> {
+    log.info({ projectId: project.id }, 'Reinitializing workspace');
+
+    // Clean up existing workspace
+    await this.cleanupWorkspace(project);
+
+    // Mark as not initialized
+    await updateProject(project.id, { initialized: false });
+
+    // Recreate workspace
+    const updatedProject = await getProject(project.id);
+    if (!updatedProject) {
+      throw new Error(`Project ${project.id} not found after update`);
+    }
+
+    return await this.ensureWorkspace(updatedProject);
+  }
+
+  /**
+   * Sanitize branch name for filesystem use
+   */
+  private sanitizeBranchName(branchName: string): string {
+    return branchName.replace(/\//g, '-').replace(/\.\./g, '');
+  }
+
+  /**
+   * Get worktrees directory path for a project
+   */
+  private getWorktreesPath(project: Project): string {
+    const workspacePath = this.getWorkspacePath(project);
+    return path.join(workspacePath, 'worktrees');
+  }
+
+  /**
+   * Validate that main workspace exists before worktree operations
+   */
+  private async validateMainWorkspace(project: Project): Promise<void> {
+    const workspacePath = this.getWorkspacePath(project);
+
+    try {
+      await fsp.access(workspacePath);
+    } catch {
+      throw new Error(`Main workspace does not exist at ${workspacePath}. Initialize workspace first.`);
+    }
+
+    if (!await this.isGitRepo(workspacePath)) {
+      throw new Error(`Main workspace at ${workspacePath} is not a git repository.`);
+    }
+  }
+
+  /**
+   * Create a new worktree for a branch
+   */
+  public async createWorktree(project: Project, branchName: string): Promise<string> {
+    await this.validateMainWorkspace(project);
+
+    const workspacePath = this.getWorkspacePath(project);
+    const worktreesDir = this.getWorktreesPath(project);
+    const sanitizedBranch = this.sanitizeBranchName(branchName);
+    const worktreePath = path.join(worktreesDir, sanitizedBranch);
+
+    log.info({ projectId: project.id, branchName, worktreePath }, 'Creating worktree');
+
+    // Ensure worktrees directory exists
+    await this.ensureWorkspaceDir(worktreesDir);
+
+    this.git = simpleGit(workspacePath);
+
+    // Create worktree
+    try {
+      await this.git.raw(['worktree', 'add', worktreePath, branchName]);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const sanitizedError = this.maskCredentials(errorMessage);
+      log.error({ projectId: project.id, branchName, error: sanitizedError }, 'Failed to create worktree');
+      throw new Error(`Failed to create worktree: ${sanitizedError}`);
+    }
+
+    return worktreePath;
+  }
+
+  /**
+   * List all worktrees for a project
+   */
+  public async listWorktrees(project: Project): Promise<string[]> {
+    const worktreesDir = this.getWorktreesPath(project);
+
+    try {
+      await fsp.access(worktreesDir);
+      const entries = await fsp.readdir(worktreesDir);
+      return entries.map(entry => path.join(worktreesDir, entry));
+    } catch {
+      // Directory doesn't exist or is inaccessible
+      return [];
+    }
+  }
+
+  /**
+   * Switch to a different worktree
+   */
+  public async switchWorktree(project: Project, branchName: string): Promise<string> {
+    const sanitizedBranch = this.sanitizeBranchName(branchName);
+    const worktreePath = path.join(this.getWorktreesPath(project), sanitizedBranch);
+
+    try {
+      await fsp.access(worktreePath);
+      log.info({ projectId: project.id, branchName, worktreePath }, 'Switching to worktree');
+      return worktreePath;
+    } catch {
+      // Worktree doesn't exist, create it
+      log.info({ projectId: project.id, branchName }, 'Worktree does not exist, creating it');
+      return await this.createWorktree(project, branchName);
+    }
+  }
+
+  /**
+   * Prune (remove) all worktrees for a project
+   */
+  public async pruneWorktrees(project: Project): Promise<void> {
+    const worktreesDir = this.getWorktreesPath(project);
+
+    try {
+      await fsp.access(worktreesDir);
+    } catch {
+      // Directory doesn't exist, nothing to prune
+      return;
+    }
+
+    const workspacePath = this.getWorkspacePath(project);
+    this.git = simpleGit(workspacePath);
+
+    log.info({ projectId: project.id }, 'Pruning all worktrees');
+
+    try {
+      const entries = await fsp.readdir(worktreesDir);
+
+      for (const entry of entries) {
+        const worktreePath = path.join(worktreesDir, entry);
+
+        try {
+          // Remove worktree via git
+          await this.git.raw(['worktree', 'remove', worktreePath, '--force']);
+        } catch (error) {
+          log.warn({ projectId: project.id, worktreePath, error }, 'Failed to remove worktree via git, removing directory');
+        }
+
+        // Remove directory
+        try {
+          await fsp.rm(worktreePath, { recursive: true, force: true });
+        } catch (error) {
+          log.warn({ projectId: project.id, worktreePath, error }, 'Failed to remove worktree directory');
+        }
+      }
+
+      // Remove worktrees directory
+      await fsp.rm(worktreesDir, { recursive: true, force: true });
+    } catch (error) {
+      log.error({ projectId: project.id, error }, 'Failed to prune worktrees');
+      throw error;
+    }
+  }
+
+  /**
+   * Mask credentials from URLs and error messages
+   */
+  private maskCredentials(text: string): string {
+    // Mask tokens in URLs (e.g., https://token@github.com)
+    return text.replace(/https?:\/\/[^@:]+@/g, 'https://***@');
   }
 }
 
