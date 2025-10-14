@@ -14,6 +14,7 @@ import {
   ResourceType,
   type AuditEvent,
 } from '../types';
+import { OrganizationRole } from '../../lib/organizations.types';
 
 describe('AuditQueryAPI', () => {
   let mockStorage: AuditStorage;
@@ -43,6 +44,7 @@ describe('AuditQueryAPI', () => {
         actor: { user_id: 'user_2' },
         subject: { resource_type: ResourceType.USER, resource_id: 'user_2', organization_id: 'org_123' },
         outcome: EventOutcome.FAILURE,
+        error_details: { error_code: 'INVALID_CREDENTIALS', error_message: 'Invalid password' },
         context: { ip_address: '192.168.1.100' },
       },
       {
@@ -65,25 +67,40 @@ describe('AuditQueryAPI', () => {
         actor: { user_id: 'user_4' },
         subject: { resource_type: ResourceType.USER, resource_id: 'user_4', organization_id: 'org_123' },
         outcome: EventOutcome.FAILURE,
+        error_details: { error_code: 'INVALID_CREDENTIALS', error_message: 'Invalid password' },
         context: { ip_address: '192.168.1.100' },
       },
       {
         id: 'evt_5',
         timestamp: '2025-10-13T10:20:00Z',
-        event_type: 'member.role_changed',
+        event_type: 'member.role.changed',
         category: EventCategory.MEMBER,
         severity: EventSeverity.INFO,
         actor: { user_id: 'user_1' },
         subject: { resource_type: ResourceType.MEMBER, resource_id: 'user_5', organization_id: 'org_123' },
         outcome: EventOutcome.SUCCESS,
-        payload: { new_role: 'admin', old_role: 'member' },
+        payload: { new_role: OrganizationRole.ADMIN, old_role: OrganizationRole.MEMBER },
       },
     ];
 
     mockStorage = {
-      save: jest.fn(),
-      saveBatch: jest.fn(),
-      query: jest.fn().mockResolvedValue(mockEvents),
+      save: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+      saveBatch: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+      query: jest.fn<(filter?: Record<string, unknown>) => Promise<AuditEvent[]>>().mockImplementation((filter) => {
+        // Filter events based on query parameters
+        let filtered = [...mockEvents];
+
+        if (filter?.categories) {
+          const categories = Array.isArray(filter.categories) ? filter.categories : [filter.categories];
+          filtered = filtered.filter(e => categories.includes(e.category));
+        }
+
+        if (filter?.severity) {
+          filtered = filtered.filter(e => e.severity === filter.severity);
+        }
+
+        return Promise.resolve(filtered);
+      }),
     };
 
     queryAPI = new AuditQueryAPI(mockStorage, {
@@ -140,7 +157,7 @@ describe('AuditQueryAPI', () => {
       });
 
       expect(result.events).toHaveLength(1);
-      expect(result.events[0].severity).toBe(EventSeverity.CRITICAL);
+      expect(result.events[0]!.severity).toBe(EventSeverity.CRITICAL);
     });
 
     it('should perform full-text search', async () => {
@@ -226,8 +243,8 @@ describe('AuditQueryAPI', () => {
 
       const aggs = result.aggregations!;
       expect(aggs.timeline).toHaveLength(1); // All events on same day
-      expect(aggs.timeline[0].date).toBe('2025-10-13');
-      expect(aggs.timeline[0].count).toBe(5);
+      expect(aggs.timeline[0]!.date).toBe('2025-10-13');
+      expect(aggs.timeline[0]!.count).toBe(5);
     });
   });
 
@@ -239,8 +256,8 @@ describe('AuditQueryAPI', () => {
       );
 
       expect(timeSeries).toHaveLength(1);
-      expect(timeSeries[0].timestamp).toContain('2025-10-13');
-      expect(timeSeries[0].count).toBe(5);
+      expect(timeSeries[0]!.timestamp).toContain('2025-10-13');
+      expect(timeSeries[0]!.count).toBe(5);
     });
 
     it('should include category breakdown in time series', async () => {
@@ -249,7 +266,7 @@ describe('AuditQueryAPI', () => {
         'day'
       );
 
-      const dataPoint = timeSeries[0];
+      const dataPoint = timeSeries[0]!;
       expect(dataPoint.categories[EventCategory.AUTHENTICATION]).toBe(3);
       expect(dataPoint.categories[EventCategory.SECURITY]).toBe(1);
     });
@@ -260,7 +277,7 @@ describe('AuditQueryAPI', () => {
         'day'
       );
 
-      const dataPoint = timeSeries[0];
+      const dataPoint = timeSeries[0]!;
       expect(dataPoint.severities[EventSeverity.INFO]).toBe(2);
       expect(dataPoint.severities[EventSeverity.WARNING]).toBe(2);
       expect(dataPoint.severities[EventSeverity.CRITICAL]).toBe(1);
@@ -296,9 +313,9 @@ describe('AuditQueryAPI', () => {
       const anomalies = await queryAPI.detectSecurityAnomalies('org_123', 24);
 
       if (anomalies.length > 0) {
-        expect(anomalies[0].sample_events).toBeDefined();
-        expect(anomalies[0].sample_events.length).toBeGreaterThan(0);
-        expect(anomalies[0].sample_events.length).toBeLessThanOrEqual(5);
+        expect(anomalies[0]!.sample_events).toBeDefined();
+        expect(anomalies[0]!.sample_events.length).toBeGreaterThan(0);
+        expect(anomalies[0]!.sample_events.length).toBeLessThanOrEqual(5);
       }
     });
   });
@@ -363,9 +380,9 @@ describe('AuditQueryAPI', () => {
   describe('Error Handling', () => {
     it('should handle storage query errors', async () => {
       const errorStorage: AuditStorage = {
-        save: jest.fn(),
-        saveBatch: jest.fn(),
-        query: jest.fn().mockRejectedValue(new Error('Query failed')),
+        save: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+        saveBatch: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+        query: jest.fn<() => Promise<AuditEvent[]>>().mockRejectedValue(new Error('Query failed')),
       };
 
       const errorQueryAPI = new AuditQueryAPI(errorStorage);
@@ -377,8 +394,8 @@ describe('AuditQueryAPI', () => {
 
     it('should handle missing query support', async () => {
       const noQueryStorage: AuditStorage = {
-        save: jest.fn(),
-        saveBatch: jest.fn(),
+        save: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+        saveBatch: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
         // No query method
       };
 

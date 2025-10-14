@@ -469,7 +469,7 @@ export class AuditService {
    */
   private sanitizeEvent<T extends AuditEvent>(event: T): T {
     // Create a deep copy to avoid modifying the original
-    const sanitized = JSON.parse(JSON.stringify(event)) as T;
+    const sanitized: any = JSON.parse(JSON.stringify(event));
 
     // Sanitize payload
     if (sanitized.payload && typeof sanitized.payload === 'object') {
@@ -536,7 +536,7 @@ export class AuditService {
       }
     }
 
-    return sanitized;
+    return sanitized as T;
   }
 
   /**

@@ -17,7 +17,6 @@ import type {
   EventCategory,
   EventSeverity,
   EventOutcome,
-  ResourceType,
 } from './types';
 import type { AuditStorage } from './AuditService';
 import pino from 'pino';
@@ -257,7 +256,7 @@ export class AuditQueryAPI {
       };
 
       // Execute query
-      const events = await this.storage.query?.(baseFilter);
+      const events = await this.storage.query?.(baseFilter as Record<string, unknown>);
 
       if (!events) {
         throw new Error('Storage does not support querying');
@@ -350,7 +349,7 @@ export class AuditQueryAPI {
       }
 
       // Timeline (by day)
-      const date = event.timestamp.split('T')[0];
+      const date = event.timestamp.split('T')[0]!;
       timeline.set(date, (timeline.get(date) || 0) + 1);
     }
 
@@ -400,7 +399,7 @@ export class AuditQueryAPI {
     filter: AuditEventFilter,
     interval: 'hour' | 'day' | 'week' = 'day'
   ): Promise<TimeSeriesDataPoint[]> {
-    const events = await this.storage.query?.(filter);
+    const events = await this.storage.query?.(filter as Record<string, unknown>);
 
     if (!events) {
       throw new Error('Storage does not support querying');
@@ -414,17 +413,20 @@ export class AuditQueryAPI {
       const date = new Date(event.timestamp);
 
       switch (interval) {
-        case 'hour':
+        case 'hour': {
           bucket = date.toISOString().slice(0, 13) + ':00:00.000Z';
           break;
-        case 'day':
+        }
+        case 'day': {
           bucket = date.toISOString().split('T')[0] + 'T00:00:00.000Z';
           break;
-        case 'week':
+        }
+        case 'week': {
           const weekStart = new Date(date);
           weekStart.setDate(date.getDate() - date.getDay());
           bucket = weekStart.toISOString().split('T')[0] + 'T00:00:00.000Z';
           break;
+        }
       }
 
       // Get or create data point
@@ -501,8 +503,8 @@ export class AuditQueryAPI {
           severity: 'high',
           description: `Detected ${loginEvents.length} failed login attempts from IP ${ip}`,
           event_count: loginEvents.length,
-          first_seen: loginEvents[0].timestamp,
-          last_seen: loginEvents[loginEvents.length - 1].timestamp,
+          first_seen: loginEvents[0]!.timestamp,
+          last_seen: loginEvents[loginEvents.length - 1]!.timestamp,
           sample_events: loginEvents.slice(0, 5),
         });
       }
@@ -511,7 +513,7 @@ export class AuditQueryAPI {
     // Detect privilege escalation (role changes to higher privileges)
     const privilegeEscalations = events.filter(
       (e) =>
-        e.event_type === 'member.role_changed' &&
+        e.event_type === 'member.role.changed' &&
         e.payload &&
         typeof e.payload === 'object' &&
         'new_role' in e.payload &&
@@ -524,8 +526,8 @@ export class AuditQueryAPI {
         severity: 'medium',
         description: `Detected ${privilegeEscalations.length} privilege escalation events`,
         event_count: privilegeEscalations.length,
-        first_seen: privilegeEscalations[0].timestamp,
-        last_seen: privilegeEscalations[privilegeEscalations.length - 1].timestamp,
+        first_seen: privilegeEscalations[0]!.timestamp,
+        last_seen: privilegeEscalations[privilegeEscalations.length - 1]!.timestamp,
         sample_events: privilegeEscalations.slice(0, 5),
       });
     }
@@ -538,8 +540,8 @@ export class AuditQueryAPI {
         severity: 'medium',
         description: `Detected ${securityEvents.length} security-related events`,
         event_count: securityEvents.length,
-        first_seen: securityEvents[0].timestamp,
-        last_seen: securityEvents[securityEvents.length - 1].timestamp,
+        first_seen: securityEvents[0]!.timestamp,
+        last_seen: securityEvents[securityEvents.length - 1]!.timestamp,
         sample_events: securityEvents.slice(0, 5),
       });
     }

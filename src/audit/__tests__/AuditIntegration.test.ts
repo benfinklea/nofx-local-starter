@@ -17,9 +17,9 @@ describe('AuditIntegration', () => {
 
   beforeEach(() => {
     mockAuditService = {
-      log: jest.fn().mockResolvedValue(undefined),
-      flush: jest.fn().mockResolvedValue(undefined),
-      shutdown: jest.fn().mockResolvedValue(undefined),
+      log: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+      flush: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
+      shutdown: jest.fn<() => Promise<void>>().mockResolvedValue(undefined as void),
       getStats: jest.fn(),
     } as any;
 
@@ -285,7 +285,7 @@ describe('AuditIntegration', () => {
       };
 
       mockRes = {
-        send: jest.fn().mockReturnThis(),
+        send: jest.fn().mockReturnThis() as any,
         statusCode: 200,
       };
 
@@ -427,11 +427,10 @@ describe('AuditIntegration', () => {
   describe('Request Context Extraction', () => {
     it('should extract context from Express request', async () => {
       const mockReq = {
-        ip: '192.168.1.100',
+        ip: '10.0.0.1',
         headers: {
           'user-agent': 'Mozilla/5.0',
           'x-request-id': 'req_123',
-          'x-forwarded-for': '10.0.0.1',
         },
         method: 'POST',
         path: '/api/projects',
@@ -446,7 +445,11 @@ describe('AuditIntegration', () => {
       expect(mockAuditService.log).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          request: mockReq,
+          ipAddress: '10.0.0.1',
+          userAgent: 'Mozilla/5.0',
+          requestId: 'req_123',
+          httpMethod: 'POST',
+          endpoint: '/api/projects',
         })
       );
     });
