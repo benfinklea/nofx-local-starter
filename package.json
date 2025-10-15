@@ -16,6 +16,7 @@
     "dev:api": "ts-node-dev --respawn --transpile-only src/api/main.ts",
     "dev:worker": "ts-node-dev --respawn --transpile-only src/worker/main.ts",
     "dev": "npm-run-all -p dev:api dev:worker",
+    "start:worker": "node -r ts-node/register/transpile-only src/worker/main.ts",
     "fe:dev": "npm --prefix apps/frontend run dev -- --host ${VITE_HOST:-0.0.0.0} --port ${VITE_PORT:-5173}",
     "fe:build": "turbo run fe:build",
     "fe:build:actual": "npm --prefix apps/frontend run build",
