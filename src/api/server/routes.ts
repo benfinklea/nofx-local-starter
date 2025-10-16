@@ -14,6 +14,7 @@ import superAdminRoutes from '../routes/super-admin';
 import uiRoutes from '../routes/ui';
 import traceLogRoutes from '../routes/traceLog';
 import projectsRoutes from '../routes/projects';
+import agentSdkRoutes from '../routes/agent-sdk';
 
 export function mountCoreRoutes(app: Express) {
   // Core NOFX routes
@@ -25,6 +26,9 @@ export function mountCoreRoutes(app: Express) {
 
   // Performance monitoring routes
   app.use('/api', performanceRoutes);
+
+  // Agent SDK monitoring routes (Phase 3A)
+  app.use('/api/sdk', agentSdkRoutes);
 }
 
 export function mountSaasRoutes(app: Express) {

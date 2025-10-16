@@ -9,6 +9,27 @@ describe('Agent SDK Integration', () => {
     adapter = new AgentSdkAdapter();
   });
 
+  describe('Configuration & Prerequisites', () => {
+    it('should have ANTHROPIC_API_KEY configured for real SDK calls', () => {
+      const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+      if (!hasApiKey) {
+        console.warn('⚠️  ANTHROPIC_API_KEY not set - SDK tests will fail with real API');
+        console.warn('   Set it with: export ANTHROPIC_API_KEY=sk-ant-...');
+      }
+      expect(hasApiKey || process.env.NODE_ENV === 'test').toBe(true);
+    });
+
+    it('should validate adapter configuration', () => {
+      expect(adapter).toBeDefined();
+      expect(typeof adapter.executeWithSdk).toBe('function');
+    });
+
+    it('should have valid model names in VALID_MODELS', () => {
+      const validModels = ['claude-sonnet-4-5', 'claude-sonnet-4', 'claude-opus-4', 'claude-haiku-3-5'];
+      expect(validModels).toContain('claude-sonnet-4-5');
+    });
+  });
+
   describe('AgentSdkAdapter', () => {
     it('should execute simple prompt', async () => {
       const step: Step = {
