@@ -96,7 +96,7 @@ setupFrontendRouting(app);
 app.get("/health", handleHealthCheck);
 
 // TEMPORARY TEST ENDPOINT - NO AUTH
-app.post("/test-run", async (req, res) => {
+app.post("/test-run", async (_req, res) => {
   try {
     const { store } = await import('../lib/store');
     const { enqueue, STEP_READY_TOPIC } = await import('../lib/queue');
@@ -117,14 +117,18 @@ app.post("/test-run", async (req, res) => {
       prompt: "Write a haiku about debugging code"
     });
 
+    if (!step) {
+      return res.status(500).json({ error: 'Failed to create step' });
+    }
+
     await enqueue(STEP_READY_TOPIC, {
       runId: run.id,
       stepId: step.id
     });
 
-    res.json({ id: run.id, status: 'queued', step: step.id });
+    return res.json({ id: run.id, status: 'queued', step: step.id });
   } catch (error: any) {
-    res.status(500).json({ error: error?.message || 'Unknown error' });
+    return res.status(500).json({ error: error?.message || 'Unknown error' });
   }
 });
 

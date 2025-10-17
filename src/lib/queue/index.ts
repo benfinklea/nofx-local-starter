@@ -7,6 +7,10 @@ import type { JobPayload, JobResult, KnownJobName } from "./jobMap";
 
 const DRIVER = (process.env.QUEUE_DRIVER || "memory").toLowerCase();
 
+console.log('[Queue] Initializing queue adapter with DRIVER:', DRIVER);
+console.log('[Queue] process.env.QUEUE_DRIVER:', process.env.QUEUE_DRIVER);
+console.log('[Queue] process.env.SUPABASE_URL:', process.env.SUPABASE_URL);
+
 interface QueueImplementation {
   enqueue(topic: string, payload: unknown, options?: JobsOptions): Promise<void>;
   subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>): void;

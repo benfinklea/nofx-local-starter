@@ -82,22 +82,28 @@ export class PostgresQueueAdapter {
   }
 
   subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>): void {
+    console.log(`[PostgresAdapter] subscribe() called for topic: ${topic}`);
     this.handlers.set(topic, handler);
 
     // Stop existing polling for this topic
     const existingInterval = this.pollingIntervals.get(topic);
     if (existingInterval) {
+      console.log(`[PostgresAdapter] Clearing existing interval for topic: ${topic}`);
       clearInterval(existingInterval);
     }
 
     // Start polling for jobs
+    console.log(`[PostgresAdapter] Setting up polling interval for topic: ${topic} (every 1000ms)`);
     const pollInterval = setInterval(async () => {
+      console.log(`[PostgresAdapter] Interval tick - about to call pollForJobs for topic: ${topic}`);
       await this.pollForJobs(topic);
     }, 1000); // Poll every second
 
     this.pollingIntervals.set(topic, pollInterval);
+    console.log(`[PostgresAdapter] Polling interval created and stored for topic: ${topic}`);
 
     // Immediate poll
+    console.log(`[PostgresAdapter] Calling immediate poll for topic: ${topic}`);
     this.pollForJobs(topic);
   }
 
@@ -105,16 +111,41 @@ export class PostgresQueueAdapter {
     const handler = this.handlers.get(topic);
     if (!handler) return;
 
+    console.log(`[PostgresAdapter] Polling for jobs on topic: ${topic}, workerId: ${this.workerId}`);
+
     // Atomic job claim using PostgreSQL's FOR UPDATE SKIP LOCKED
-    const { data: job, error } = await this.supabase.rpc('claim_next_job', {
+    const { data, error } = await this.supabase.rpc('claim_next_job', {
       p_topic: topic,
       p_worker_id: this.workerId,
       p_lock_duration_seconds: 30
     });
 
-    if (error || !job) {
+    console.log(`[PostgresAdapter] RPC claim_next_job response:`, {
+      error: error ? error.message : null,
+      dataType: Array.isArray(data) ? 'array' : typeof data,
+      dataLength: Array.isArray(data) ? data.length : 'N/A',
+      data: data
+    });
+
+    if (error) {
+      console.error(`[PostgresAdapter] Error calling claim_next_job:`, error);
+      return;
+    }
+
+    // RPC returns an array, get the first element
+    const job = Array.isArray(data) ? data[0] : data;
+
+    if (!job) {
+      console.log(`[PostgresAdapter] No jobs available for topic: ${topic}`);
       return; // No jobs available
     }
+
+    console.log(`[PostgresAdapter] Claimed job:`, {
+      id: job.id,
+      topic: topic,
+      attempts: job.attempts,
+      max_attempts: job.max_attempts
+    });
 
     try {
       // Process the job

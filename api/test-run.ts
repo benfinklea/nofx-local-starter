@@ -24,13 +24,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       prompt: "Write a haiku about debugging code"
     });
 
+    if (!step) {
+      return res.status(500).json({ error: 'Failed to create step' });
+    }
+
     await enqueue(STEP_READY_TOPIC, {
       runId: run.id,
       stepId: step.id
     });
 
-    return res.json({ 
-      id: run.id, 
+    return res.json({
+      id: run.id,
       stepId: step.id,
       status: 'queued',
       message: 'Run created successfully! Check Railway logs for worker activity.'
