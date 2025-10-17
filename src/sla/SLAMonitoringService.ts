@@ -538,9 +538,11 @@ export class SLAMonitoringService {
    */
   private isCriticalMetric(metric: MetricType): boolean {
     return [
+      MetricType.RESPONSE_TIME,
       MetricType.ERROR_RATE,
       MetricType.SUCCESS_RATE,
       MetricType.UPTIME,
+      MetricType.DB_QUERY_TIME,
     ].includes(metric);
   }
 
