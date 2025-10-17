@@ -6,14 +6,14 @@
 import express from "express";
 import dotenv from "dotenv";
 import http from 'node:http';
-import { requireAuth, checkUsage, trackApiUsage } from '../auth/middleware';
+import { requireAuth } from '../auth/middleware';
 import { initAutoBackupFromSettings } from '../lib/autobackup';
 import startOutboxRelay from '../worker/relay';
 import { initTracing } from '../lib/tracing';
 import { shouldEnableDevRestartWatch } from '../lib/devRestart';
 import { performanceMiddleware, performanceMonitor } from '../lib/performance-monitor';
 import { idempotency, initializeIdempotencyCache } from '../lib/middleware/idempotency';
-import { generalRateLimit, expensiveOperationRateLimit, adminRateLimit } from '../lib/middleware/rateLimiting';
+import { generalRateLimit, adminRateLimit } from '../lib/middleware/rateLimiting';
 // Server configuration modules
 import { setupBasicMiddleware, setupViewEngine } from './server/middleware';
 import { mountCoreRoutes, mountSaasRoutes, mountDynamicRoutes } from './server/routes';

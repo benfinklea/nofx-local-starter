@@ -1,0 +1,188 @@
+{
+  "api-endpoints": {
+    "name": "api-endpoints",
+    "description": "API endpoint performance benchmarks",
+    "thresholds": {
+      "maxDuration": 100,
+      "maxMemoryMB": 10,
+      "maxCpuPercent": 50
+    },
+    "results": [],
+    "startTime": 40486.135833,
+    "endTime": 40495.017083
+  },
+  "database-operations": {
+    "name": "database-operations",
+    "description": "Database operation benchmarks",
+    "thresholds": {
+      "maxDuration": 50,
+      "maxMemoryMB": 5,
+      "maxCpuPercent": 30
+    },
+    "results": [
+      {
+        "name": "db-connection",
+        "duration": 30.53641699999571,
+        "memory": {
+          "used": 2871160,
+          "rss": 1425637376,
+          "heapUsed": 766573592,
+          "heapTotal": 1036320768,
+          "external": 33172586
+        },
+        "cpu": {
+          "user": 3.452,
+          "system": 0.12
+        },
+        "timestamp": 1760424352655,
+        "metadata": {
+          "operation": "connection"
+        }
+      },
+      {
+        "name": "simple-query",
+        "duration": 19.11566600000515,
+        "memory": {
+          "used": 752264,
+          "rss": 1425637376,
+          "heapUsed": 768785560,
+          "heapTotal": 1036320768,
+          "external": 33172684
+        },
+        "cpu": {
+          "user": 0.621,
+          "system": 0.036
+        },
+        "timestamp": 1760424352675,
+        "metadata": {
+          "operation": "simple-select"
+        }
+      },
+      {
+        "name": "complex-query",
+        "duration": 17.093666000000667,
+        "memory": {
+          "used": 759920,
+          "rss": 1425637376,
+          "heapUsed": 770952064,
+          "heapTotal": 1036320768,
+          "external": 33172753
+        },
+        "cpu": {
+          "user": 0.75,
+          "system": 0.048
+        },
+        "timestamp": 1760424352693,
+        "metadata": {
+          "operation": "complex-select"
+        }
+      }
+    ],
+    "startTime": 40495.414666,
+    "endTime": 40878.986041
+  },
+  "resource-usage": {
+    "name": "resource-usage",
+    "description": "Memory and CPU usage benchmarks",
+    "thresholds": {
+      "maxDuration": 1000,
+      "maxMemoryMB": 50,
+      "maxCpuPercent": 80
+    },
+    "results": [
+      {
+        "name": "memory-allocation",
+        "duration": 1.8584999999948195,
+        "memory": {
+          "used": -14093472,
+          "rss": 1425719296,
+          "heapUsed": 763891336,
+          "heapTotal": 1036320768,
+          "external": 33174186
+        },
+        "cpu": {
+          "user": 2,
+          "system": 0.299
+        },
+        "timestamp": 1760424352913,
+        "metadata": {
+          "operation": "memory-intensive"
+        }
+      },
+      {
+        "name": "cpu-intensive",
+        "duration": 17.99683399999776,
+        "memory": {
+          "used": 673368,
+          "rss": 1425735680,
+          "heapUsed": 767162688,
+          "heapTotal": 1036320768,
+          "external": 33174186
+        },
+        "cpu": {
+          "user": 18.518,
+          "system": 0.061
+        },
+        "timestamp": 1760424352936,
+        "metadata": {
+          "operation": "cpu-intensive"
+        }
+      },
+      {
+        "name": "json-parsing",
+        "duration": 5.732165999994322,
+        "memory": {
+          "used": 3296096,
+          "rss": 1429454848,
+          "heapUsed": 780511008,
+          "heapTotal": 1038090240,
+          "external": 33174186
+        },
+        "cpu": {
+          "user": 5.725,
+          "system": 0.022
+        },
+        "timestamp": 1760424352957,
+        "metadata": {
+          "operation": "json-parse",
+          "dataSize": 1759351
+        }
+      }
+    ],
+    "startTime": 40879.467583,
+    "endTime": 40928.366833
+  },
+  "concurrent-operations": {
+    "name": "concurrent-operations",
+    "description": "Concurrent operation benchmarks",
+    "thresholds": {
+      "maxDuration": 2000,
+      "maxMemoryMB": 100,
+      "maxCpuPercent": 90
+    },
+    "results": [
+      {
+        "name": "concurrent-promises",
+        "duration": 16.74820799999725,
+        "memory": {
+          "used": -3716112,
+          "rss": 1427718144,
+          "heapUsed": 765613672,
+          "heapTotal": 1036320768,
+          "external": 33171487
+        },
+        "cpu": {
+          "user": 10.471,
+          "system": 0.224
+        },
+        "timestamp": 1760424352980,
+        "metadata": {
+          "operation": "concurrent-promises",
+          "count": 100
+        }
+      }
+    ],
+    "startTime": 40928.780416,
+    "endTime": 40949.257958
+  }
+}

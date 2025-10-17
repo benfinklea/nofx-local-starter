@@ -13,7 +13,7 @@ const router = Router();
  * GET /api/sdk/health
  * Health check for Agent SDK integration
  */
-router.get('/health', async (req: Request, res: Response) => {
+router.get('/health', async (_req: Request, res: Response) => {
   try {
     const healthData = {
       status: 'healthy',
