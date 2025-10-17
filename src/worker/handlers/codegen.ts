@@ -54,6 +54,7 @@ async function executeWithSdk(runId: string, step: any) {
     log.info({ runId, stepId, artifact: artifactPath }, 'codegen.step.artifact.saved');
 
     const outputs = toJsonObject({
+      content: result.response,
       artifact: artifactPath,
       provider: 'anthropic',
       model: result.metadata.model,
@@ -130,6 +131,7 @@ async function executeWithModelRouter(runId: string, step: any) {
     log.info({ runId, stepId, artifact: pth }, 'codegen.step.artifact.saved');
 
     const outputs = toJsonObject({
+      content: result.content,
       artifact: pth,
       provider: result.provider,
       model: result.model,
