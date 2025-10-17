@@ -1,7 +1,7 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 import path from 'node:path';
 import fsp from 'node:fs/promises';
-import { Project, updateProject } from './projects';
+import { Project, getProject, updateProject } from './projects';
 import { log } from './logger';
 
 export class WorkspaceManager {

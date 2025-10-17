@@ -143,7 +143,7 @@ const handler: StepHandler = {
         targetPath,
         targetFullPath,
         commit,
-        commitSha,
+        commitSha: commitSha ?? null,
         bytesWritten: Buffer.byteLength(content, 'utf-8')
       };
 

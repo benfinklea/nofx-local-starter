@@ -2,18 +2,19 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 describe('registry API routes', () => {
   const makeRes = () => {
-    const res: VercelResponse & { body?: unknown } = {
+    const res = {
       statusCode: 200,
       headers: {} as Record<string, unknown>,
-      status(code: number) {
+      body: undefined as unknown,
+      status(this: any, code: number) {
         this.statusCode = code;
         return this;
       },
-      json(payload: unknown) {
+      json(this: any, payload: unknown) {
         this.body = payload;
         return this;
       },
-      setHeader(name: string, value: unknown) {
+      setHeader(this: any, name: string, value: unknown) {
         this.headers[name] = value;
         return this;
       },

@@ -124,7 +124,9 @@ describe('ApiResponse', () => {
     it('should remove undefined fields from error response', () => {
       ApiResponse.error(mockRes, 400, 'Bad Request');
 
-      const jsonCall = (mockRes.json as jest.Mock).mock.calls[0][0];
+      const firstCall = (mockRes.json as jest.Mock).mock.calls[0];
+      expect(firstCall).toBeDefined();
+      const jsonCall = firstCall![0];
       expect(jsonCall).not.toHaveProperty('detail');
       expect(jsonCall).not.toHaveProperty('errors');
     });

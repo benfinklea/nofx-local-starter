@@ -37,8 +37,9 @@ describe('RateLimitTracker', () => {
     }, { tenantId: 'tenant-a' });
 
     const [summary] = tracker.getTenantSummaries();
-    expect(summary.tenantId).toBe('tenant-a');
-    expect(summary.latest?.remainingRequests).toBe(50);
-    expect(summary.alert).toBe('requests');
+    expect(summary).toBeDefined();
+    expect(summary!.tenantId).toBe('tenant-a');
+    expect(summary!.latest?.remainingRequests).toBe(50);
+    expect(summary!.alert).toBe('requests');
   });
 });

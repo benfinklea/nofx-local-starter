@@ -128,10 +128,18 @@ class RequestChain {
         const raw = Buffer.concat(chunks).toString('utf8');
         const separatorIndex = raw.indexOf('\r\n\r\n');
         const text = separatorIndex >= 0 ? raw.slice(separatorIndex + 4) : raw;
-        const headers = res.getHeaders();
+        const rawHeaders = res.getHeaders();
+        // Filter out undefined values from headers
+        const headers: Record<string, number | string | readonly string[]> = {};
+        for (const [key, value] of Object.entries(rawHeaders)) {
+          if (value !== undefined) {
+            headers[key] = value;
+          }
+        }
         let parsed: any = text;
         const contentType = headers['content-type'];
-        if (typeof contentType === 'string' && contentType.includes('application/json')) {
+        // Support both application/json and application/problem+json (RFC 9457)
+        if (typeof contentType === 'string' && (contentType.includes('application/json') || contentType.includes('application/problem+json'))) {
           try {
             parsed = text ? JSON.parse(text) : undefined;
           } catch {

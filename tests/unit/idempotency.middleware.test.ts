@@ -259,7 +259,8 @@ describe('Idempotency Middleware', () => {
 
       // Should have cached the 400 but not the 500
       expect(cacheCalls).toHaveLength(1);
-      expect(cacheCalls[0][1]).toContain(`${testIdempotencyKey}_400`);
+      expect(cacheCalls[0]).toBeDefined();
+      expect(cacheCalls[0]![1]).toContain(`${testIdempotencyKey}_400`);
     });
   });
 

@@ -13,6 +13,7 @@ import type {
   OutboxRow,
   RunSummaryRow,
   ArtifactWithStepName,
+  ArtifactRow,
   StoreDriver
 } from './types';
 
@@ -275,5 +276,68 @@ export class DatabaseStore implements StoreDriver {
     const row = result.rows[0];
     if (!row) throw new Error(`Failed to retrieve created run ${runId}`);
     return row;
+  }
+
+  // ============================================================================
+  // Artifact Operations (Required by StoreDriver interface)
+  // ============================================================================
+
+  async createArtifact(artifact: Omit<ArtifactRow, 'id' | 'created_at'>): Promise<ArtifactRow> {
+    const result = await pgQuery<ArtifactRow>(
+      `insert into nofx.artifact (step_id, type, path, metadata)
+       values ($1, $2, $3, $4)
+       returning id, step_id, type, path, metadata, created_at`,
+      [artifact.step_id, artifact.type, artifact.path, artifact.metadata ?? {}]
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Failed to create artifact');
+    return row;
+  }
+
+  async getArtifact(runId: string, stepId: string, filename: string): Promise<ArtifactRow | null> {
+    const result = await pgQuery<ArtifactRow>(
+      `select a.* from nofx.artifact a
+       join nofx.step s on s.id = a.step_id
+       where s.run_id=$1 and a.step_id=$2 and a.path=$3`,
+      [runId, stepId, filename]
+    );
+    return result.rows[0] || null;
+  }
+
+  async listArtifactsByStep(runId: string, stepId: string): Promise<ArtifactRow[]> {
+    const result = await pgQuery<ArtifactRow>(
+      `select a.* from nofx.artifact a
+       join nofx.step s on s.id = a.step_id
+       where s.run_id=$1 and a.step_id=$2
+       order by a.created_at`,
+      [runId, stepId]
+    );
+    return result.rows;
+  }
+
+  async deleteArtifact(runId: string, stepId: string, filename: string): Promise<void> {
+    await pgQuery(
+      `delete from nofx.artifact
+       where step_id=$1 and path=$2
+       and exists (select 1 from nofx.step where id=$1 and run_id=$3)`,
+      [stepId, filename, runId]
+    );
+  }
+
+  async deleteArtifactsByRun(runId: string): Promise<void> {
+    await pgQuery(
+      `delete from nofx.artifact
+       where step_id in (select id from nofx.step where run_id=$1)`,
+      [runId]
+    );
+  }
+
+  async deleteArtifactsByStep(runId: string, stepId: string): Promise<void> {
+    await pgQuery(
+      `delete from nofx.artifact
+       where step_id=$1
+       and exists (select 1 from nofx.step where id=$1 and run_id=$2)`,
+      [stepId, runId]
+    );
   }
 }

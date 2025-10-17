@@ -276,7 +276,7 @@ describe('Settings Module Tests', () => {
 
       const getSettingWithDefault = (key: string, defaultValue?: any) => {
         const value = null; // Simulate missing setting
-        return value ?? defaults[key] ?? defaultValue;
+        return value ?? (defaults as any)[key] ?? defaultValue;
       };
 
       expect(getSettingWithDefault('theme')).toBe('light');
@@ -337,7 +337,7 @@ describe('Settings Module Tests', () => {
 
     test('handles setting version upgrades', () => {
       const upgradeSettings = (settings: any, fromVersion: number, toVersion: number) => {
-        let upgraded = { ...settings };
+        const upgraded = { ...settings };
 
         if (fromVersion < 2 && toVersion >= 2) {
           // Version 2: Rename dark_mode to theme

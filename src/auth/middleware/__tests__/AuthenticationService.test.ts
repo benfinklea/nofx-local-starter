@@ -366,11 +366,11 @@ describe('AuthenticationService', () => {
         expect(resMocks.json).toHaveBeenCalledWith({
           error: 'Authentication failed'
         });
-        expect(resMocks.json).not.toHaveBeenCalledWith(
-          expect.objectContaining({
-            message: expect.stringContaining('database')
-          })
-        );
+        // Verify that sensitive details are NOT leaked
+        const jsonCall = resMocks.json.mock.calls[0]?.[0];
+        expect(jsonCall).not.toHaveProperty('message');
+        expect(JSON.stringify(jsonCall).toLowerCase()).not.toContain('credentials');
+        expect(JSON.stringify(jsonCall).toLowerCase()).not.toContain('database');
       });
 
       it('should handle getUserTier failure gracefully', async () => {
@@ -727,7 +727,7 @@ describe('AuthenticationService', () => {
 
       // All should succeed
       results.forEach((_, i) => {
-        expect(requests[i].userId).toBe('user123');
+        expect(requests[i]!.userId).toBe('user123');
       });
     });
   });

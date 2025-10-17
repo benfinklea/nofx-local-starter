@@ -70,7 +70,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
     statusCounts: { completed: 95, failed: 5 },
     failuresLast24h: 2,
     lastRunAt: new Date('2024-01-01T10:00:00Z').toISOString(),
-    lastRateLimits: null,
+    lastRateLimits: undefined,
     recentRuns: [],
     rateLimitTenants: [],
     tenantRollup: [],
@@ -450,9 +450,9 @@ describe('Response API Routes - Comprehensive Tests', () => {
       outputImages: [],
       inputTranscripts: [],
       delegations: [],
-      historyPlan: null,
+      historyPlan: undefined,
       traceId: 'trace_456',
-      safety: null
+      safety: undefined
     };
 
     it('retries run with minimal parameters', async () => {
@@ -1045,8 +1045,9 @@ describe('Response API Routes - Comprehensive Tests', () => {
       ];
 
       for (const endpoint of endpoints) {
-        await request(app)
-          [endpoint.method](endpoint.path)
+        const agent = request(app);
+        const requestMethod = (agent as any)[endpoint.method].bind(agent);
+        await requestMethod(endpoint.path)
           .send({})
           .expect(401);
       }
@@ -1075,7 +1076,7 @@ describe('Response API Routes - Comprehensive Tests', () => {
     });
 
     it('handles large payloads appropriately', async () => {
-      const largeMetadata = {};
+      const largeMetadata: Record<string, string> = {};
       for (let i = 0; i < 1000; i++) {
         largeMetadata[`key_${i}`] = `value_${i}`;
       }

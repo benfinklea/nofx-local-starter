@@ -138,7 +138,7 @@ async function processRunSteps(plan: { steps: { name: string; tool?: string; inp
       const idemKey = `${runId}:${s.name}:${hash}`;
 
       trace('step.create.api-begin', { runId, stepName: s.name, tool: s.tool, idemKey, inputs: baseInputs });
-      const created = await store.createStep(runId, s.name, s.tool || 'unknown', baseInputs, idemKey);
+      const created = await store.createStep(runId, s.name, s.tool || 'unknown', baseInputs as any, idemKey);
       let stepId = created?.id;
 
       if (!stepId) {

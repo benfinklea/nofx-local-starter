@@ -103,11 +103,11 @@ describe('ResponsesRunService', () => {
 
     expect(result.bufferedMessages[0]!.text).toBe('hello');
     expect(coordinator.startRun).toHaveBeenCalledTimes(1);
-    expect(coordinator.startRun.mock.calls[0][0].maxToolCalls).toBe(3);
-    expect(coordinator.startRun.mock.calls[0][0].metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expect.any(String) });
-    expect(coordinator.startRun.mock.calls[0][0].request.metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expectedHash });
-    expect(coordinator.startRun.mock.calls[0][0].request.safety_identifier).toBe(expectedHash);
-    expect(coordinator.startRun.mock.calls[0][0].speech).toMatchObject({ mode: 'manual', inputFormat: 'wav' });
+    expect(coordinator.startRun.mock.calls[0]![0].maxToolCalls).toBe(3);
+    expect(coordinator.startRun.mock.calls[0]![0].metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expect.any(String) });
+    expect(coordinator.startRun.mock.calls[0]![0].request.metadata).toMatchObject({ tenant_id: 'tenant-a', workflow: 'daily', safety_identifier_hash: expectedHash });
+    expect(coordinator.startRun.mock.calls[0]![0].request.safety_identifier).toBe(expectedHash);
+    expect(coordinator.startRun.mock.calls[0]![0].speech).toMatchObject({ mode: 'manual', inputFormat: 'wav' });
     expect(result.refusals[0]).toBe('nope');
     expect(result.traceId).toBe('trace_abc');
     expect(result.safety?.hashedIdentifier).toBe(expectedHash);
@@ -134,7 +134,7 @@ describe('ResponsesRunService', () => {
 
     const call = coordinator.startRun.mock.calls.at(-1)?.[0];
     expect(call).toBeDefined();
-    const storedMetadata = call.request.metadata as Record<string, string>;
+    const storedMetadata = call!.request.metadata as Record<string, string>;
     expect(storedMetadata.contact_email).toMatch(/^redacted:[a-f0-9]{64}$/);
     expect(storedMetadata.phone).toMatch(/^redacted:[a-f0-9]{64}$/);
     expect(storedMetadata.redacted_fields?.split(',').sort()).toEqual(['contact_email', 'phone']);

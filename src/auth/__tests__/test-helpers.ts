@@ -295,12 +295,12 @@ export class PerformanceTestUtils {
     times.sort((a, b) => a - b);
 
     return {
-      min: times[0],
-      max: times[times.length - 1],
+      min: times[0]!,
+      max: times[times.length - 1]!,
       average: times.reduce((a, b) => a + b, 0) / times.length,
-      median: times[Math.floor(times.length / 2)],
-      p95: times[Math.floor(times.length * 0.95)],
-      p99: times[Math.floor(times.length * 0.99)]
+      median: times[Math.floor(times.length / 2)]!,
+      p95: times[Math.floor(times.length * 0.95)]!,
+      p99: times[Math.floor(times.length * 0.99)]!
     };
   }
 

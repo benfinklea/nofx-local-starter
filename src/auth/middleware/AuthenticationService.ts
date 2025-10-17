@@ -30,8 +30,12 @@ export class AuthenticationService {
       // No valid authentication found
       this.sendAuthenticationError(res);
     } catch (error: unknown) {
-      log.error({ error }, 'Authentication error');
-      res.status(500).json({ error: 'Authentication failed', message: getErrorMessage(error) });
+      const errorMessage = getErrorMessage(error);
+      log.error({ error, message: errorMessage }, 'Authentication error');
+      res.status(500).json({
+        error: 'Authentication failed'
+        // Note: Do not include errorMessage here to avoid leaking sensitive details
+      });
     }
   }
 

@@ -51,7 +51,7 @@ describe('Models Module Tests', () => {
     test('routes to correct provider', async () => {
       const router = {
         route: (provider: string) => {
-          const providers = {
+          const providers: Record<string, string> = {
             openai: 'openai-handler',
             anthropic: 'anthropic-handler',
             gemini: 'gemini-handler'
@@ -245,7 +245,7 @@ describe('Models Module Tests', () => {
 
     test('validates max tokens', () => {
       const validateMaxTokens = (tokens: number, model: string): boolean => {
-        const limits = {
+        const limits: Record<string, number> = {
           'gpt-4': 8192,
           'gpt-3.5-turbo': 4096,
           'claude-3-opus': 4096

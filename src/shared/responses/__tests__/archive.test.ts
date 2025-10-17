@@ -186,7 +186,7 @@ describe('InMemoryResponsesArchive Tests', () => {
       // Create runs with small delays to ensure different timestamps
       for (let i = 0; i < runs.length; i++) {
         archive.startRun({
-          runId: runs[i],
+          runId: runs[i]!,
           request: { input: [], model: 'gpt-4' },
         });
         // Small delay to ensure different timestamps
@@ -339,8 +339,8 @@ describe('InMemoryResponsesArchive Tests', () => {
       expect(timeline).toBeDefined();
       expect(timeline!.run.runId).toBe('test-run');
       expect(timeline!.events).toHaveLength(2);
-      expect(timeline!.events[0].type).toBe('first.event');
-      expect(timeline!.events[1].type).toBe('second.event');
+      expect(timeline!.events[0]!.type).toBe('first.event');
+      expect(timeline!.events[1]!.type).toBe('second.event');
     });
 
     it('should return undefined for non-existent timeline', () => {
@@ -357,8 +357,8 @@ describe('InMemoryResponsesArchive Tests', () => {
 
       expect(snapshot).toBeDefined();
       expect(snapshot!.events).toHaveLength(2);
-      expect(snapshot!.events[0].type).toBe('event.1');
-      expect(snapshot!.events[1].type).toBe('event.2');
+      expect(snapshot!.events[0]!.type).toBe('event.1');
+      expect(snapshot!.events[1]!.type).toBe('event.2');
     });
 
     it('should return undefined for non-existent snapshot', () => {
@@ -769,7 +769,7 @@ describe('InMemoryResponsesArchive Tests', () => {
         const result = applyRollbackToTimeline(sampleRun, sampleEvents, { toolCallId: 'call-1' });
 
         expect(result.run.result!.output).toHaveLength(1);
-        expect(result.run.result!.output![0].type).toBe('message');
+        expect(result.run.result!.output![0]!.type).toBe('message');
       });
 
       it('should update run metadata', () => {
@@ -859,7 +859,7 @@ describe('InMemoryResponsesArchive Tests', () => {
       const timeline = archive.getTimeline('test-run')!;
 
       // Modify returned events
-      timeline.events[0].payload = { mutable: 'modified' };
+      timeline.events[0]!.payload = { mutable: 'modified' };
 
       // Get timeline again to verify original is preserved
       const timeline2 = archive.getTimeline('test-run')!;

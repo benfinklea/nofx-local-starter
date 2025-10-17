@@ -49,8 +49,14 @@ export const store = {
   getArtifact: (runId: string, stepId: string, filename: string) => StoreFactory.getInstance().getArtifact(runId, stepId, filename),
   listArtifactsByStep: (runId: string, stepId: string) => StoreFactory.getInstance().listArtifactsByStep(runId, stepId),
   deleteArtifact: (runId: string, stepId: string, filename: string) => StoreFactory.getInstance().deleteArtifact(runId, stepId, filename),
-  deleteArtifactsByRun: (runId: string) => StoreFactory.getInstance().deleteArtifactsByRun?.(runId),
-  deleteArtifactsByStep: (runId: string, stepId: string) => StoreFactory.getInstance().deleteArtifactsByStep?.(runId, stepId),
+  deleteArtifactsByRun: (runId: string) => {
+    const instance = StoreFactory.getInstance();
+    return instance.deleteArtifactsByRun ? instance.deleteArtifactsByRun(runId) : Promise.resolve();
+  },
+  deleteArtifactsByStep: (runId: string, stepId: string) => {
+    const instance = StoreFactory.getInstance();
+    return instance.deleteArtifactsByStep ? instance.deleteArtifactsByStep(runId, stepId) : Promise.resolve();
+  },
 
   // Inbox operations
   inboxMarkIfNew: (key: string) => StoreFactory.getInstance().inboxMarkIfNew(key),

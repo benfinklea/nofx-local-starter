@@ -1229,7 +1229,7 @@ describe('Store Module', () => {
 
         // List run directories
         const keys = Array.from(memoryFS.keys()).filter(k => k.includes('/runs/') && k.endsWith('/run.json'));
-        const runIds = keys.map(k => k.split('/runs/')[1].split('/')[0]);
+        const runIds = keys.map(k => k.split('/runs/')[1]!.split('/')[0]!);
         return [...new Set(runIds)] as any;
       });
     });
@@ -1298,7 +1298,7 @@ describe('Store Module', () => {
       expect(unsent).toHaveLength(2);
 
       // Mark first as sent
-      await store.outboxMarkSent(unsent[0].id);
+      await store.outboxMarkSent(unsent[0]!.id);
 
       // List unsent again
       const stillUnsent = await store.outboxListUnsent();

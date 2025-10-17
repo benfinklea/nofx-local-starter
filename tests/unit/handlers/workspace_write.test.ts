@@ -263,7 +263,7 @@ describe('workspace_write handler', () => {
         ended_at: expect.any(String),
         outputs: expect.objectContaining({
           commit: true,
-          commitSha: undefined
+          commitSha: null
         })
       });
     });
@@ -295,7 +295,7 @@ describe('workspace_write handler', () => {
         ended_at: expect.any(String),
         outputs: expect.objectContaining({
           commit: true,
-          commitSha: undefined
+          commitSha: null
         })
       });
     });
@@ -520,7 +520,7 @@ describe('workspace_write handler', () => {
         ended_at: expect.any(String),
         outputs: expect.objectContaining({
           commit: true,
-          commitSha: undefined
+          commitSha: null
         })
       });
     });

@@ -8,11 +8,11 @@ import { jest } from '@jest/globals';
 // Mock dependencies
 jest.mock('../../src/lib/db', () => ({
   query: jest.fn(),
-  withTransaction: jest.fn().mockImplementation((fn: () => any) => fn())
+  withTransaction: jest.fn().mockImplementation((fn: any) => fn())
 }));
 
 jest.mock('../../src/lib/observability', () => ({
-  timeIt: jest.fn().mockImplementation(async (_name: string, fn: () => any) => ({ result: await fn() })),
+  timeIt: jest.fn().mockImplementation(async (_name: any, fn: any) => ({ result: await fn() })),
   log: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -110,7 +110,8 @@ describe('orchestration service', () => {
       await listOrchestrationSessions({ limit: 20 });
 
       // Assert
-      const query = mockQuery.mock.calls[0][0] as string;
+      const query = mockQuery.mock.calls[0]?.[0] as string;
+      expect(query).toBeDefined();
       expect(query).not.toContain('where');
       expect(query).toContain('order by created_at desc');
     });
@@ -195,7 +196,7 @@ describe('orchestration service', () => {
       // The remaining 5 in the original array should NOT be mutated
       // (This would fail with the old buggy code where forEach happened before slice)
       for (let i = 10; i < 15; i++) {
-        expect(mockAgents[i].role).toBe(originalAgents[i].role);
+        expect(mockAgents[i]?.role).toBe(originalAgents[i]?.role);
       }
     });
 
@@ -257,7 +258,7 @@ describe('orchestration service', () => {
       expect(result[0]!.agentId).toBe('agent-123');
       expect(result[0]!.agentName).toBe('Code Generator');
       expect(result[0]!.capabilities).toHaveLength(1);
-      expect(result[0].capabilities[0].skillId).toBe('typescript');
+      expect(result[0]!.capabilities[0]?.skillId).toBe('typescript');
       expect(result[0]!.role).toBe('primary'); // Solo mode assigns primary role
     });
 

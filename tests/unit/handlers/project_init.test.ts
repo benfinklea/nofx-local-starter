@@ -130,7 +130,7 @@ describe('project_init handler', () => {
     });
 
     it('should fail when project is not found', async () => {
-      mockGetProject.mockResolvedValue(null);
+      mockGetProject.mockResolvedValue(undefined);
 
       await projectInitHandler.run({
         runId: 'run-123',
@@ -225,7 +225,7 @@ describe('project_init handler', () => {
 
       mockGetProject.mockResolvedValue(uninitializedProject as any);
       mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/workspace/path');
-      mockWorkspaceManager.autoCommit.mockResolvedValue(undefined);
+      mockWorkspaceManager.autoCommit.mockResolvedValue('' as any);
       mockWorkspaceManager.getStatus.mockResolvedValue({ branch: 'main', clean: true });
 
       await projectInitHandler.run({
@@ -274,7 +274,7 @@ describe('project_init handler', () => {
 
       mockGetProject.mockResolvedValue(initializedProject as any);
       mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/workspace/path');
-      mockWorkspaceManager.autoCommit.mockResolvedValue(undefined);
+      mockWorkspaceManager.autoCommit.mockResolvedValue('' as any);
       mockWorkspaceManager.getStatus.mockResolvedValue({ branch: 'main', clean: true });
 
       await projectInitHandler.run({
@@ -318,7 +318,7 @@ describe('project_init handler', () => {
 
       mockGetProject.mockResolvedValue(project as any);
       mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/workspace/path');
-      mockWorkspaceManager.autoCommit.mockResolvedValue(undefined);
+      mockWorkspaceManager.autoCommit.mockResolvedValue('' as any);
       mockWorkspaceManager.getStatus.mockResolvedValue({ branch: 'main', clean: true });
 
       await projectInitHandler.run({
@@ -379,7 +379,7 @@ describe('project_init handler', () => {
 
       mockGetProject.mockResolvedValue(project as any);
       mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/workspace/path');
-      mockWorkspaceManager.autoCommit.mockResolvedValue(undefined);
+      mockWorkspaceManager.autoCommit.mockResolvedValue('' as any);
       mockWorkspaceManager.getStatus.mockResolvedValue({ branch: 'main', clean: true });
 
       const templates = ['ecommerce', 'saas', 'blog', 'portfolio', 'blank'];
@@ -388,7 +388,7 @@ describe('project_init handler', () => {
         jest.clearAllMocks();
         mockGetProject.mockResolvedValue(project as any);
         mockWorkspaceManager.ensureWorkspace.mockResolvedValue('/workspace/path');
-        mockWorkspaceManager.autoCommit.mockResolvedValue(undefined);
+        mockWorkspaceManager.autoCommit.mockResolvedValue('' as any);
       mockWorkspaceManager.getStatus.mockResolvedValue({ branch: 'main', clean: true });
 
         await projectInitHandler.run({

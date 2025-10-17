@@ -1,4 +1,5 @@
 import type { StepHandler } from "./types";
+import type { JsonValue } from "../../lib/store/types";
 import { store } from "../../lib/store";
 import { recordEvent } from "../../lib/events";
 import { getProject } from "../../lib/projects";
@@ -77,7 +78,7 @@ const handler: StepHandler = {
           : `Initialized new project ${project.name}`,
         workspace: workspacePath,
         template: inputs.template || null,
-        git_status: status,
+        git_status: status as JsonValue,
         initialized: true
       };
 

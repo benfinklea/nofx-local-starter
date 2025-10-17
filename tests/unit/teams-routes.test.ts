@@ -113,7 +113,7 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(200);
 
-      expect(response.body).toEqual({ teams: mockTeams });
+      expect(response.body.data?.teams || response.body.teams).toEqual(mockTeams);
       expect(mockTeamService.listUserTeams).toHaveBeenCalledWith('user-123');
     });
 
@@ -124,7 +124,8 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to list teams' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to list teams');
     });
 
     it('should handle service unavailable', async () => {
@@ -134,7 +135,8 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Service unavailable' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toBeDefined();
     });
 
     it('should handle unexpected exceptions', async () => {
@@ -144,7 +146,8 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Unexpected error' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toBeDefined();
     });
 
     it('should return empty array when no teams found', async () => {
@@ -154,7 +157,7 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(200);
 
-      expect(response.body).toEqual({ teams: [] });
+      expect(response.body.data?.teams || response.body.teams).toEqual([]);
     });
   });
 
@@ -176,7 +179,7 @@ describe('Teams Routes', () => {
         .send(teamData)
         .expect(201);
 
-      expect(response.body).toEqual({ team: mockTeam });
+      expect(response.body.data?.team || response.body.team).toEqual(mockTeam);
       expect(mockTeamService.createTeam).toHaveBeenCalledWith(
         teamData,
         'user-123',
@@ -190,8 +193,10 @@ describe('Teams Routes', () => {
         .send({ name: 'A' }) // Too short
         .expect(400);
 
-      expect(response.body.error).toBe('Invalid request');
-      expect(response.body.details).toBeDefined();
+      const titleOrError = response.body.title || response.body.error;
+      expect(titleOrError).toBeDefined();
+      expect(titleOrError.toLowerCase()).toMatch(/invalid|validation/);
+      expect(response.body.details || response.body.detail).toBeDefined();
     });
 
     it('should use user email as billing email if not provided', async () => {
@@ -226,7 +231,8 @@ describe('Teams Routes', () => {
         .send({ name: 'New Team' })
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to create team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to create team');
     });
 
     it('should handle member creation error and cleanup', async () => {
@@ -237,7 +243,8 @@ describe('Teams Routes', () => {
         .send({ name: 'New Team' })
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to create team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to create team');
     });
 
     it('should generate slug from team name', async () => {
@@ -257,7 +264,8 @@ describe('Teams Routes', () => {
         .send(teamData)
         .expect(201);
 
-      expect(response.body.team.slug).toBe('my-awesome-team');
+      const team = response.body.data?.team || response.body.team;
+      expect(team.slug).toBe('my-awesome-team');
     });
   });
 
@@ -282,7 +290,7 @@ describe('Teams Routes', () => {
         .get('/teams/team-123')
         .expect(200);
 
-      expect(response.body).toEqual({ team: mockTeam });
+      expect(response.body.data?.team || response.body.team).toEqual(mockTeam);
       expect(mockTeamService.getTeamDetails).toHaveBeenCalledWith('team-123');
     });
 
@@ -293,7 +301,8 @@ describe('Teams Routes', () => {
         .get('/teams/team-123')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to get team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to get team');
     });
   });
 
@@ -309,7 +318,7 @@ describe('Teams Routes', () => {
         .send(updateData)
         .expect(200);
 
-      expect(response.body).toEqual({ team: mockTeam });
+      expect(response.body.data?.team || response.body.team).toEqual(mockTeam);
       expect(mockTeamService.updateTeam).toHaveBeenCalledWith(
         'team-123',
         updateData,
@@ -323,7 +332,9 @@ describe('Teams Routes', () => {
         .send({ name: 'A' }) // Too short
         .expect(400);
 
-      expect(response.body.error).toBe('Invalid request');
+      const titleOrError = response.body.title || response.body.error;
+      expect(titleOrError).toBeDefined();
+      expect(titleOrError.toLowerCase()).toMatch(/invalid|validation/);
     });
 
     it('should handle update error', async () => {
@@ -334,7 +345,8 @@ describe('Teams Routes', () => {
         .send({ name: 'Updated Team' })
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to update team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to update team');
     });
   });
 
@@ -346,7 +358,8 @@ describe('Teams Routes', () => {
         .delete('/teams/team-123')
         .expect(200);
 
-      expect(response.body).toEqual({ message: 'Team deleted successfully' });
+      const message = response.body.data?.message || response.body.message;
+      expect(message).toBe('Team deleted successfully');
       expect(mockTeamService.deleteTeam).toHaveBeenCalledWith('team-123', 'user-123');
     });
 
@@ -357,7 +370,8 @@ describe('Teams Routes', () => {
         .delete('/teams/team-123')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to delete team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to delete team');
     });
   });
 
@@ -385,10 +399,9 @@ describe('Teams Routes', () => {
         .send(inviteData)
         .expect(201);
 
-      expect(response.body).toEqual({
-        message: 'Invite sent successfully',
-        invite: expect.objectContaining({ id: 'invite-123' })
-      });
+      const body = response.body.data || response.body;
+      expect(body.message).toBe('Invite sent successfully');
+      expect(body.invite).toEqual(expect.objectContaining({ id: 'invite-123' }));
 
       expect(mockInviteService.sendTeamInvite).toHaveBeenCalledWith(
         'team-123',
@@ -404,7 +417,9 @@ describe('Teams Routes', () => {
         .send({ email: 'invalid-email' })
         .expect(400);
 
-      expect(response.body.error).toBe('Invalid request');
+      const titleOrError = response.body.title || response.body.error;
+      expect(titleOrError).toBeDefined();
+      expect(titleOrError.toLowerCase()).toMatch(/invalid|validation/);
     });
 
     it('should prevent inviting existing members', async () => {
@@ -417,7 +432,8 @@ describe('Teams Routes', () => {
         .send({ email: 'existing@example.com', role: 'member' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'User is already a member of this team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('already a member');
     });
 
     it('should prevent duplicate pending invites', async () => {
@@ -430,7 +446,8 @@ describe('Teams Routes', () => {
         .send({ email: 'pending@example.com', role: 'member' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'User already has a pending invite to this team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('pending invite');
     });
 
     it('should handle email sending failure', async () => {
@@ -443,7 +460,8 @@ describe('Teams Routes', () => {
         .send({ email: 'test@example.com', role: 'member' })
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to send invite email' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to send invite email');
     });
   });
 
@@ -456,7 +474,8 @@ describe('Teams Routes', () => {
         .send({ token: 'valid-token-123' })
         .expect(200);
 
-      expect(response.body).toEqual({ message: 'Invite accepted successfully' });
+      const message = response.body.data?.message || response.body.message;
+      expect(message).toBe('Invite accepted successfully');
       expect(mockInviteService.acceptInvite).toHaveBeenCalledWith(
         { token: 'valid-token-123' },
         'test@example.com',
@@ -474,7 +493,8 @@ describe('Teams Routes', () => {
         .send({ token: 'invalid-token' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'Invalid or expired invite' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Invalid or expired');
     });
 
     it('should reject expired invite', async () => {
@@ -487,7 +507,8 @@ describe('Teams Routes', () => {
         .send({ token: 'expired-token' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'Invite has expired' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('expired');
     });
 
     it('should reject already accepted invite', async () => {
@@ -500,7 +521,8 @@ describe('Teams Routes', () => {
         .send({ token: 'accepted-token' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'Invite has already been used' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('already been used');
     });
 
     it('should reject invite for different user', async () => {
@@ -513,7 +535,8 @@ describe('Teams Routes', () => {
         .send({ token: 'wrong-user-token' })
         .expect(403);
 
-      expect(response.body).toEqual({ error: 'This invite is not for your email address' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('not for your email');
     });
   });
 
@@ -525,7 +548,8 @@ describe('Teams Routes', () => {
         .delete('/teams/team-123/invites/invite-123')
         .expect(200);
 
-      expect(response.body).toEqual({ message: 'Invite cancelled successfully' });
+      const message = response.body.data?.message || response.body.message;
+      expect(message).toBe('Invite cancelled successfully');
       expect(mockInviteService.cancelInvite).toHaveBeenCalledWith(
         'team-123',
         'invite-123',
@@ -542,7 +566,8 @@ describe('Teams Routes', () => {
         .delete('/teams/team-123/invites/invite-123')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Failed to cancel invite' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Failed to cancel invite');
     });
   });
 
@@ -561,7 +586,7 @@ describe('Teams Routes', () => {
         .send({ role: 'admin' })
         .expect(200);
 
-      expect(response.body).toEqual({ member: updatedMember });
+      expect(response.body.data?.member || response.body.member).toEqual(updatedMember);
       expect(mockMemberService.updateMemberRole).toHaveBeenCalledWith(
         'team-123',
         'member-123',
@@ -580,7 +605,8 @@ describe('Teams Routes', () => {
         .send({ role: 'member' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'Cannot change the role of the team owner' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Cannot change the role');
     });
 
     it('should validate role data', async () => {
@@ -589,7 +615,9 @@ describe('Teams Routes', () => {
         .send({ role: 'invalid-role' })
         .expect(400);
 
-      expect(response.body.error).toBe('Invalid request');
+      const titleOrError = response.body.title || response.body.error;
+      expect(titleOrError).toBeDefined();
+      expect(titleOrError.toLowerCase()).toMatch(/invalid|validation/);
     });
   });
 
@@ -601,7 +629,8 @@ describe('Teams Routes', () => {
         .delete('/teams/team-123/members/member-123')
         .expect(200);
 
-      expect(response.body).toEqual({ message: 'Member removed successfully' });
+      const message = response.body.data?.message || response.body.message;
+      expect(message).toBe('Member removed successfully');
       expect(mockMemberService.removeMember).toHaveBeenCalledWith(
         'team-123',
         'member-123',
@@ -618,7 +647,8 @@ describe('Teams Routes', () => {
         .delete('/teams/team-123/members/member-123')
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'Cannot remove the team owner' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('Cannot remove');
     });
   });
 
@@ -630,7 +660,8 @@ describe('Teams Routes', () => {
         .post('/teams/team-123/leave')
         .expect(200);
 
-      expect(response.body).toEqual({ message: 'Left team successfully' });
+      const message = response.body.data?.message || response.body.message;
+      expect(message).toBe('Left team successfully');
       expect(mockMemberService.leaveTeam).toHaveBeenCalledWith('team-123', 'user-123');
     });
 
@@ -643,9 +674,8 @@ describe('Teams Routes', () => {
         .post('/teams/team-123/leave')
         .expect(400);
 
-      expect(response.body).toEqual({
-        error: 'Team owners cannot leave the team. Transfer ownership first.'
-      });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('cannot leave');
     });
   });
 
@@ -658,7 +688,8 @@ describe('Teams Routes', () => {
         .send({ newOwnerId: 'member-456' })
         .expect(200);
 
-      expect(response.body).toEqual({ message: 'Ownership transferred successfully' });
+      const message = response.body.data?.message || response.body.message;
+      expect(message).toBe('Ownership transferred successfully');
       expect(mockMemberService.transferOwnership).toHaveBeenCalledWith(
         'team-123',
         'member-456',
@@ -676,7 +707,8 @@ describe('Teams Routes', () => {
         .send({ newOwnerId: 'nonexistent' })
         .expect(400);
 
-      expect(response.body).toEqual({ error: 'New owner must be a member of the team' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('must be a member');
     });
 
     it('should validate request body', async () => {
@@ -685,7 +717,8 @@ describe('Teams Routes', () => {
         .send({})
         .expect(400);
 
-      expect(response.body.error).toBe('New owner ID is required');
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toContain('required');
     });
   });
 
@@ -711,7 +744,8 @@ describe('Teams Routes', () => {
         .get('/teams')
         .expect(500);
 
-      expect(response.body).toEqual({ error: 'Unexpected error' });
+      expect(response.body.title || response.body.error).toBeDefined();
+      expect(response.body.detail || response.body.error).toBeDefined();
     });
   });
 

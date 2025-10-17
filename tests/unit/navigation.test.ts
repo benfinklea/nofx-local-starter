@@ -416,7 +416,8 @@ describe('Navigation System Tests', () => {
       const result = validateManifest(invalidManifest);
       expect(result.valid).toBe(false);
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toContain('Duplicate item ID');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors![0]!.message).toContain('Duplicate item ID');
     });
 
     test('should warn about invalid group references', () => {
@@ -434,7 +435,8 @@ describe('Navigation System Tests', () => {
       const result = validateManifest(invalidManifest);
       expect(result.valid).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings![0].message).toContain('Invalid group reference');
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings![0]!.message).toContain('Invalid group reference');
     });
 
     test('should warn about deprecated items', () => {
@@ -452,7 +454,8 @@ describe('Navigation System Tests', () => {
       const result = validateManifest(deprecatedManifest);
       expect(result.valid).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings![0].message).toContain('deprecated');
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings![0]!.message).toContain('deprecated');
     });
   });
 

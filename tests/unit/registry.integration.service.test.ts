@@ -59,7 +59,15 @@ describe('registryIntegration.searchRegistry', () => {
     };
 
     const templateDetail: TemplateDetail = {
-      ...templateResponse.templates[0],
+      id: templateResponse.templates[0]!.id,
+      templateId: templateResponse.templates[0]!.templateId,
+      name: templateResponse.templates[0]!.name,
+      description: templateResponse.templates[0]!.description,
+      status: templateResponse.templates[0]!.status,
+      currentVersion: templateResponse.templates[0]!.currentVersion,
+      tags: templateResponse.templates[0]!.tags,
+      category: templateResponse.templates[0]!.category,
+      updatedAt: templateResponse.templates[0]!.updatedAt,
       createdAt: '2025-03-01T00:00:00.000Z',
       versions: [],
       metadata: {

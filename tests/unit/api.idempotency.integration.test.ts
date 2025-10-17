@@ -104,7 +104,7 @@ describe('API Idempotency Integration', () => {
       created_at: new Date().toISOString(),
       idempotency_key: 'test_key'
     });
-    jest.spyOn(store, 'getStepByIdempotencyKey').mockResolvedValue(null);
+    jest.spyOn(store, 'getStepByIdempotencyKey').mockResolvedValue(undefined);
     jest.spyOn(store, 'getStep').mockResolvedValue({
       id: 'step_123',
       run_id: 'run_123',

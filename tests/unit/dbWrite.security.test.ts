@@ -48,7 +48,9 @@ describe('DB Write Security', () => {
         );
 
         // Verify no string interpolation in SQL
-        const sqlArg = mockQuery.mock.calls[0][0];
+        const firstCall = mockQuery.mock.calls[0];
+        expect(firstCall).toBeDefined();
+        const sqlArg = firstCall![0];
         expect(sqlArg).not.toContain(reason);
         expect(sqlArg).toContain('$1');
         expect(sqlArg).toContain('$2');
@@ -91,7 +93,9 @@ describe('DB Write Security', () => {
       );
 
       // Verify the SQL doesn't contain the malicious input directly
-      const sqlArg = mockQuery.mock.calls[0][0];
+      const firstCall = mockQuery.mock.calls[0];
+      expect(firstCall).toBeDefined();
+      const sqlArg = firstCall![0];
       expect(sqlArg).not.toContain(maliciousTableName);
     });
   });

@@ -311,7 +311,7 @@ describe('Auth Module Tests', () => {
   describe('Authorization', () => {
     test('checks user permissions', async () => {
       const checkPermission = async (userId: string, permission: string) => {
-        const permissions = {
+        const permissions: Record<string, string[]> = {
           'user-123': ['read', 'write'],
           'user-456': ['read']
         };

@@ -128,6 +128,11 @@ export class TestSnapshotRecorder {
         const current = currentSnapshot.mockCalls[i];
         const saved = savedSnapshot.mockCalls[i];
 
+        if (!current || !saved) {
+          differences.push(`Mock call ${i}: missing data`);
+          continue;
+        }
+
         if (current.functionName !== saved.functionName) {
           differences.push(`Mock call ${i}: function name mismatch`);
         }

@@ -100,7 +100,7 @@ describe('Integration: Database Transactions (Mocked)', () => {
 
       await query(
         'INSERT INTO step (run_id, name, tool, inputs, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())',
-        [createRun.rows[0].id, 'test-step', 'codegen', '{}', 'pending']
+        [createRun.rows[0]!.id, 'test-step', 'codegen', '{}', 'pending']
       );
 
       await query('DELETE FROM run WHERE id = $1', [runId]);
@@ -336,7 +336,7 @@ describe('Integration: Database Transactions (Mocked)', () => {
       });
 
       const count = await query('SELECT COUNT(*) FROM step WHERE run_id = $1', [runId]);
-      expect(parseInt(count.rows[0].count)).toBe(50);
+      expect(parseInt(count.rows[0]!.count)).toBe(50);
     });
   });
 });

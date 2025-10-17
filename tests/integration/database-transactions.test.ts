@@ -78,12 +78,13 @@ describe('Integration: Database Transactions', () => {
       );
 
       expect(result.rows.length).toBe(1);
-      const runId = result.rows[0].id;
+      const runId = result.rows[0]!.id;
 
       // Create associated steps
       const steps = runData.plan.steps || [];
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
+        if (!step) continue;
         await query(
           `INSERT INTO step (run_id, name, tool, inputs, status, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
@@ -119,7 +120,7 @@ describe('Integration: Database Transactions', () => {
         ['TEST_TRANSACTION: Cascade test', '{}', 'pending']
       );
 
-      const runId = runResult.rows[0].id;
+      const runId = runResult.rows[0]!.id;
 
       // Create step
       await query(
@@ -213,7 +214,7 @@ describe('Integration: Database Transactions', () => {
         ['TEST_TRANSACTION: Concurrent updates', '{}', 'pending']
       );
 
-      const runId = result.rows[0].id;
+      const runId = result.rows[0]!.id;
 
       try {
         // Perform concurrent updates
@@ -250,7 +251,7 @@ describe('Integration: Database Transactions', () => {
         ['TEST_TRANSACTION: Concurrent steps', '{}', 'pending']
       );
 
-      const runId = result.rows[0].id;
+      const runId = result.rows[0]!.id;
 
       try {
         // Create multiple steps concurrently
@@ -270,7 +271,7 @@ describe('Integration: Database Transactions', () => {
 
         // Verify steps were created
         const steps = await query('SELECT COUNT(*) FROM step WHERE run_id = $1', [runId]);
-        expect(parseInt(steps.rows[0].count)).toBeGreaterThanOrEqual(8);
+        expect(parseInt(steps.rows[0]!.count)).toBeGreaterThanOrEqual(8);
       } finally {
         // Clean up
         await query('DELETE FROM step WHERE run_id = $1', [runId]);
@@ -294,7 +295,7 @@ describe('Integration: Database Transactions', () => {
         ['TEST_TRANSACTION: Status consistency', '{}', 'running']
       );
 
-      const runId = runResult.rows[0].id;
+      const runId = runResult.rows[0]!.id;
 
       try {
         // Create steps with various statuses
@@ -348,7 +349,7 @@ describe('Integration: Database Transactions', () => {
         ['TEST_TRANSACTION: NULL handling', '{}', 'pending']
       );
 
-      const runId = result.rows[0].id;
+      const runId = result.rows[0]!.id;
 
       try {
         // Query with NULL conditions
@@ -382,7 +383,7 @@ describe('Integration: Database Transactions', () => {
         ['TEST_TRANSACTION: Bulk inserts', '{}', 'pending']
       );
 
-      const runId = runResult.rows[0].id;
+      const runId = runResult.rows[0]!.id;
 
       try {
         // Bulk insert steps (one by one for testing)
@@ -406,7 +407,7 @@ describe('Integration: Database Transactions', () => {
 
         // Verify all steps were created
         const count = await query('SELECT COUNT(*) FROM step WHERE run_id = $1', [runId]);
-        expect(parseInt(count.rows[0].count)).toBe(50);
+        expect(parseInt(count.rows[0]!.count)).toBe(50);
       } finally {
         // Clean up
         await query('DELETE FROM step WHERE run_id = $1', [runId]);

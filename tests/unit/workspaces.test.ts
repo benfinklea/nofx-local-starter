@@ -216,8 +216,8 @@ describe('WorkspaceManager', () => {
 
       expect(status).toHaveProperty('hasChanges');
       expect(status).toHaveProperty('filesChanged');
-      expect(typeof status.hasChanges).toBe('boolean');
-      expect(typeof status.filesChanged).toBe('number');
+      expect(typeof (status as any).hasChanges).toBe('boolean');
+      expect(typeof (status as any).filesChanged).toBe('number');
     });
 
     it('should return detailed status for basic mode', async () => {
@@ -237,7 +237,7 @@ describe('WorkspaceManager', () => {
       expect(status).toHaveProperty('ahead');
       expect(status).toHaveProperty('behind');
       expect(status).toHaveProperty('files');
-      expect(Array.isArray(status.files)).toBe(true);
+      expect(Array.isArray((status as any).files)).toBe(true);
     });
 
     it('should return full git status for advanced mode', async () => {

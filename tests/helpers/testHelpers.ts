@@ -37,7 +37,7 @@ export function percentile(values: number[], percentile: number): number {
 
   const sorted = [...values].sort((a, b) => a - b);
   const index = Math.ceil((percentile / 100) * sorted.length) - 1;
-  return sorted[index];
+  return sorted[index] ?? 0;
 }
 
 /**

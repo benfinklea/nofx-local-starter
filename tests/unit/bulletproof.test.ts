@@ -8,7 +8,7 @@ import { performance } from 'perf_hooks';
 describe('🛡️ BULLETPROOF TEST SUITE', () => {
 
   describe('Input Validation - Edge Cases & Attack Vectors', () => {
-    const testInputs = [
+    const testInputs: Array<[string | number | null | undefined | any[] | Record<string, unknown>, string]> = [
       // Null/Undefined/Empty
       [null, 'handles null input'],
       [undefined, 'handles undefined input'],
@@ -54,7 +54,7 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
       [String.fromCharCode(127), 'handles DEL character']
     ];
 
-    test.each(testInputs)('with %p input: %s', (input, description) => {
+    test.each(testInputs)('with %p input: %s', (input: string | number | null | undefined | any[] | Record<string, unknown>, description: string) => {
       const sanitize = (value: any) => {
         if (value === null || value === undefined) return '';
         if (typeof value === 'string') {
@@ -169,7 +169,7 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
         return { success: true };
       };
 
-      const resilientQuery = async (maxRetries = 5) => {
+      const resilientQuery = async (maxRetries = 5): Promise<{ success: boolean }> => {
         for (let i = 0; i < maxRetries; i++) {
           try {
             return await unstableQuery();
@@ -178,6 +178,7 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
             await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, i)));
           }
         }
+        throw new Error('Max retries exceeded');
       };
 
       const result = await resilientQuery();
@@ -186,7 +187,7 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
     });
 
     test('handles cascading failures gracefully', async () => {
-      const services = {
+      const services: Record<string, { status: string; dependencies: string[] }> = {
         a: { status: 'up', dependencies: ['b', 'c'] },
         b: { status: 'down', dependencies: ['c'] },
         c: { status: 'up', dependencies: [] }
@@ -195,7 +196,7 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
       const checkHealth = (service: string): boolean => {
         const svc = services[service];
         if (!svc || svc.status === 'down') return false;
-        return svc.dependencies.every(dep => checkHealth(dep));
+        return svc.dependencies.every((dep: string) => checkHealth(dep));
       };
 
       expect(checkHealth('a')).toBe(false); // A depends on B which is down
@@ -374,11 +375,11 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
       const validateJWT = (token: string) => {
         if (!token) return false;
         const parts = token.split('.');
-        if (parts.length !== 3) return false;
+        if (parts.length !== 3 || !parts[0] || !parts[1]) return false;
 
         try {
-          const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+          const header = JSON.parse(Buffer.from(parts[0]!, 'base64').toString());
+          const payload = JSON.parse(Buffer.from(parts[1]!, 'base64').toString());
 
           if (!header.alg || !header.typ) return false;
           if (!payload.exp || payload.exp < Date.now() / 1000) return false;
@@ -425,9 +426,9 @@ describe('🛡️ BULLETPROOF TEST SUITE', () => {
   describe('Chaos Engineering', () => {
     test('survives random service failures', async () => {
       const services = ['db', 'cache', 'queue', 'storage'];
-      const healthStatus = {};
+      const healthStatus: Record<string, boolean> = {};
 
-      services.forEach(service => {
+      services.forEach((service: string) => {
         healthStatus[service] = Math.random() > 0.3; // 70% up
       });
 

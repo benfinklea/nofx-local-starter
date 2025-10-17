@@ -476,7 +476,7 @@ describe('gate handler', () => {
     });
 
     it('should handle artifact upload failures gracefully', async () => {
-      mockSaveArtifact.mockResolvedValue(undefined); // Simulate upload failure
+      mockSaveArtifact.mockResolvedValue('' as any); // Simulate upload failure
 
       mockSpawnSync.mockReturnValue({
         status: 0,

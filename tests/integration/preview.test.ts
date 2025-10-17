@@ -13,10 +13,13 @@ jest.mock('../../src/lib/settings', () => ({
 function createApp(){
   const app = express();
   app.use(express.json());
-  app.post('/runs/preview', async (req, res) => {
+  app.post('/runs/preview', async (req, res): Promise<void> => {
     try {
       const { standard } = req.body || {};
-      if (!standard) return res.status(400).json({ error: 'missing standard' });
+      if (!standard) {
+        res.status(400).json({ error: 'missing standard' });
+        return;
+      }
       const { prompt, quality = true, openPr = false, summarizeQuery, summarizeTarget } = standard;
       const plan = await buildPlanFromPrompt(String(prompt||'').trim(), { quality, openPr, summarizeQuery, summarizeTarget } as any);
       res.json({ steps: plan.steps, plan });

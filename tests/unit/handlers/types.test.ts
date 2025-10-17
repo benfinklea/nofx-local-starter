@@ -94,8 +94,8 @@ describe('Handler Types and Interfaces', () => {
       };
 
       expect(step.inputs).toBeDefined();
-      expect(step.inputs.nested.deep.value).toBe('test');
-      expect(step.inputs.nested.deep.array).toEqual([1, 2, 3]);
+      expect(step.inputs!.nested.deep.value).toBe('test');
+      expect(step.inputs!.nested.deep.array).toEqual([1, 2, 3]);
     });
   });
 

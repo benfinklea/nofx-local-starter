@@ -212,12 +212,12 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'event.3', {});
 
       const calls = mockFileOps.writeJsonFile.mock.calls;
-      expect(calls[0][1]).toEqual([expect.objectContaining({ id: 'uuid-1' })]);
-      expect(calls[1][1]).toEqual([
+      expect(calls[0]?.[1]).toEqual([expect.objectContaining({ id: 'uuid-1' })]);
+      expect(calls[1]?.[1]).toEqual([
         expect.objectContaining({ id: 'uuid-1' }),
         expect.objectContaining({ id: 'uuid-2' })
       ]);
-      expect(calls[2][1]).toEqual([
+      expect(calls[2]?.[1]).toEqual([
         expect.objectContaining({ id: 'uuid-1' }),
         expect.objectContaining({ id: 'uuid-2' }),
         expect.objectContaining({ id: 'uuid-3' })
@@ -288,10 +288,10 @@ describe('EventManagementService', () => {
       await service.recordEvent('run-1', 'event.2', {});
 
       const calls = mockFileOps.writeJsonFile.mock.calls;
-      expect(calls[0][1]).toEqual(expect.arrayContaining([
+      expect(calls[0]?.[1]).toEqual(expect.arrayContaining([
         expect.objectContaining({ created_at: '2024-01-15T12:00:00.000Z' })
       ]));
-      expect(calls[1][1]).toEqual(expect.arrayContaining([
+      expect(calls[1]?.[1]).toEqual(expect.arrayContaining([
         expect.objectContaining({ created_at: '2024-01-15T12:00:01.000Z' })
       ]));
     });

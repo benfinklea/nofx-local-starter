@@ -100,7 +100,7 @@ describe('Retry Utilities', () => {
 
       expect(attempts).toBe(4);
       // Verify exponential backoff: each delay should be roughly 2x previous
-      expect(delays[1]).toBeGreaterThan(delays[0] * 1.5);
+      expect(delays[1]!).toBeGreaterThan(delays[0]! * 1.5);
     });
 
     it('should call onRetry callback', async () => {

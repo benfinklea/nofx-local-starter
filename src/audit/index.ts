@@ -41,12 +41,6 @@ export type {
   BaseAuditEvent,
   CreateAuditEventInput,
 
-  // Enums
-  EventCategory,
-  EventSeverity,
-  EventOutcome,
-  ResourceType,
-
   // Core interfaces
   EventActor,
   EventSubject,

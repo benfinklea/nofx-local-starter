@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { db } from '../../lib/db';
+import { query } from '../../lib/db';
 import { log } from '../../lib/logger';
 
 const router = Router();
@@ -59,7 +59,7 @@ router.get('/stats', async (req: Request, res: Response) => {
     startDate.setDate(startDate.getDate() - daysBack);
 
     // Query SDK usage stats
-    const stats = await db.query<{
+    const stats = await query<{
       total_runs: string;
       sdk_runs: string;
       total_tokens: string;
@@ -82,7 +82,7 @@ router.get('/stats', async (req: Request, res: Response) => {
     );
 
     // Query daily breakdown
-    const dailyStats = await db.query<{
+    const dailyStats = await query<{
       date: string;
       sdk_runs: string;
       total_tokens: string;
@@ -125,7 +125,7 @@ router.get('/stats', async (req: Request, res: Response) => {
             ? ((parseInt(summary.sdk_runs) / parseInt(summary.total_runs)) * 100).toFixed(1)
             : '0.0',
       },
-      daily: dailyStats.rows.map(row => ({
+      daily: dailyStats.rows.map((row: { date: string; sdk_runs: string; total_tokens: string; total_cost: string }) => ({
         date: row.date,
         runs: parseInt(row.sdk_runs),
         tokens: parseInt(row.total_tokens),
@@ -153,7 +153,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
   try {
     const { limit = '50' } = req.query;
 
-    const sessions = await db.query<{
+    const sessions = await query<{
       sdk_session_id: string;
       run_id: string;
       created_at: string;
@@ -184,7 +184,16 @@ router.get('/sessions', async (req: Request, res: Response) => {
     );
 
     res.json({
-      sessions: sessions.rows.map(row => ({
+      sessions: sessions.rows.map((row: {
+        sdk_session_id: string;
+        run_id: string;
+        created_at: string;
+        status: string;
+        step_count: string;
+        total_tokens: string;
+        total_cost: string;
+        last_activity: string;
+      }) => ({
         sessionId: row.sdk_session_id,
         runId: row.run_id,
         createdAt: row.created_at,
@@ -216,7 +225,7 @@ router.get('/compare', async (req: Request, res: Response) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
 
-    const comparison = await db.query<{
+    const comparison = await query<{
       method: string;
       run_count: string;
       avg_duration_seconds: string;
@@ -244,8 +253,8 @@ router.get('/compare', async (req: Request, res: Response) => {
     );
 
     const results = {
-      SDK: comparison.rows.find(r => r.method === 'SDK') || null,
-      Legacy: comparison.rows.find(r => r.method === 'Legacy') || null,
+      SDK: comparison.rows.find((r: { method: string }) => r.method === 'SDK') || null,
+      Legacy: comparison.rows.find((r: { method: string }) => r.method === 'Legacy') || null,
     };
 
     res.json({

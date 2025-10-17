@@ -92,7 +92,8 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
+      expect(response).toBeDefined();
       expect(response.run).toBeDefined();
       expect(response.run.id).toBe('existing-run-id');
     });
@@ -107,7 +108,7 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
       expect(response.steps).toBeDefined();
       expect(Array.isArray(response.steps)).toBe(true);
     });
@@ -122,7 +123,7 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
       expect(response.artifacts).toBeDefined();
       expect(Array.isArray(response.artifacts)).toBe(true);
     });
@@ -318,7 +319,7 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
       const responseString = JSON.stringify(response);
 
       // Should not contain unescaped script tags
@@ -452,7 +453,7 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
       expect(response.steps).toBeDefined();
       expect(Array.isArray(response.steps)).toBe(true);
     });
@@ -501,7 +502,7 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
       expect(response.run).toMatchObject({
         id: expect.any(String),
         status: expect.any(String),
@@ -523,7 +524,7 @@ if (!hasFullInfrastructure) {
       for (const invalidId of invalidIds) {
         const mockReq = createMockRequest({
           method: 'GET',
-          query: { id: invalidId }
+          query: { id: invalidId as any }
         });
 
         const mockRes = createMockResponse();
@@ -531,7 +532,7 @@ if (!hasFullInfrastructure) {
         await handler(mockReq, mockRes);
 
         // Should return 400 or 404, not 500
-        const statusCode = mockRes.status.mock.calls[0][0];
+        const statusCode = mockRes.status.mock.calls[0]?.[0];
         expect([400, 404]).toContain(statusCode);
       }
     });
@@ -546,7 +547,7 @@ if (!hasFullInfrastructure) {
 
       await handler(mockReq, mockRes);
 
-      const response = mockRes.json.mock.calls[0][0];
+      const response = mockRes.json.mock.calls[0]?.[0];
       const steps = response.steps;
 
       if (steps && steps.length > 1) {

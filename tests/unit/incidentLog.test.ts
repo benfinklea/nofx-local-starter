@@ -22,6 +22,7 @@ describe('IncidentLog', () => {
     log.resolveIncident({ incidentId: incident.id, resolvedBy: 'tester' });
     expect(log.listIncidents({ status: 'open' })).toHaveLength(0);
     const resolved = log.listIncidents({ status: 'resolved' })[0];
-    expect(resolved.resolution?.resolvedBy).toBe('tester');
+    expect(resolved).toBeDefined();
+    expect(resolved!.resolution?.resolvedBy).toBe('tester');
   });
 });

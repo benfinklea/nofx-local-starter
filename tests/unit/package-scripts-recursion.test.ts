@@ -205,6 +205,7 @@ describe('Package.json Script Recursion Prevention', () => {
 
           matches.forEach(match => {
             const calledScript = match[1];
+            if (!calledScript) return;
 
             // The called script should not be the same as current script
             expect(calledScript).not.toBe(scriptName);

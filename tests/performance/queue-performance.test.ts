@@ -88,9 +88,9 @@ describe('Queue Performance Tests', () => {
     }
 
     // Disconnect Redis connection
-    if (adapter && adapter.connection) {
+    if (adapter && (adapter as any).connection) {
       try {
-        await adapter.connection.quit();
+        await (adapter as any).connection.quit();
       } catch {
         // Ignore mock connection errors
       }
@@ -218,9 +218,9 @@ describe('Queue Performance Tests', () => {
       // Sort for percentile calculation
       latencies.sort((a, b) => a - b);
 
-      const p50 = latencies[Math.floor(messageCount * 0.5)];
-      const p95 = latencies[Math.floor(messageCount * 0.95)];
-      const p99 = latencies[Math.floor(messageCount * 0.99)];
+      const p50 = latencies[Math.floor(messageCount * 0.5)] || 0;
+      const p95 = latencies[Math.floor(messageCount * 0.95)] || 0;
+      const p99 = latencies[Math.floor(messageCount * 0.99)] || 0;
 
       log.info(`Enqueue latency - P50: ${p50.toFixed(2)}ms, P95: ${p95.toFixed(2)}ms, P99: ${p99.toFixed(2)}ms`);
 
@@ -251,7 +251,7 @@ describe('Queue Performance Tests', () => {
       }
 
       latencies.sort((a, b) => a - b);
-      const p99 = latencies[Math.floor(iterations * 0.99)];
+      const p99 = latencies[Math.floor(iterations * 0.99)] || 0;
 
       log.info(`getCounts P99 latency: ${p99.toFixed(2)}ms`);
 

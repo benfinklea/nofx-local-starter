@@ -150,9 +150,10 @@ describe('Auth Middleware - Security Tests', () => {
         await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
         expect(mockStatus).toHaveBeenCalledWith(500);
+        // Verify that error details are NOT leaked for security reasons
         expect(mockJson).toHaveBeenCalledWith({
-          error: 'Authentication failed',
-          message: 'Database error'
+          error: 'Authentication failed'
+          // Note: message field intentionally not included to prevent information leakage
         });
       });
     });

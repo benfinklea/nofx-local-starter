@@ -74,10 +74,11 @@ describe('API Module Tests', () => {
   describe('Health Check Endpoint', () => {
     test('responds with status ok', () => {
       const req = {};
-      const res = {
+      const res: any = {
         json: jest.fn(),
-        status: jest.fn(() => res)
+        status: jest.fn()
       };
+      res.status.mockReturnValue(res);
 
       const healthHandler = (req: any, res: any) => {
         res.json({ status: 'ok' });
@@ -104,10 +105,11 @@ describe('API Module Tests', () => {
           plan: { steps: ['step1', 'step2'] }
         }
       };
-      const res = {
+      const res: any = {
         json: jest.fn(),
-        status: jest.fn(() => res)
+        status: jest.fn()
       };
+      res.status.mockReturnValue(res);
 
       const createRunHandler = async (req: any, res: any) => {
         const result = await query(
@@ -137,10 +139,11 @@ describe('API Module Tests', () => {
 
     test('validates required fields', async () => {
       const req = { body: {} };
-      const res = {
+      const res: any = {
         json: jest.fn(),
-        status: jest.fn(() => res)
+        status: jest.fn()
       };
+      res.status.mockReturnValue(res);
 
       const validateHandler = (req: any, res: any) => {
         if (!req.body.plan) {
@@ -163,10 +166,11 @@ describe('API Module Tests', () => {
       query.mockRejectedValueOnce(new Error('Database connection failed'));
 
       const req = { body: { plan: {} } };
-      const res = {
+      const res: any = {
         json: jest.fn(),
-        status: jest.fn(() => res)
+        status: jest.fn()
       };
+      res.status.mockReturnValue(res);
 
       const errorHandler = async (req: any, res: any) => {
         try {
@@ -194,10 +198,11 @@ describe('API Module Tests', () => {
       enqueue.mockRejectedValueOnce(new Error('Queue unavailable'));
 
       const req = { body: { data: 'test' } };
-      const res = {
+      const res: any = {
         json: jest.fn(),
-        status: jest.fn(() => res)
+        status: jest.fn()
       };
+      res.status.mockReturnValue(res);
 
       const queueHandler = async (req: any, res: any) => {
         try {
@@ -227,10 +232,11 @@ describe('API Module Tests', () => {
         body: '{"invalid json',
         headers: { 'content-type': 'application/json' }
       };
-      const res = {
+      const res: any = {
         json: jest.fn(),
-        status: jest.fn(() => res)
+        status: jest.fn()
       };
+      res.status.mockReturnValue(res);
 
       const jsonValidator = (req: any, res: any) => {
         try {
@@ -253,7 +259,7 @@ describe('API Module Tests', () => {
         headers: { 'content-type': 'text/plain' },
         body: {}
       };
-      const res = {
+      const res: any = {
         json: jest.fn(),
         status: jest.fn(() => res)
       };

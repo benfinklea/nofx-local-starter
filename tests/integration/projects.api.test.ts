@@ -56,8 +56,10 @@ describe('Projects API', () => {
       .get('/projects')
       .set('Authorization', 'Bearer test-token');
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.projects)).toBe(true);
-    const ids = (res.body.projects || []).map((p: any) => p.id);
+    // Handle both old format (res.body.projects) and new format (res.body.data.projects)
+    const projects = res.body.data?.projects || res.body.projects || [];
+    expect(Array.isArray(projects)).toBe(true);
+    const ids = projects.map((p: any) => p.id);
     expect(ids).toContain('default');
   });
 
@@ -67,7 +69,9 @@ describe('Projects API', () => {
       .set('Authorization', 'Bearer test-token')
       .send({ name: 'LocalRepo', local_path: process.cwd(), workspace_mode: 'local_path' });
     expect([200,201]).toContain(res.status);
-    expect(res.body).toHaveProperty('id');
-    expect(res.body.name).toBe('LocalRepo');
+    // Handle both old format (res.body) and new format (res.body.data)
+    const project = res.body.data || res.body;
+    expect(project).toHaveProperty('id');
+    expect(project.name).toBe('LocalRepo');
   });
 });
