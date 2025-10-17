@@ -41,10 +41,20 @@ async function executeWithSdk(runId: string, step: any) {
       ? String(inputs.filename).trim()
       : 'README.md';
 
-    const result = await adapter.executeWithSdk(step, {
+    // For simple text generation (like haikus), disable tools so Claude doesn't try to create files
+    // Users can explicitly request tools via inputs._tools
+    const stepWithTools = {
+      ...step,
+      inputs: {
+        ...inputs,
+        _tools: inputs._tools || [] // Empty array = no tools, just text generation
+      }
+    };
+
+    const result = await adapter.executeWithSdk(stepWithTools, {
       runId,
       model: inputs.model || process.env.AGENT_SDK_MODEL || 'claude-sonnet-4-5',
-      sessionMemory: true,
+      sessionMemory: false, // Disable session memory to prevent context bleed between runs
       temperature: inputs.temperature || parseFloat(process.env.AGENT_SDK_TEMPERATURE || '0.7'),
       maxTokens: inputs.maxTokens || parseInt(process.env.AGENT_SDK_MAX_TOKENS || '4096', 10),
     });
