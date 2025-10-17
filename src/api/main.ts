@@ -95,6 +95,39 @@ setupFrontendRouting(app);
 // Health check endpoint
 app.get("/health", handleHealthCheck);
 
+// TEMPORARY TEST ENDPOINT - NO AUTH
+app.post("/test-run", async (req, res) => {
+  try {
+    const { store } = await import('../lib/store');
+    const { enqueue, STEP_READY_TOPIC } = await import('../lib/queue');
+
+    const plan = {
+      goal: "write a haiku about debugging code",
+      steps: [{
+        name: "generate_haiku",
+        tool: "codegen",
+        inputs: {
+          prompt: "Write a haiku (5-7-5 syllables) about debugging code. Make it thoughtful."
+        }
+      }]
+    };
+
+    const run = await store.createRun(plan, 'default');
+    const step = await store.createStep(run.id, 'generate_haiku', 'codegen', {
+      prompt: "Write a haiku about debugging code"
+    });
+
+    await enqueue(STEP_READY_TOPIC, {
+      runId: run.id,
+      stepId: step.id
+    });
+
+    res.json({ id: run.id, status: 'queued', step: step.id });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || 'Unknown error' });
+  }
+});
+
 // Run management endpoints
 app.post('/runs/preview', idempotency(), handleRunPreview);
 
