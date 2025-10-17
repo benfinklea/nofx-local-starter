@@ -126,13 +126,16 @@ export type {
   ComplianceAuditLogAccessedEvent,
 } from './types';
 
+// Re-export enums (already exported from types.ts)
 export {
-  // Enums
   EventCategory,
   EventSeverity,
   EventOutcome,
   ResourceType,
+} from './types';
 
+// Re-export functions
+export {
   // Type guards
   isEventCategory,
   isEventSeverity,
