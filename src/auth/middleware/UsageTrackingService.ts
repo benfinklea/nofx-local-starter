@@ -58,9 +58,29 @@ export class UsageTrackingService {
         method: req.method,
         statusCode: req.res?.statusCode
       });
+
+      // Check if usage warning should be sent (async, don't block)
+      if (req.userId) {
+        this.checkUsageWarnings(req.userId).catch(error => {
+          console.error('Failed to check usage warnings:', error);
+        });
+      }
     } catch (error) {
       // Silently fail usage tracking - don't break user requests
       console.error('Failed to track usage:', error);
+    }
+  }
+
+  /**
+   * Check if usage warnings should be sent for a user
+   */
+  private async checkUsageWarnings(userId: string): Promise<void> {
+    try {
+      const { checkUserUsageAfterIncrement } = require('../../services/usage/usageMonitoring');
+      await checkUserUsageAfterIncrement(userId);
+    } catch (error) {
+      // Silently fail - don't break user requests
+      console.error('Failed to check usage warnings:', error);
     }
   }
 }

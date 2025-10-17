@@ -80,6 +80,87 @@ export async function sendWelcomeEmail(
 }
 
 /**
+ * Send password reset email with custom branded template
+ */
+export async function sendPasswordResetEmail(
+  userId: string,
+  email: string,
+  resetUrl: string,
+  fullName?: string
+): Promise<boolean> {
+  try {
+    // Validate inputs
+    if (!userId || typeof userId !== 'string') {
+      log.error({ userId }, 'Invalid userId for password reset email');
+      return false;
+    }
+
+    if (!isValidEmail(email)) {
+      log.error({ email }, 'Invalid email address for password reset');
+      return false;
+    }
+
+    // Validate reset URL format
+    if (!resetUrl || typeof resetUrl !== 'string') {
+      log.error({ userId, email }, 'Invalid or missing reset URL');
+      return false;
+    }
+
+    try {
+      new URL(resetUrl); // Validate URL format
+    } catch {
+      log.error({ userId, email, resetUrl }, 'Malformed reset URL');
+      return false;
+    }
+
+    // Import PasswordResetEmail dynamically to avoid circular dependencies
+    let PasswordResetEmail;
+    try {
+      const module = await Promise.race<typeof import('../../features/emails/PasswordResetEmail')>([
+        import('../../features/emails/PasswordResetEmail'),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Template import timeout')), 5000)
+        )
+      ]);
+      PasswordResetEmail = module.default;
+    } catch (importError) {
+      log.error({ error: importError, userId, email }, 'Failed to load password reset email template');
+      return false;
+    }
+
+    const result = await sendEmail({
+      to: email,
+      subject: getEmailSubject('transactional', 'passwordReset'),
+      react: PasswordResetEmail({
+        userEmail: email,
+        userName: fullName || email.split('@')[0],
+        resetUrl,
+        expiryMinutes: 60,
+      }),
+      tags: [
+        { name: 'type', value: 'password_reset' },
+        { name: 'userId', value: userId },
+      ],
+    });
+
+    if (result.success) {
+      log.info({ userId, email }, 'Password reset email sent successfully');
+      await logEmailEvent(userId, 'password_reset_email_sent', { emailId: result.id }).catch(err => {
+        log.warn({ error: err, userId }, 'Failed to log email event, but email was sent');
+      });
+    } else {
+      log.error({ userId, email, error: result.error }, 'Failed to send password reset email');
+    }
+
+    return result.success;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log.error({ error, errorMessage, userId, email }, 'Error sending password reset email');
+    return false;
+  }
+}
+
+/**
  * Send subscription confirmation email
  */
 export async function sendSubscriptionConfirmationEmail(
@@ -221,37 +302,144 @@ export async function sendUsageLimitWarningEmail(
     current: number;
     limit: number;
     percentage: number;
+    resetDate?: string;
   }
 ): Promise<boolean> {
   try {
-    const subject = `Usage Warning: ${usageData.percentage}% of ${usageData.metric} limit reached`;
+    // Validate inputs
+    if (!userId || typeof userId !== 'string') {
+      log.error({ userId }, 'Invalid userId for usage warning email');
+      return false;
+    }
 
-    const html = `
-      <h2>Usage Limit Warning</h2>
-      <p>You've used ${usageData.percentage}% of your monthly ${usageData.metric.replace('_', ' ')} limit.</p>
-      <p>Current: ${usageData.current} / ${usageData.limit}</p>
-      <p><a href="${EMAIL_SETTINGS.company.website}/billing">Upgrade your plan</a> to increase your limits.</p>
-    `;
+    if (!isValidEmail(email)) {
+      log.error({ email }, 'Invalid email address for usage warning');
+      return false;
+    }
+
+    // Validate usage data
+    if (!usageData.metric || !['runs', 'api_calls'].includes(usageData.metric)) {
+      log.error({ userId, metric: usageData.metric }, 'Invalid usage metric');
+      return false;
+    }
+
+    if (typeof usageData.current !== 'number' || usageData.current < 0) {
+      log.error({ userId, current: usageData.current }, 'Invalid current usage value');
+      return false;
+    }
+
+    if (typeof usageData.limit !== 'number' || usageData.limit <= 0) {
+      log.error({ userId, limit: usageData.limit }, 'Invalid usage limit value');
+      return false;
+    }
+
+    if (typeof usageData.percentage !== 'number' || usageData.percentage < 0 || usageData.percentage > 200) {
+      log.error({ userId, percentage: usageData.percentage }, 'Invalid percentage value');
+      return false;
+    }
+
+    // Get user's name and current plan with error handling
+    const supabase = createServiceClient();
+    let userName = email.split('@')[0];
+    let currentPlan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
+
+    if (supabase) {
+      try {
+        const { data: user, error: userError } = await Promise.race([
+          supabase.from('users').select('full_name').eq('id', userId).single(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('User query timeout')), 3000)
+          )
+        ]);
+
+        if (userError) {
+          log.warn({ error: userError, userId }, 'Failed to fetch user name, using email');
+        } else if (user?.full_name) {
+          userName = user.full_name;
+        }
+
+        // Get subscription tier from product metadata
+        const { data: subscription, error: subError } = await Promise.race([
+          supabase
+            .from('subscriptions')
+            .select('price:prices(product:products(metadata))')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .single(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Subscription query timeout')), 3000)
+          )
+        ]);
+
+        if (subError) {
+          log.warn({ error: subError, userId }, 'Failed to fetch subscription tier, using free plan');
+        } else {
+          const price = Array.isArray(subscription?.price)
+            ? subscription?.price[0]
+            : subscription?.price;
+
+          const product = Array.isArray(price?.product)
+            ? price?.product[0]
+            : price?.product;
+
+          if (product?.metadata?.tier) {
+            currentPlan = product.metadata.tier;
+          }
+        }
+      } catch (dbError) {
+        log.warn({ error: dbError, userId }, 'Database query failed, using default values');
+      }
+    }
+
+    // Import UsageLimitWarningEmail dynamically with timeout
+    let UsageLimitWarningEmail;
+    try {
+      const module = await Promise.race<typeof import('../../features/emails/UsageLimitWarningEmail')>([
+        import('../../features/emails/UsageLimitWarningEmail'),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Template import timeout')), 5000)
+        )
+      ]);
+      UsageLimitWarningEmail = module.default;
+    } catch (importError) {
+      log.error({ error: importError, userId, email }, 'Failed to load usage warning email template');
+      return false;
+    }
 
     const result = await sendEmail({
       to: email,
-      subject,
-      html,
+      subject: getEmailSubject('usage', 'limitWarning'),
+      react: UsageLimitWarningEmail({
+        userName,
+        metric: usageData.metric,
+        current: usageData.current,
+        limit: usageData.limit,
+        percentage: usageData.percentage,
+        currentPlan,
+        upgradeUrl: `${EMAIL_SETTINGS.company.website}/billing`,
+        resetDate: usageData.resetDate,
+      }),
       tags: [
         { name: 'type', value: 'usage_warning' },
         { name: 'userId', value: userId },
         { name: 'metric', value: usageData.metric },
+        { name: 'percentage', value: usageData.percentage.toString() },
       ],
     });
 
     if (result.success) {
-      log.info({ userId, email, usageData }, 'Usage warning email sent');
-      await logEmailEvent(userId, 'usage_warning_email_sent', usageData);
+      log.info({ userId, email, usageData }, 'Usage warning email sent successfully');
+      await logEmailEvent(userId, 'usage_warning_email_sent', usageData).catch(err => {
+        log.warn({ error: err, userId }, 'Failed to log email event, but email was sent');
+      });
+    } else {
+      log.error({ userId, email, error: result.error }, 'Failed to send usage warning email');
     }
 
     return result.success;
   } catch (error) {
-    log.error({ error, userId, email }, 'Error sending usage warning email');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log.error({ error, errorMessage, userId, email, usageData }, 'Error sending usage warning email');
     return false;
   }
 }
@@ -262,7 +450,7 @@ export async function sendUsageLimitWarningEmail(
 async function logEmailEvent(
   userId: string,
   eventType: string,
-  metadata: Record<string, any>
+  metadata: Record<string, string | number | boolean>
 ): Promise<void> {
   try {
     const supabase = createServiceClient();

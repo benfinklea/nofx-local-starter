@@ -18,7 +18,13 @@ export type SerializableRun = Omit<RunRecord, 'createdAt' | 'updatedAt' | 'safet
   delegations?: SerializableDelegation[];
 };
 
-export type SerializableEvent = Omit<EventRecord, 'occurredAt'> & { occurredAt: string };
+export interface SerializableEvent extends Record<string, unknown> {
+  runId: string;
+  sequence: number;
+  type: string;
+  payload: unknown;
+  occurredAt: string;
+}
 
 export type SerializableSafety = Omit<SafetySnapshot, 'lastRefusalAt' | 'moderatorNotes'> & {
   lastRefusalAt?: string;

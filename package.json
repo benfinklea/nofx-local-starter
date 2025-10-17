@@ -166,7 +166,9 @@
     "perf:report": "node -e \"console.log('📊 Performance report generation not implemented yet')\"",
     "admin:super": "echo '🛡️ Opening super admin dashboard...' && open http://localhost:3002/dev/super-admin",
     "registry:templates:validate": "ts-node-dev --transpile-only scripts/registry/validateTemplates.ts",
-    "registry:templates:publish": "ts-node-dev --transpile-only scripts/registry/publishTemplates.ts"
+    "registry:templates:publish": "ts-node-dev --transpile-only scripts/registry/publishTemplates.ts",
+    "stripe:setup": "ts-node-dev --transpile-only src/scripts/setup-stripe-products.ts",
+    "stripe:setup-webhooks": "ts-node-dev --transpile-only src/scripts/setup-stripe-webhooks.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.0",

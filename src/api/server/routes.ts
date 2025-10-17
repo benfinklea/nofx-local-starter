@@ -15,6 +15,7 @@ import uiRoutes from '../routes/ui';
 import traceLogRoutes from '../routes/traceLog';
 import projectsRoutes from '../routes/projects';
 import agentSdkRoutes from '../routes/agent-sdk';
+import usageMonitoringRoutes from '../routes/admin/usage-monitoring';
 
 export function mountCoreRoutes(app: Express) {
   // Core NOFX routes
@@ -38,8 +39,9 @@ export function mountSaasRoutes(app: Express) {
   // Note: webhookRoutes are mounted early in main.ts before express.json()
   teamsRoutes(app);
 
-  // Super admin routes (protected by email check)
-  app.use('/admin/super-admin', superAdminRoutes);
+  // Admin routes
+  app.use('/admin/super-admin', superAdminRoutes); // Super admin routes (protected by email check)
+  app.use('/admin/usage-monitoring', usageMonitoringRoutes); // Usage monitoring and alerting
 }
 
 export function mountDynamicRoutes(app: Express) {
