@@ -14,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 interface QueueJob {
   id: string;
   topic: string;
-  payload: any;
+  payload: unknown;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'dlq';
   attempts: number;
   max_attempts: number;
@@ -26,7 +26,7 @@ interface QueueJob {
 }
 
 export class PostgresQueueAdapter {
-  private supabase: any;
+  private supabase: ReturnType<typeof createClient>;
   private workerId: string;
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
   private handlers: Map<string, (payload: unknown) => Promise<unknown>> = new Map();
@@ -82,6 +82,7 @@ export class PostgresQueueAdapter {
   }
 
   subscribe(topic: string, handler: (payload: unknown) => Promise<unknown>): void {
+    console.log(`[PostgresQueueAdapter] Subscribing to topic: ${topic}, workerId: ${this.workerId}`);
     this.handlers.set(topic, handler);
 
     // Stop existing polling for this topic
@@ -96,6 +97,7 @@ export class PostgresQueueAdapter {
     }, 1000); // Poll every second
 
     this.pollingIntervals.set(topic, pollInterval);
+    console.log(`[PostgresQueueAdapter] Started polling for topic: ${topic} (every 1s)`);
 
     // Immediate poll
     this.pollForJobs(topic);
@@ -112,9 +114,18 @@ export class PostgresQueueAdapter {
       p_lock_duration_seconds: 30
     });
 
-    if (error || !job) {
-      return; // No jobs available
+    if (error) {
+      console.error(`[PostgresQueueAdapter] Error claiming job for topic ${topic}:`, error);
+      return;
     }
+
+    if (!job) {
+      // No jobs available - this is normal, don't log
+      return;
+    }
+
+    console.log(`[PostgresQueueAdapter] Claimed job ${job.id} for topic ${topic}`);
+
 
     try {
       // Process the job
@@ -129,9 +140,10 @@ export class PostgresQueueAdapter {
         })
         .eq('id', job.id);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle failure
       const attempts = job.attempts + 1;
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (attempts >= job.max_attempts) {
         // Move to DLQ
@@ -139,7 +151,7 @@ export class PostgresQueueAdapter {
           .from('queue_jobs')
           .update({
             status: 'dlq',
-            error: error.message || String(error),
+            error: errorMessage,
             updated_at: new Date().toISOString()
           })
           .eq('id', job.id);
@@ -152,7 +164,7 @@ export class PostgresQueueAdapter {
             status: 'pending',
             attempts,
             locked_until: new Date(Date.now() + backoffMs).toISOString(),
-            error: error.message || String(error),
+            error: errorMessage,
             updated_at: new Date().toISOString()
           })
           .eq('id', job.id);
@@ -162,7 +174,7 @@ export class PostgresQueueAdapter {
     }
   }
 
-  async getCounts(topic: string): Promise<any> {
+  async getCounts(topic: string): Promise<Record<string, number>> {
     const { data, error } = await this.supabase
       .from('queue_jobs')
       .select('status', { count: 'exact' })
@@ -180,7 +192,7 @@ export class PostgresQueueAdapter {
       dlq: 0
     };
 
-    data?.forEach((row: any) => {
+    data?.forEach((row: Record<string, unknown>) => {
       const status = row.status as keyof typeof counts;
       counts[status] = (counts[status] || 0) + 1;
     });
